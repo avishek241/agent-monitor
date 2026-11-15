@@ -55,3 +55,6 @@ no tokens spent by the monitor itself; never store secrets; tests for the dispat
   - Personal accounts MAY run office projects (if the owner allows per project).
   - The **office account must NEVER run personal-project tasks** — the dispatcher refuses the lease, the CLI refuses manual assignment, and the UI greys it out with the reason. Violations are impossible by construction, and any attempt is logged as an alert.
   - Account/project tags live in the user's private config (never in git).
+
+## Owner addition (22:35): maximise parallel use of every account
+The dispatcher must run **several jobs per account in parallel** when quota allows, not one-per-worker: capacity = f(remaining 5-h/7-d quota, time to reset, job size estimate), with conflict domains (files/areas, migration numbering, merge queue, external single-stream resources like a Tally/PC) preventing unsafe overlap. Prefer spending quota that is about to reset. After every completion it re-plans immediately; a "spare capacity" alert fires when an account has quota and no running job while ready tasks exist. Keep a ready backlog so there is always something to run.
