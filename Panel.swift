@@ -337,7 +337,7 @@ func firstMetricLine(_ t: RunningTask) -> String? {
   guard let m = t.metrics?.first(where: { $0.total != nil }) ?? t.metrics?.first else { return nil }
   return "\(m.label): \(m.total.map { "\(num(m.done)) of \(num($0))" } ?? num(m.done))\(m.left.isEmpty ? "" : " · " + m.left)"
 }
-/// "W0 Claude-Veggie (orchestrator)" → ("W0", "Claude-Veggie (orchestrator)")
+/// "W0 Claude-A (orchestrator)" → ("W0", "Claude-A (orchestrator)")
 func splitWorker(_ name: String) -> (String, String) {
   let p = name.split(separator: " ", maxSplits: 1).map(String.init)
   return p.count == 2 && p[0].count <= 3 ? (p[0], p[1]) : (String(name.prefix(2)), name)
