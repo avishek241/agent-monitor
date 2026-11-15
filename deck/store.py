@@ -519,7 +519,7 @@ class ProjectStore(ProjectStoreAPI):
                     "onHang is not restart, process not killed, or attempts exhausted")
         if name == "hang_block":
             on = (t.get("retry") or {}).get("onHang", "restart")
-            return (on in ("block", "alert") or not self.attempts_left(t) or eff.get("t") == "T15",
+            return (on in ("block", "alert") or not self.attempts_left(t),
                     "onHang=restart with attempts left")
         if name == "exhausted_or_expired":
             hours = int((t.get("timeouts") or {}).get("taskHours", 48))

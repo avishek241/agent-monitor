@@ -121,3 +121,56 @@ class DeckCase(unittest.TestCase):
                 "doneWhen": [{"item": "tests pass", "met": True, "evidence": "python3 -m unittest: OK"}],
                 "tests": [{"command": "python3 -m unittest", "result": "pass", "passed": 10, "failed": 0}],
                 "risks": [], "decisionsNeeded": []}
+
+
+class CliCase(DeckCase):
+    """DeckCase plus on-disk config files so `deck.cli.main` can run in-process."""
+
+    def setUp(self):
+        super().setUp()
+        import copy
+        m = copy.deepcopy(self.m)
+        for p in m["projects"]:
+            pf = Path(self.tmp) / f"{p['id']}.project.json"
+            pf.write_text(json.dumps(self.pf[p["id"]]))
+            p["config"] = str(pf)
+        self.cfg_path = str(Path(self.tmp) / "deck.json")
+        Path(self.cfg_path).write_text(json.dumps(m))
+        self._env = {k: os.environ.get(k) for k in ("DECK_PROJECT", "DECK_TASK", "DECK_ATTEMPT", "DECK_TOKEN",
+                                                    "DECK_WORKER", "CLAUDE_CONFIG_DIR", "CODEX_HOME", "DECK_ACCOUNT")}
+        for k in self._env:
+            os.environ.pop(k, None)
+
+    def tearDown(self):
+        for k, v in self._env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        super().tearDown()
+
+    def cli(self, *args, project="shop-ops", stdin=None):
+        import contextlib
+        import io
+        import sys
+        from deck import cli
+        out, err = io.StringIO(), io.StringIO()
+        old_in = sys.stdin
+        if stdin is not None:
+            sys.stdin = io.StringIO(stdin)
+        try:
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                pre = ["--config", self.cfg_path] + (["-p", project] if project else [])
+                try:
+                    rc = cli.main(pre + list(args))
+                except SystemExit as e:
+                    rc = e.code
+        finally:
+            sys.stdin = old_in
+        return rc, out.getvalue(), err.getvalue()
+
+    def cli_store(self, pid="shop-ops"):
+        """A store on the same state dir as the CLI (fresh connection each time)."""
+        from deck.config import Config
+        cfg = Config.load(self.cfg_path)
+        return ProjectStore(pid, cfg, GlobalStore(cfg))
