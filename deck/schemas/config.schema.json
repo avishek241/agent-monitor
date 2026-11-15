@@ -1,0 +1,468 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-deck/config.schema.json",
+  "title": "Agent Deck configuration (private)",
+  "description": "Two kinds of file, both PRIVATE (never in git): the machine config ~/.config/agent-deck/deck.json (kind=machine: accounts, workers, projects, UI) and one project config per project (kind=project: repo, rules, slots, gates, health). Account and project 'scope' tags live only here. 'deck doctor' fails if any config file is tracked by git.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/machine"
+    },
+    {
+      "$ref": "#/$defs/project"
+    }
+  ],
+  "$defs": {
+    "scope": {
+      "enum": [
+        "office",
+        "personal"
+      ],
+      "description": "Policy tag. Missing tag = fail closed (account runs nothing, project dispatches nothing)."
+    },
+    "machine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "accounts",
+        "workers",
+        "projects"
+      ],
+      "properties": {
+        "kind": {
+          "const": "machine"
+        },
+        "stateDir": {
+          "type": "string",
+          "default": "~/.local/share/agent-deck"
+        },
+        "listen": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "type": "string",
+              "default": "127.0.0.1"
+            },
+            "port": {
+              "type": "integer",
+              "default": 7788
+            },
+            "tailscale": {
+              "type": "boolean",
+              "default": false,
+              "description": "Also bind the Tailscale interface (100.x) for the phone deck. Writes need a paired device token."
+            }
+          }
+        },
+        "accounts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "label",
+              "tool",
+              "scope",
+              "home"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]{2,24}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 32,
+                "description": "Shown on UIs, e.g. 'Claude · office'."
+              },
+              "tool": {
+                "enum": [
+                  "claude",
+                  "codex"
+                ]
+              },
+              "scope": {
+                "$ref": "#/$defs/scope"
+              },
+              "home": {
+                "type": "string",
+                "description": "CLAUDE_CONFIG_DIR or CODEX_HOME for this account."
+              },
+              "usage": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "statusFile": {
+                    "type": "string",
+                    "description": "Claude: file written by bin/claude-statusline.sh (rate_limits)."
+                  },
+                  "sessionsGlob": {
+                    "type": "string",
+                    "description": "Codex: rollout files with rate_limits; default <home>/sessions/*/*/*/*.jsonl."
+                  },
+                  "ceilingPct": {
+                    "type": "number",
+                    "default": 92,
+                    "description": "Do not start new work above this 5-hour %."
+                  },
+                  "weeklyCeilingPct": {
+                    "type": "number",
+                    "default": 95
+                  }
+                }
+              },
+              "dispatch": {
+                "type": "boolean",
+                "default": true,
+                "description": "false = show usage only, never lease (e.g. an account only used by hand)."
+              },
+              "parallel": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "max": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8,
+                    "default": 3,
+                    "description": "Hard cap of simultaneous jobs on this account (all its workers together)."
+                  },
+                  "reservePct": {
+                    "type": "number",
+                    "default": 5,
+                    "description": "5-hour % kept free as safety margin in the admission check."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "workers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "account",
+              "adapter"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^W[0-9]{1,2}$"
+              },
+              "account": {
+                "type": "string"
+              },
+              "adapter": {
+                "enum": [
+                  "claude-headless",
+                  "codex-exec",
+                  "interactive",
+                  "shell"
+                ]
+              },
+              "role": {
+                "enum": [
+                  "orchestrator",
+                  "worker"
+                ],
+                "default": "worker"
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "code",
+                    "data",
+                    "ui",
+                    "infra",
+                    "browser",
+                    "research",
+                    "review"
+                  ]
+                }
+              },
+              "permission": {
+                "type": "string",
+                "description": "Adapter permission preset, e.g. 'bypass' | 'auto' | 'workspace-write'."
+              },
+              "model": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lanes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8,
+                "default": 3,
+                "description": "Max simultaneous jobs this worker identity may run (lanes W1·1, W1·2…). The account's parallel.max caps the sum over its workers."
+              }
+            }
+          }
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "config",
+              "scope"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{1,31}$"
+              },
+              "config": {
+                "type": "string",
+                "description": "Path to the project config (kind=project)."
+              },
+              "scope": {
+                "$ref": "#/$defs/scope"
+              },
+              "allowPersonalAccounts": {
+                "type": "boolean",
+                "default": false,
+                "description": "Office projects only: personal accounts may run its tasks. Ignored (always true) for personal projects."
+              },
+              "weight": {
+                "type": "number",
+                "default": 1,
+                "description": "Cross-project dispatch share (fair-share weight)."
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true,
+                "description": "false = shown on Overview as paused; nothing dispatched."
+              },
+              "color": {
+                "type": "string",
+                "description": "Tile colour on the deck, e.g. '#ff5a1f'."
+              },
+              "icon": {
+                "type": "string",
+                "maxLength": 4
+              }
+            }
+          }
+        },
+        "notifyCommand": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional local command run with the event JSON on stdin for action/alert events (owner wires their own channel)."
+        },
+        "scheduler": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxParallelTotal": {
+              "type": "integer",
+              "default": 6,
+              "description": "Machine cap on concurrent agent jobs (CPU/RAM)."
+            },
+            "minFreeRamGb": {
+              "type": "number",
+              "default": 2,
+              "description": "Do not admit a new job when free memory is below this."
+            },
+            "backlogTarget": {
+              "type": "integer",
+              "default": 0,
+              "description": "Desired queued+ready eligible tasks; 0 = auto (total spare lanes + 2)."
+            },
+            "spareAlertMin": {
+              "type": "integer",
+              "default": 5,
+              "description": "Minutes an account may sit with spare capacity and no job while eligible work exists before account.spare fires."
+            },
+            "replanDebounceMs": {
+              "type": "integer",
+              "default": 500
+            }
+          }
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "title",
+        "repo"
+      ],
+      "properties": {
+        "kind": {
+          "const": "project"
+        },
+        "title": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "mainBranch": {
+          "type": "string",
+          "default": "main"
+        },
+        "worktreesDir": {
+          "type": "string"
+        },
+        "briefsDir": {
+          "type": "string",
+          "default": "docs/tasks",
+          "description": "Where 'deck new' writes briefs (relative to repo)."
+        },
+        "rulesFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "AGENTS.md"
+          ],
+          "description": "Always injected into every worker prompt."
+        },
+        "taskNumberStart": {
+          "type": "integer",
+          "default": 1
+        },
+        "worktreeInclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ignored files copied/linked into new worktrees, e.g. '.env', 'data/private' (symlink)."
+        },
+        "setup": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Commands run once in a new worktree, e.g. 'pnpm install --prefer-offline'."
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "type": "integer",
+              "default": 6
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Templates with {slot}, {portBase}, {task}; e.g. {\"API_PORT\": \"{portBase}0\", \"TEST_DB\": \"proj_test_{slot}\"}."
+            },
+            "portBase": {
+              "type": "string",
+              "default": "4{slot}1",
+              "description": "Template; ports portBase0..portBase9 reserved per slot."
+            },
+            "canonicalPorts": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "description": "Ports nobody may hard-code in tests (doctor + gate check)."
+            }
+          }
+        },
+        "gates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Commands the merge queue runs in the task worktree (with a fresh slot) before merging."
+        },
+        "health": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "url"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "group": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "legacy": {
+          "type": "object",
+          "description": "v1 import (observe mode).",
+          "properties": {
+            "progressDir": {
+              "type": "string"
+            },
+            "runnerLogDirGlobs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "titlesFile": {
+              "type": "string"
+            }
+          }
+        },
+        "domains": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "capacity": {
+                "type": "integer",
+                "default": 1
+              },
+              "ttlMin": {
+                "type": "integer",
+                "default": 240
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Declared conflict domains with capacity, e.g. {\"seq:db-migrations\": {\"capacity\": 0}} (0 = unlimited in parallel, serialised at merge), {\"ext:pc-ssh\": {\"capacity\": 1}}, {\"res:demo-db\": {\"capacity\": 2}}. area: domains need no declaration. Undeclared seq/ext/res names are rejected by the validator."
+        },
+        "migrationRule": {
+          "type": "object",
+          "properties": {
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "regenerate": {
+              "type": "string"
+            }
+          },
+          "description": "Files that mean 'this task adds a migration' and the command that renumbers it on top of the target at merge time (run under seq:db-migrations)."
+        }
+      }
+    }
+  }
+}
