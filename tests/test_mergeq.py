@@ -149,6 +149,25 @@ class MergeQueueTests(DeckCase):
         self.task_branch("urgent", {"b.txt": "b\n"}, priority="P1")
         self.assertEqual(self.mq.step("shop", self.stores["shop"])[0], "urgent")
 
+    def test_busy_main_stays_merging_then_merges_after_the_timer(self):
+        """T26 (W0 decision): stays in merging with resumeAt = now + 2 min; no review, no re-approval."""
+        from deck import clock
+        self.setup_mq()
+        self.task_branch("t1", {"app.txt": "task\n"})
+        (self.repo / "app.txt").write_text("uncommitted edit by W0\n")
+        st = self.stores["shop"]
+        self.assertEqual(self.mq.step("shop", st)[1], "busy")
+        t = st.get("t1")
+        self.assertEqual(t["state"], "merging")
+        self.assertEqual(t["resumeAt"], clock.now() + 120)
+        self.mq.retry_at.clear()                       # a restarted daemon: only the stored resumeAt remains
+        clock.advance(60)
+        self.assertIsNone(self.mq.step("shop", st))    # still waiting
+        sh(self.repo, "git", "checkout", "--", "app.txt")
+        clock.advance(61)
+        self.assertEqual(self.mq.step("shop", st), ("t1", "done"))
+        self.assertEqual(st.get("t1")["state"], "done")
+
     def test_dirty_overlap_in_main_waits(self):
         self.setup_mq()
         self.task_branch("t1", {"app.txt": "task\n"})

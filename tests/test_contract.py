@@ -33,6 +33,7 @@ class TestContract(unittest.TestCase):
             self.assertTrue(hasattr(Domains, name), name)
         for api, impl in ((store_api.UsageAPI, store._Usage), (store_api.LimitsAPI, store._Limits),
                           (store_api.LanesAPI, store._Lanes), (store_api.AccountStateAPI, store._AccountState),
+                          (store_api.UsageCostAPI, store._UsageCost),
                           (store_api.SlotsAPI, store._Slots)):
             for name, fn in inspect.getmembers(api, inspect.isfunction):
                 self.assertTrue(hasattr(impl, name), f"{impl.__name__}.{name}")

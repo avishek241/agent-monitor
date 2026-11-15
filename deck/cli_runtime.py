@@ -30,7 +30,7 @@ def cmd_capacity(ctx, args):
     for a in ctx.cfg.accounts.values():
         ai = d.account_input(a.id, now, running)
         cap = capacity.account_capacity(ai, now)
-        fits = capacity.fits_size(cap, ai, a.tool, d._history())
+        fits = capacity.fits_size(cap, ai, a.tool, d._history(), account=a.id)
         rows.append({"account": a.id, "scope": a.scope, "dispatch": a.dispatch, "eff5": ai.eff5,
                      "confidence": ai.confidence, **cap.as_vm(fits, cap.lanes_used < cap.lanes_max and fits is not None,
                                                               cap.hard_stop)})
@@ -64,7 +64,7 @@ def cmd_plan(ctx, args):
                 continue
             ai = d.account_input(a.id, now, running)
             ok, why = capacity.admit(capacity.account_capacity(ai, now), ai,
-                                     *quota.estimate(t.get("size"), a.tool, d._history(), t.get("estimate")),
+                                     *quota.estimate(t.get("size"), a.tool, d._history(), t.get("estimate"), account=a.id),
                                      t.get("priority", "P2"), d.machine(len(running)))
             if ok:
                 placed = f"would start on {ws[0].id} ({a.id})"

@@ -21,6 +21,7 @@ from .events import rank
 from .store import GlobalStore, ProjectStore
 
 EXTRA_COMMANDS: dict = {}   # name -> (setup(subparsers), handler(ctx, args)) — B2 registers here
+from . import cli_runtime  # noqa: E402,F401  (B2 subcommands; must come after EXTRA_COMMANDS)
 
 
 class Ctx:

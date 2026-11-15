@@ -270,9 +270,37 @@ class TestRows(SM):
         self.assertEqual(t["review"]["note"], "conflict in apps/api/x.ts")
         self.bad(self.mk("merging"), "changes_requested", "W0", note="x")
         c = self.mk("merging")
-        t = self.ok(c, "review", "MQ", reason="main checkout busy")
+        t = self.ok(c, "merging", "MQ", reason="main checkout busy")       # T26 stays in merging (W0 decision)
         self.assertEqual(t["resumeAt"], T0 + 120)
-        self.bad(self.mk("merging"), "review", "W0")
+        self.bad(self.mk("merging"), "merging", "W0")
+        self.bad(self.mk("merging"), "review", "MQ")                     # no fall back to review any more
+
+    def test_T26_busy_main_stays_merging_and_retries_without_reapproval(self):
+        tid = self.mk("review", attempt="handoff")
+        self.handoff(tid)
+        self.ok(tid, "merging", "W0")                                       # approved once
+        since = self.ps().get(tid)["stateSince"]
+        rev = self.ps().get(tid)["rev"]
+        clock.advance(30)
+        t = self.ok(tid, "merging", "MQ", reason="main checkout busy (MERGE_HEAD present)", t="T26")
+        self.assertEqual(t["resumeAt"], clock.now() + 120)
+        self.assertEqual(t["stateSince"], since)                            # keeps its place in the queue
+        self.assertEqual(t["rev"], rev + 1)
+        self.assertIn("MERGE_HEAD", t["stateReason"])
+        self.assertEqual(t["review"]["decision"], "approved")               # the approval stands
+        mq = {r["task"]: r for r in self.ps().merge_queue()}
+        self.assertEqual(mq[tid]["state"], "waiting")
+        ev = [e for e in self.ps().events.since(0, limit=500) if e["type"] == "merge.failed" and e["task"] == tid]
+        self.assertEqual(len(ev), 1)
+        self.assertEqual(ev[0]["severity"], "warn")
+        # event_emitted=True (the merge queue already said why) → no second event
+        self.ok(tid, "merging", "MQ", reason="busy again", event_emitted=True)
+        ev = [e for e in self.ps().events.since(0, limit=500) if e["type"] == "merge.failed" and e["task"] == tid]
+        self.assertEqual(len(ev), 1)
+        # after the timer the merge queue finishes it straight from merging: no reviewer involved
+        clock.advance(121)
+        t = self.ok(tid, "done", "MQ")
+        self.assertIsNone(t["resumeAt"])
 
     def test_T27_rework(self):
         tid = self.mk("changes_requested")
@@ -292,7 +320,10 @@ class TestRows(SM):
         self.assertEqual(t["retry"]["maxAttempts"], 2)
         t2 = self.ok(self.mk("failed"), "queued", "W0", attempts_plus=3)
         self.assertEqual(t2["retry"]["maxAttempts"], 6)
-        self.bad(self.mk("failed"), "queued", "owner")
+        t3 = self.ok(self.mk("failed", attempt="crashed", retry={"maxAttempts": 1}), "queued", "owner")   # W0 decision
+        self.assertEqual(t3["retry"]["maxAttempts"], 2)
+        self.bad(self.mk("failed"), "queued", "DSP")
+        self.bad(self.mk("failed"), "queued", "W3")
 
     def test_T29_cancel_any_non_terminal(self):
         for st in states.NON_TERMINAL:

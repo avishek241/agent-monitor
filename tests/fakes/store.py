@@ -34,7 +34,7 @@ ALLOWED = {
     ("hung", "queued"), ("hung", "blocked"), ("running", "queued"), ("running", "failed"), ("hung", "failed"),
     ("starting", "failed"), ("limit_paused", "queued"), ("blocked", "queued"), ("review", "merging"),
     ("review", "done"), ("review", "changes_requested"), ("merging", "done"), ("merging", "changes_requested"),
-    ("merging", "review"), ("changes_requested", "queued"), ("failed", "queued"),
+    ("merging", "merging"), ("changes_requested", "queued"), ("failed", "queued"),
 } | {(s, "cancelled") for s in NON_TERMINAL}
 
 SEV_ORDER = ["debug", "info", "action", "warn", "alert"]
@@ -404,6 +404,8 @@ class FakeProjectStore:
                            "decidedAt": now}
             if not eff.get("event_emitted"):
                 ev.append(("merge.failed", "alert", f"{id} merge failed", ["W0"], {}))
+        elif pair == ("merging", "merging"):      # T26: main checkout busy, retry in 2 min
+            t["resumeAt"] = now + 120
         elif pair == ("changes_requested", "queued"):
             t["resumeAt"] = None
         elif to == "cancelled":

@@ -195,17 +195,23 @@ class Dispatcher:
         if rows is None or att.get("usageStart") is None or usage_end is None:
             return
         a = self.cfg.account(att["account"])
-        rec = {"account_tool": a.tool if a else "?", "size": task.get("size"), "delta5": usage_end - att["usageStart"],
+        rec = {"account": att["account"], "account_tool": a.tool if a else "?", "size": task.get("size") or "M", "delta5": usage_end - att["usageStart"],
                "delta7": None, "minutes": (now - (att.get("startedAt") or now)) / 60, "ts": now}
         if rec["delta5"] >= 0 and not self.gstore.limits.active(att["account"], now):
             (rows.append if isinstance(rows, list) else rows.put)(rec)
+            self._hist_cache = None
 
     def _history(self):
+        """Learned job costs (per account and size) for quota.estimate; cached for a few seconds per tick."""
         rows = getattr(self.gstore, "usage_cost", None)
         if isinstance(rows, list):
             return rows
         if rows is not None and hasattr(rows, "recent"):
-            return rows.recent()
+            cache = getattr(self, "_hist_cache", None)
+            mono = time.monotonic()
+            if cache is None or mono - cache[0] > 5:
+                cache = self._hist_cache = (mono, rows.recent())
+            return cache[1]
         return []
 
     # ------------------------------------------------------------------ capacity inputs
@@ -225,7 +231,7 @@ class Dispatcher:
         jobs = []
         for _pid, t, att in (running if running is not None else self._running()):
             if att.get("account") == aid:
-                est, mins = quota.estimate(t.get("size"), a.tool, self._history(), t.get("estimate"))
+                est, mins = quota.estimate(t.get("size"), a.tool, self._history(), t.get("estimate"), account=a.id)
                 jobs.append(capacity.Job(est, mins, (now - (att.get("startedAt") or now)) / 60))
         return capacity.AccountInput(
             id=aid, eff5=e["eff5"], pct7=e.get("pct7"), resets5=e.get("resets5"), confidence=e["confidence"],
@@ -312,7 +318,7 @@ class Dispatcher:
                         started.append(res)
                         admitted += 1
                         mach.running_total += 1
-                        est, mins = quota.estimate(task.get("size"), a.tool, self._history(), task.get("estimate"))
+                        est, mins = quota.estimate(task.get("size"), a.tool, self._history(), task.get("estimate"), account=a.id)
                         inputs[a.id].jobs.append(capacity.Job(est, mins, 0))
                         caps[a.id] = capacity.account_capacity(inputs[a.id], now)
                         break
@@ -366,7 +372,7 @@ class Dispatcher:
         if not ok:
             self._note(pid, task, f"account policy ({acct.label}: {why})", 1)
             return None
-        est, mins = quota.estimate(task.get("size"), acct.tool, self._history(), task.get("estimate"))
+        est, mins = quota.estimate(task.get("size"), acct.tool, self._history(), task.get("estimate"), account=acct.id)
         ok, why = capacity.admit(cap, ai, est, mins, task.get("priority", "P2"), mach)
         if not ok:
             self._note(pid, task, f"{acct.label}: {why}", 2)
@@ -430,6 +436,7 @@ class Dispatcher:
                 raise PolicyDenied(why or "worker's account changed between lease and launch")
             ws = wsmod.ensure(pcfg, task) if pcfg.repo else {"path": os.getcwd()}
             task["workspace"] = {**(task.get("workspace") or {}), **ws, "slot": att.get("slot")}
+            st.update_attempt(tid, n, workspace=str(ws["path"]), branch=ws.get("branch"))   # W0: persisted per attempt
             senv = wsmod.slot_env(pcfg, att.get("slot"), tid)
             run_dir = self.state_dir / "runs" / pid / tid / str(n)
             run_dir.mkdir(parents=True, exist_ok=True)
@@ -478,9 +485,20 @@ class Dispatcher:
         self.replan = True
 
     def workspace_of(self, task):
-        """Task workspace; falls back to the deterministic worktree path/branch when the store has no path."""
+        """Task workspace: the task's own fields, else the path/branch persisted on its latest attempt, else the
+        deterministic worktree path/branch."""
         ws = dict(task.get("workspace") or {})
         pcfg = self.cfg.project(task.get("project") or "")
+        if not ws.get("path"):
+            st = self.stores.get(task.get("project") or "")
+            try:
+                att = st.current_attempt(task["id"]) if st is not None and hasattr(st, "current_attempt") else None
+            except Exception:  # noqa: BLE001
+                att = None
+            if att and att.get("workspace"):
+                ws["path"] = att["workspace"]
+                if att.get("branch"):
+                    ws.setdefault("branch", att["branch"])
         if not ws.get("path") and pcfg is not None:
             ws.update(wsmod.expected(pcfg, task))
         return ws
@@ -552,7 +570,7 @@ class Dispatcher:
                 continue
             ai = self.account_input(a.id, now, running)
             cap = capacity.account_capacity(ai, now)
-            est, mins = quota.estimate(task.get("size"), a.tool, self._history(), task.get("estimate"))
+            est, mins = quota.estimate(task.get("size"), a.tool, self._history(), task.get("estimate"), account=a.id)
             if capacity.admit(cap, ai, est, mins, task.get("priority", "P2"), self.machine(len(running)))[0]:
                 return True
         return False
@@ -591,12 +609,12 @@ class Dispatcher:
                 continue
             ai = self.account_input(a.id, now, running)
             cap = capacity.account_capacity(ai, now)
-            could = capacity.admit(cap, ai, *quota.estimate("S", a.tool, self._history()), machine=None,
+            could = capacity.admit(cap, ai, *quota.estimate("S", a.tool, self._history(), account=a.id), machine=None,
                                    ignore_lanes=True)[0]
             free = max(0, cap.lanes_max - cap.lanes_used) if could else 0
             spare_lanes += free
             if free:
-                fits = capacity.fits_size(cap, ai, a.tool, self._history())
+                fits = capacity.fits_size(cap, ai, a.tool, self._history(), account=a.id)
                 hints.append(f"{a.label} {free} lane(s) ({fits or '-'} fits)")
             sp = self._spare.setdefault(a.id, {"since": None, "alerted": False})
             if cap.lanes_used or not could:
@@ -643,7 +661,7 @@ class Dispatcher:
         for aid, cap in caps.items():
             a = self.cfg.account(aid)
             ai = inputs[aid]
-            fits = capacity.fits_size(cap, ai, a.tool, self._history())
+            fits = capacity.fits_size(cap, ai, a.tool, self._history(), account=a.id)
             spare = cap.lanes_used < cap.lanes_max and not cap.hard_stop and fits is not None
             why = cap.hard_stop
             if not why and fits is None:

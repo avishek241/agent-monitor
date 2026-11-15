@@ -12,7 +12,8 @@ Conventions
   (the store keeps a sha256 of it; adapters put it in ``DECK_TOKEN``).
 * ``update_attempt`` takes snake_case column names of the ``attempts`` table (§3.2), e.g.
   ``session_id``, ``pid``, ``pgid``, ``pid_start``, ``run_dir``, ``lease_until``, ``last_heartbeat``,
-  ``cpu_secs``, ``out_offset``, ``usage_start``, ``usage_end``, ``tokens``.
+  ``cpu_secs``, ``out_offset``, ``usage_start``, ``usage_end``, ``tokens``, and (W0, schema 2) ``workspace``
+  and ``branch`` — the path and branch the attempt ran in; ``current_attempt`` returns them.
 * Errors: ``deck.errors`` — IllegalTransition, StaleRev, PolicyDenied, CardRejected, NotFound,
   ValidationError, DomainBusy.
 * Actors (``actor=``): 'W0', 'owner', a worker id 'W2' (= WRK), or one of the system actors
@@ -113,6 +114,11 @@ class ProjectStoreAPI:
     def end_attempt(self, task: str, n: int, outcome: str, exit_code: Optional[int] = None) -> None:
         raise NotImplementedError
 
+    def set_reason(self, task: str, text: Optional[str]) -> bool:
+        """W0 addition: the plain-words reason on the board ("waiting: area X held by T-12"). Not a transition:
+        state, rev and stateSince are unchanged and no event is written. True when the stored reason changed."""
+        raise NotImplementedError
+
     def card_op(self, task: str, attempt: Optional[int], op: str, args: dict, token: Optional[str]) -> dict:
         """ops: step.add{title, eta, id?} step.start|step.done|step.fail|step.skip{id} step.eta{id, eta}
         metric{label, done, total?, kind?} note{text} ask{question} hb{}. Raises CardRejected."""
@@ -166,8 +172,22 @@ class AccountStateAPI:
         raise NotImplementedError
 
 
+class UsageCostAPI:
+    """W0 addition: learned cost of each completed job, per account and size (design §6.2)."""
+
+    def put(self, rec: dict) -> None:
+        """rec: account, account_tool, size, delta5, delta7, minutes, ts."""
+        raise NotImplementedError
+
+    def recent(self, account: Optional[str] = None, size: Optional[str] = None, tool: Optional[str] = None,
+               limit: int = 500) -> list[dict]:
+        """Rows oldest-first (newest last), for quota.estimate."""
+        raise NotImplementedError
+
+
 class GlobalStoreAPI:
     usage: UsageAPI
+    usage_cost: UsageCostAPI
     limits: LimitsAPI
     lanes: LanesAPI
     account_state: AccountStateAPI

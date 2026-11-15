@@ -73,9 +73,11 @@ ROWS = (
     Row("T23", ("review",), "changes_requested", (W0, OWN), "note_given", "changes requested"),
     Row("T24", ("merging",), "done", (MQ,), "", "merged"),
     Row("T25", ("merging",), "changes_requested", (MQ,), "", "conflict / gate failed"),
-    Row("T26", ("merging",), "review", (MQ,), "", "main checkout busy"),
+    # W0 decision: a busy main checkout keeps the task in `merging` with a retry timer (resumeAt = now + 120).
+    # No fall back to review, so no second approval is needed.
+    Row("T26", ("merging",), "merging", (MQ,), "", "main checkout busy, retry in 2 min"),
     Row("T27", ("changes_requested",), "queued", (DSP,), "rework_due", "re-queue rework"),
-    Row("T28", ("failed",), "queued", (W0,), "", "retry"),
+    Row("T28", ("failed",), "queued", (W0, OWN), "", "retry"),   # W0 decision: the owner may retry too
     Row("T29", NON_TERMINAL, "cancelled", (W0, OWN), "", "cancelled"),
     Row("T30", ("running",), "queued", (W0, OWN), "reassign_allowed", "reassigned"),
 )

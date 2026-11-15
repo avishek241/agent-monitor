@@ -124,11 +124,11 @@ def admit(cap: Capacity, a: AccountInput, est: float, minutes: float, priority: 
     return True, None
 
 
-def fits_size(cap: Capacity, a: AccountInput, tool: str, history=None) -> Optional[str]:
+def fits_size(cap: Capacity, a: AccountInput, tool: str, history=None, account: Optional[str] = None) -> Optional[str]:
     """Largest size whose job fits before the reset (ignoring lanes): the backlog size-fit hint (§6.10)."""
     best = None
     for s in SIZES:
-        est, mins = quota.estimate(s, tool, history)
+        est, mins = quota.estimate(s, tool, history, account=account)
         ok, _ = admit(cap, a, est, mins, ignore_lanes=True)
         if ok:
             best = s

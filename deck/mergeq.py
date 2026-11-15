@@ -5,8 +5,8 @@ Rules that make M6 impossible:
 - `git merge --abort` only (a) inside the task worktree for our own merge of the target, or (b) in the main checkout
   when WE created the MERGE_HEAD in this step.
 - Migrations are renumbered on top of the target under the merge lock (`seq:db-migrations` implied).
-Deviation from §5.2 T26: a busy main checkout keeps the task in `merging` and retries in 2 min (no review→merging
-round trip, which would need a reviewer actor); the `merge.failed` event still says "main checkout busy".
+T26 (W0 decision): a busy main checkout keeps the task in `merging` (the store's merging → merging row sets
+resumeAt = now + 120 s). No fall back to review and no second approval; the `merge.failed` warn says why.
 """
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from pathlib import Path
 
 from . import clock
 from . import workspace as wsmod
+from .errors import DeckError
 
 PRIO = {"P1": 0, "P2": 1, "P3": 2}
 BUSY_RETRY = 120
@@ -74,7 +75,8 @@ class MergeQueue:
         self.retry_at = {}          # (pid, tid) -> ts
 
     def queue(self, pid, store, now):
-        items = [t for t in store.list(["merging"]) if self.retry_at.get((pid, t["id"]), 0) <= now]
+        items = [t for t in store.list(["merging"])
+                 if self.retry_at.get((pid, t["id"]), 0) <= now and (t.get("resumeAt") or 0) <= now]
         return sorted(items, key=lambda t: (PRIO.get(t.get("priority"), 1), t.get("stateSince") or 0, t["id"]))
 
     def step(self, pid, store, now=None):
@@ -94,6 +96,16 @@ class MergeQueue:
             store.domains.release_all("merge-queue")
         return task["id"], res
 
+    def _wait(self, pid, store, tid, why, text, now):
+        """T26: stay in `merging` with a retry timer (persisted as resumeAt, so it survives a restart)."""
+        self.retry_at[(pid, tid)] = now + BUSY_RETRY
+        self.d.emit(pid, "merge.failed", "warn", text, task=tid)
+        try:
+            store.transition(tid, "merging", actor="MQ", reason=why, t="T26", event_emitted=True)
+        except DeckError:
+            pass        # an older store without the T26 self-loop: the in-memory timer still holds the retry
+        return "busy"
+
     # ------------------------------------------------------------------
     def merge(self, pid, store, task, now):
         pcfg = self.d.cfg.project(pid)
@@ -107,18 +119,15 @@ class MergeQueue:
             return self._changes(pid, store, tid, "worktree missing — nothing to merge")
         why = busy_reason(repo, target)
         if why:
-            self.retry_at[(pid, tid)] = now + BUSY_RETRY
-            self.d.emit(pid, "merge.failed", "warn", f"{tid}: {why} — retry in 2 min, not touching it", task=tid)
-            return "busy"
+            return self._wait(pid, store, tid, why, f"{tid}: {why} — retry in 2 min, not touching it", now)
         # dirty overlap: uncommitted files in main that the branch also changes
         rc, st = git(repo, "status", "--porcelain")
         dirty = {ln[3:].strip() for ln in st.splitlines() if ln.strip()}
         overlap = dirty & set(changed_files(ws, target, branch))
         if overlap:
-            self.retry_at[(pid, tid)] = now + BUSY_RETRY
-            self.d.emit(pid, "merge.failed", "warn", f"{tid}: main checkout has uncommitted changes to "
-                        f"{', '.join(sorted(overlap))[:80]} — retry in 2 min", task=tid)
-            return "busy"
+            return self._wait(pid, store, tid, "main checkout has uncommitted changes to the same files",
+                              f"{tid}: main checkout has uncommitted changes to "
+                              f"{', '.join(sorted(overlap))[:80]} — retry in 2 min", now)
         # 1. bring the target into the worktree (our own merge; abort here only)
         rc, out = git(ws, "merge", "--no-edit", target)
         if rc != 0:

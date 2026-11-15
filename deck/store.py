@@ -23,6 +23,7 @@ from .events import Events, row_to_event, rank
 from .store_api import GlobalStoreAPI, ProjectStoreAPI
 
 LEASE_SEC = 120
+MERGE_RETRY_SEC = 120    # T26: a busy main checkout is retried after this many seconds
 DEFAULTS = {"priority": "P2", "size": "M", "capability": "code", "kind": "normal",
             "workerClass": ["claude-headless", "codex-exec"], "deps": [], "domains": [], "tags": []}
 READ_ONLY = {"brief.sha256", "brief.snapshot", "brief.validatedAt", "doneWhen", "stopPoint", "state", "stateSince",
@@ -31,7 +32,8 @@ EDITABLE = {"title", "summary", "tags", "priority", "size", "kind", "pilotOf", "
             "pinWorker", "domains", "estimate", "isolation", "timeouts", "retry", "merge", "waitingFor", "brief"}
 ATTEMPT_COLS = ("worker", "account", "adapter", "session_id", "pid", "pgid", "pid_start", "run_dir", "slot",
                 "started_at", "ended_at", "lease_until", "last_heartbeat", "cpu_secs", "out_offset", "exit_code",
-                "outcome", "usage_start", "usage_end", "tokens", "continuation_of", "token_hash", "lane")
+                "outcome", "usage_start", "usage_end", "tokens", "continuation_of", "token_hash", "lane",
+                "workspace", "branch")
 CAMEL = {"session_id": "sessionId", "pid_start": "pidStart", "run_dir": "runDir", "started_at": "startedAt",
          "ended_at": "endedAt", "lease_until": "leaseUntil", "last_heartbeat": "lastHeartbeat",
          "exit_code": "exitCode", "usage_start": "usageStart", "usage_end": "usageEnd",
@@ -141,6 +143,41 @@ class _Lanes:
         return [dict(r) for r in self.g.conn.execute("SELECT * FROM lanes WHERE worker=? ORDER BY lane", (worker,))]
 
 
+class _UsageCost:
+    """Learned cost of completed jobs (design §6.2): one row per finished attempt, per account and size.
+
+    ``put`` takes a dict with ``account``, ``account_tool``, ``size``, ``delta5`` (percentage points of the 5-hour
+    window), ``delta7``, ``minutes`` and ``ts``. ``recent`` returns newest-last rows for ``quota.estimate``."""
+    KEEP = 50   # rows kept per (account, size)
+
+    def __init__(self, g):
+        self.g = g
+
+    def put(self, rec) -> None:
+        d = rec if isinstance(rec, dict) else vars(rec)
+        size = d.get("size") or "M"
+        with self.g.tx() as c:
+            c.execute("INSERT INTO usage_cost(account, account_tool, size, delta5, delta7, minutes, ts)"
+                      " VALUES(?,?,?,?,?,?,?)", (d.get("account"), d.get("account_tool"), size, d.get("delta5"),
+                                               d.get("delta7"), d.get("minutes"), d.get("ts") or clock.now()))
+            c.execute("DELETE FROM usage_cost WHERE account IS ? AND size=? AND rowid NOT IN (SELECT rowid FROM"
+                      " usage_cost WHERE account IS ? AND size=? ORDER BY ts DESC, rowid DESC LIMIT ?)",
+                      (d.get("account"), size, d.get("account"), size, self.KEEP))
+
+    def append(self, rec) -> None:   # list-style alias (the dispatcher accepts either)
+        self.put(rec)
+
+    def recent(self, account: Optional[str] = None, size: Optional[str] = None, tool: Optional[str] = None,
+               limit: int = 500) -> list:
+        q, args = "SELECT * FROM usage_cost WHERE 1=1", []
+        for col, v in (("account", account), ("size", size), ("account_tool", tool)):
+            if v is not None:
+                q += f" AND {col}=?"
+                args.append(v)
+        rows = [dict(r) for r in self.g.conn.execute(q + " ORDER BY ts DESC, rowid DESC LIMIT ?", args + [limit])]
+        return rows[::-1]
+
+
 class _AccountState:
     def __init__(self, g):
         self.g = g
@@ -176,6 +213,7 @@ class GlobalStore(GlobalStoreAPI):
         self.limits = _Limits(self)
         self.lanes = _Lanes(self)
         self.account_state = _AccountState(self)
+        self.usage_cost = _UsageCost(self)
         self.events = Events(self.conn, self.tx, None, self.state_dir)
         self.ext_domains = Domains(self.conn, self.tx, "ext_domains", "ext_domain_waits",
                                    capacity=lambda name: 1, emit=self.events.emit, extra=("project", None))
@@ -603,6 +641,7 @@ class ProjectStore(ProjectStoreAPI):
         tid = t["id"]
         a = self.current_attempt(tid)
         ev = []   # (type, severity, text, for_, data)
+        since0 = t.get("stateSince")
         t["state"] = to
         t["stateSince"] = now
         t["stateReason"] = (reason or row.note)[:300]
@@ -720,11 +759,13 @@ class ProjectStore(ProjectStoreAPI):
             if rid == "T23":
                 t["stateReason"] = f"changes: {eff.get('note')}"[:300]
         elif rid == "T24":
+            t["resumeAt"] = None
             self.conn.execute("UPDATE merge_queue SET state='done' WHERE task=?", (tid,))
             self.slots.release(tid)
             self.domains.release("merge", tid)
             ev.append(("merge.done", "info", f"{tid} merged", [], {}))
         elif rid == "T25":
+            t["resumeAt"] = None
             self.conn.execute("UPDATE merge_queue SET state='failed', note=? WHERE task=?", (eff.get("note"), tid))
             self.domains.release("merge", tid)
             t["review"] = {**(t.get("review") or {}), "decision": "changes", "by": actor, "note": eff.get("note"),
@@ -733,10 +774,16 @@ class ProjectStore(ProjectStoreAPI):
                 ev.append(("merge.failed", "alert", f"{tid} merge failed: {reason or eff.get('note') or ''}"[:200], ["W0"],
                            {"note": eff.get("note")}))
         elif rid == "T26":
-            self.conn.execute("UPDATE merge_queue SET state='waiting', note=? WHERE task=?", ("main checkout busy", tid))
+            # Stays in `merging` (W0 decision): keep its place in the queue, retry after the timer, no re-approval.
+            note = (reason or "main checkout busy")[:200]
+            self.conn.execute("UPDATE merge_queue SET state='waiting', note=? WHERE task=?", (note, tid))
             self.domains.release("merge", tid)
-            t["resumeAt"] = now + 120
-            ev.append(("merge.failed", "warn", f"{tid} merge waits: main checkout busy", [], {"retryAt": now + 120}))
+            t["stateSince"] = since0 or now
+            t["resumeAt"] = now + MERGE_RETRY_SEC
+            t["stateReason"] = f"merge waits: {note} · retry {_hm(t['resumeAt'])}"[:300]
+            if not eff.get("event_emitted"):
+                ev.append(("merge.failed", "warn", f"{tid} merge waits: {note} — retry in 2 min"[:200], [],
+                           {"retryAt": t["resumeAt"]}))
         elif rid == "T27":
             t["resumeAt"] = None
         elif rid == "T28":
@@ -885,6 +932,27 @@ class ProjectStore(ProjectStoreAPI):
             cur = c.execute(f"UPDATE attempts SET {sets} WHERE task=? AND n=?", (*fields.values(), task, n))
             if cur.rowcount == 0:
                 raise NotFound(f"attempt {task}#{n} not found")
+
+    def set_reason(self, task: str, text: Optional[str]) -> bool:
+        """Set the plain-words reason shown on the board (e.g. "waiting: area X held by T-12").
+
+        Not a transition: the state, ``rev`` and ``stateSince`` stay as they are, and nothing is logged, so the
+        dispatcher can call it every tick. Returns True when the stored reason changed. The next transition
+        overwrites it with its own reason."""
+        text = (text or "")[:300] or None
+        with self.tx() as c:
+            r = self._row(task)
+            if r["state"] in states.TERMINAL:
+                return False
+            data = json.loads(r["data"])
+            if data.get("stateReason") == text:
+                return False
+            if text is None:
+                data.pop("stateReason", None)
+            else:
+                data["stateReason"] = text
+            c.execute("UPDATE tasks SET data=? WHERE id=? AND rev=?", (json.dumps(data), r["id"], r["rev"]))
+        return True
 
     def end_attempt(self, task: str, n: int, outcome: str, exit_code: Optional[int] = None) -> None:
         now = clock.now()

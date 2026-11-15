@@ -158,10 +158,21 @@ def limit_cleared_by(limit: dict, reading) -> bool:
 DEFAULT_COST = {"S": (8.0, 30.0), "M": (20.0, 90.0), "L": (40.0, 180.0), "XL": (70.0, 360.0)}
 
 
-def estimate(size: str, tool: str, history=None, override: Optional[dict] = None):
-    """(est % of the 5-hour window, minutes). Medians of the last 20 completed attempts for (tool, size)."""
+ACCOUNT_MIN_ROWS = 3   # learned rows an account needs before its own numbers replace the per-tool ones
+
+
+def estimate(size: str, tool: str, history=None, override: Optional[dict] = None, account: Optional[str] = None):
+    """(est % of the 5-hour window, minutes). Medians of the last 20 completed attempts for (account, size) when
+    the account has at least ACCOUNT_MIN_ROWS of them, else for (tool, size), else the S/M/L/XL defaults."""
     est, mins = DEFAULT_COST.get(size or "M", DEFAULT_COST["M"])
-    rows = [r for r in (history or []) if r.get("account_tool") == tool and r.get("size") == size]
+    hist = history or []
+    rows = []
+    if account is not None:
+        rows = [r for r in hist if r.get("account") == account and r.get("size") == size]
+        if len(rows) < ACCOUNT_MIN_ROWS:
+            rows = []
+    if not rows:
+        rows = [r for r in hist if r.get("account_tool") == tool and r.get("size") == size]
     rows = sorted(rows, key=lambda r: r.get("ts") or 0)[-20:]
     d5 = [r["delta5"] for r in rows if r.get("delta5") is not None and r["delta5"] >= 0]
     dm = [r["minutes"] for r in rows if r.get("minutes")]
