@@ -1,0 +1,10 @@
+{
+  "title": "My project · agents",
+  "progressDir": "/tmp/agent-progress",
+  "repo": "~/code/my-project",
+  "runnerLogDirGlobs": ["~/code/my-project/.agent-logs"],
+  "codexAccounts": [{"label": "Codex (worker)", "home": "~/.codex", "runnerAlias": "main", "short": "Codex"}],
+  "claudeAccounts": [{"label": "Claude (orchestrator)", "statusFile": "/tmp/agent-monitor-claude-status.json"}],
+  "workers": [["Claude", "W0"], ["Codex", "W1"]],
+  "health": [{"label": "App :3000", "url": "http://localhost:3000"}]
+}

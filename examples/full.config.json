@@ -1,0 +1,26 @@
+{
+  "title": "My project · background work",
+  "progressDir": "/tmp/my-project-progress",
+  "titlesFile": "titles.json",
+  "repo": "~/code/my-project",
+  "worktreesDir": "~/code/my-project-worktrees",
+  "runnerLogDirGlobs": ["~/code/my-project/.agent-logs", "/tmp/my-project/*/runner-logs"],
+  "claudeTaskOutputGlobs": ["/private/tmp/claude-501/*/tasks/*.output"],
+  "codexTaskPattern": "complete (\\S+\\.md)",
+  "headlessTaskPattern": "docs/tasks/(\\d{3}-[\\w-]+)\\.md",
+  "headlessClaudeLabel": "Claude-Worker",
+  "codexAccounts": [
+    {"label": "Codex-A (worker)", "home": "~/.codex", "runnerAlias": "a", "short": "Codex-A"},
+    {"label": "Codex-B (worker)", "home": "~/.codex-b", "runnerAlias": "b", "short": "Codex-B"}
+  ],
+  "claudeAccounts": [
+    {"label": "Claude-Main (orchestrator)", "statusFile": "/tmp/claude-status-main.json"},
+    {"label": "Claude-Worker (worker)", "statusFile": "/tmp/claude-status-worker.json", "limitLogGlobs": ["~/code/my-project/.agent-logs/*claude*.log"]}
+  ],
+  "workers": [["Claude-Main", "W0"], ["Codex-A", "W1"], ["Codex-B", "W2"], ["Claude-Worker", "W3"]],
+  "health": [
+    {"label": "App :3000", "url": "http://localhost:3000", "group": "local"},
+    {"label": "API :4000", "url": "http://localhost:4000/health", "group": "local"}
+  ],
+  "usageCacheFile": "/tmp/agent-monitor-usage.json"
+}
