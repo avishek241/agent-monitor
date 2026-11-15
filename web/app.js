@@ -26,8 +26,8 @@ function setTheme(p) {
   theme.apply(document, themePref, !!darkQuery?.matches);
   if (parseRoute(location.hash).view === "settings") render();
 }
-// ?theme=mission&mode=dark previews a theme (screenshots, sharing a link) and remembers it.
-if (qs.get("theme")) { themePref = theme.normalise({ theme: qs.get("theme"), mode: qs.get("mode") || themePref.mode }); theme.savePref(window.localStorage, themePref); }
+// ?theme=paper-dark previews a theme (screenshots, sharing a link) and remembers it.
+if (qs.get("theme")) { themePref = theme.normalise({ theme: qs.get("theme"), mode: qs.get("mode") }); theme.savePref(window.localStorage, themePref); }
 theme.apply(document, themePref, !!darkQuery?.matches);
 darkQuery?.addEventListener?.("change", () => theme.apply(document, themePref, darkQuery.matches));
 
@@ -134,10 +134,10 @@ async function runAction(el, act) {
 document.addEventListener("click", (ev) => {
   const swipe = ev.target.closest("[data-swipe]");
   if (swipe) { ev.preventDefault(); goProject(+1); return; }
-  const th = ev.target.closest("[data-theme-cycle],[data-theme-set],[data-mode-set]");
+  const th = ev.target.closest("[data-theme-cycle],[data-theme-set]");
   if (th) {
     const d = th.dataset;
-    const next = d.themeSet ? { ...themePref, theme: d.themeSet } : d.modeSet ? { ...themePref, mode: d.modeSet } : theme.nextPref(themePref);
+    const next = d.themeSet ? { theme: d.themeSet } : theme.nextPref(themePref);
     setTheme(next);
     toast(`Theme: ${theme.label(next)}`);
     return;

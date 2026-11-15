@@ -79,27 +79,28 @@ test("readability tokens: phone body ≥ 15 px, line-height ≈ 1.45, 4/8 spacin
 });
 
 test("theme preference: normalise, quick-toggle cycle, resolve auto, persistence", () => {
-  assert.deepEqual(normalise({ theme: "nope", mode: "x" }), { theme: "deck", mode: "auto" });
-  let p = { theme: "deck", mode: "auto" };
+  assert.deepEqual(normalise({ theme: "nope" }), { theme: "deck" });
+  assert.deepEqual(normalise({ theme: "paper", mode: "dark" }), { theme: "paper-dark" }, "old stored value migrates");
+  let p = { theme: "deck" };
   const seen = [];
-  for (let i = 0; i < 4; i++) { p = nextPref(p); seen.push(label(p)); }
-  assert.deepEqual(seen, ["Mission Control", "Paper · light", "Paper · dark", "Deck"]);
-  assert.deepEqual(resolve({ theme: "paper", mode: "auto" }, true), { "data-theme": "paper", "data-mode": "dark" });
-  assert.deepEqual(resolve({ theme: "paper", mode: "auto" }, false), { "data-theme": "paper", "data-mode": "light" });
-  assert.deepEqual(resolve({ theme: "mission", mode: "dark" }, false), { "data-theme": "mission", "data-mode": "light" });
+  for (let i = 0; i < 5; i++) { p = nextPref(p); seen.push(label(p)); }
+  assert.deepEqual(seen, ["Mission Control", "Paper light", "Paper dark", "Auto", "Deck"]);
+  assert.deepEqual(resolve({ theme: "auto" }, true), { "data-theme": "paper", "data-mode": "dark" });
+  assert.deepEqual(resolve({ theme: "auto" }, false), { "data-theme": "paper", "data-mode": "light" });
+  assert.deepEqual(resolve({ theme: "paper-dark" }, false), { "data-theme": "paper", "data-mode": "dark" });
+  assert.deepEqual(resolve({ theme: "mission" }, true), { "data-theme": "mission", "data-mode": "light" });
   const mem = new Map();
   const store = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v) };
-  savePref(store, { theme: "paper", mode: "dark" });
-  assert.deepEqual(loadPref(store), { theme: "paper", mode: "dark" });
-  assert.deepEqual(loadPref({ getItem: () => { throw new Error("blocked"); } }), { theme: "deck", mode: "auto" });
-  assert.equal(THEMES.length, 3);
+  savePref(store, { theme: "paper-dark" });
+  assert.deepEqual(loadPref(store), { theme: "paper-dark" });
+  assert.deepEqual(loadPref({ getItem: () => { throw new Error("blocked"); } }), { theme: "deck" });
+  assert.deepEqual(THEMES.map((t) => t.id), ["deck", "mission", "paper-light", "paper-dark", "auto"]);
 });
 
-test("settings view: theme picker marks the active theme; Paper shows the mode chips", () => {
-  const h = s(settingsView({ theme: "paper", mode: "dark" }));
-  for (const t of THEMES) assert.match(h, new RegExp(`data-theme-set="${t.id}" aria-pressed="${t.id === "paper"}"`));
-  assert.match(h, /data-mode-set="dark" aria-pressed="true"/);
-  assert.doesNotMatch(s(settingsView({ theme: "deck" })), /data-mode-set/);
+test("settings view: the picker lists all four themes plus Auto and marks the active one", () => {
+  const h = s(settingsView({ theme: "paper-dark" }));
+  for (const t of THEMES) assert.match(h, new RegExp(`data-theme-set="${t.id}" aria-pressed="${t.id === "paper-dark"}"`));
+  for (const n of ["Deck", "Mission Control", "Paper light", "Paper dark", "Auto"]) assert.ok(h.includes(`<b>${n}</b>`), n);
 });
 
 // Screenshot check per theme in headless Chrome (skipped when Chrome is not installed).
@@ -116,7 +117,7 @@ test("screenshot per theme: each theme renders the overview and looks different"
   const out = fs.mkdtempSync(path.join(os.tmpdir(), "deck-shots-"));
   const hashes = new Set();
   try {
-    for (const [t, m] of [["deck", "auto"], ["mission", "auto"], ["paper", "light"], ["paper", "dark"]]) {
+    for (const [t, m] of [["deck", ""], ["mission", ""], ["paper-light", ""], ["paper-dark", ""]]) {
       const png = path.join(out, `${t}-${m}.png`);
       const url = `http://127.0.0.1:${port}/index.html?fixtures=1&theme=${t}&mode=${m}#/`;
       // Chrome runs async in the test runner, so spawn it through a promise-friendly sync call per shot

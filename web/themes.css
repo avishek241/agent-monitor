@@ -2,7 +2,8 @@
    Colour tokens are plain hex so tests/web/themes.test.mjs can check WCAG AA contrast for every theme.
    deck    = the original v2 Studio mockups (default)
    mission = docs/v2/mockups/alt-a "Mission Control"
-   paper   = docs/v2/mockups/alt-b "Paper" (light; data-mode="dark" for dark; theme.js resolves "auto") */
+   paper   = docs/v2/mockups/alt-b "Paper"; data-mode="dark" gives Paper dark. The picker offers four themes
+             (Deck, Mission Control, Paper light, Paper dark) plus Auto, which theme.js resolves to Paper light/dark. */
 
 :root, :root[data-theme="deck"] {
   /* type & density (phone) */
