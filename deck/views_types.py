@@ -30,12 +30,38 @@ class LaneVM(TypedDict, total=False):
     lastActiveSec: Optional[int]; resumeAt: Optional[int]
 
 
+class UsagePointVM(TypedDict, total=False):
+    ts: int; pct5: Optional[float]; pct7: Optional[float]
+
+
+class UsageVM(TypedDict, total=False):
+    """W0 addition (Workers section): 24 h of readings, one per 15 min; 5-hour reset times in that span (up to the
+    next reset); burn = pct5 slope over the last hour of the current window (% per hour); minutesToLimit =
+    (100 - pct5) / burn. burn/minutesToLimit are null when unknown (too few readings, rolled over, at the limit)."""
+    points: List[UsagePointVM]; resets: List[int]; burn5PerHour: Optional[float]; minutesToLimit: Optional[int]
+
+
+class QueuedVM(TypedDict, total=False):
+    """W0 addition: a task the planner expects this account to run next (resume on its own worker, else the most
+    urgent eligible account), or a limit_paused task that resumes on it."""
+    project: str; task: str; num: Optional[int]; title: Optional[str]; worker: Optional[str]; why: Optional[str]
+
+
 class AccountVM(TypedDict, total=False):
     id: str; label: str; tool: str; scope: Optional[str]
     pct5: Optional[float]; pct7: Optional[float]; resets5: Optional[int]; resets7: Optional[int]
     readAgeSec: Optional[int]; confidence: str    # high | stale | low | unknown
     state: str                                    # ok | tight | full | cooling | unknown
     dispatch: bool; capacity: Capacity; lanes: List[LaneVM]
+    # W0 additions, all optional: colour override from config, usage history, jobs done today (attempts that
+    # ended with a handoff since local midnight), the planner's queue for this account.
+    color: Optional[str]; usage: Optional[UsageVM]; doneToday: Optional[int]; queued: List[QueuedVM]
+
+
+class NeedsYouVM(TypedDict, total=False):
+    """W0 addition: one thing waiting on a person. kind: question | blocked | failed | review | alert."""
+    kind: str; project: str; task: str; num: int; title: str; text: str; rev: Optional[int]
+    options: List[str]; eventId: Optional[int]; waitingSec: Optional[int]
 
 
 class EventVM(TypedDict, total=False):
@@ -50,6 +76,7 @@ class OverviewVM(TypedDict, total=False):
     accounts: List[AccountVM]
     machine: dict                                 # {running, maxParallelTotal, freeRamGb}
     backlog: dict                                 # {eligible, target, low, hint}
+    needsYou: List[NeedsYouVM]                    # W0 addition (optional): questions, blocked/failed, reviews, alerts
     alerts: List[EventVM]
 
 
@@ -67,6 +94,7 @@ class TaskVM(TypedDict, total=False):
     progress: Optional[float]; step: Optional[StepVM]; etaFinish: Optional[int]
     metrics: List[MetricVM]; lastActiveSec: Optional[int]; warnings: List[str]
     deps: List[dict]; resumeAt: Optional[int]; kind: str
+    rev: Optional[int]                            # W0 addition: lets list actions send rev (409 stale on a race)
 
 
 class ReviewVM(TypedDict, total=False):
@@ -122,6 +150,11 @@ REQUIRED = {
                  "waitingSec", "pilot", "unlocks"),
     "EligibleVM": ("worker", "account", "label", "scope", "allowed", "reason"),
     "TaskDetailVM": ("task", "card", "attempts", "handoff", "history", "events"),
+    # optional W0 additions: checked only when present
+    "UsageVM": ("points", "resets", "burn5PerHour", "minutesToLimit"),
+    "UsagePointVM": ("ts", "pct5", "pct7"),
+    "QueuedVM": ("project", "task"),
+    "NeedsYouVM": ("kind", "project", "task", "title", "text"),
 }
 
 BOARD_COLUMNS = ("backlog", "upNext", "running", "review", "needsYou", "doneToday")
@@ -136,8 +169,9 @@ def check_vm(name: str, vm: Any) -> List[str]:
         if k not in vm:
             errs.append(f"{name}: missing {k}")
     nested = {
-        "OverviewVM": [("projects", "ProjectTile"), ("accounts", "AccountVM")],
-        "AccountVM": [("lanes", "LaneVM")],
+        "OverviewVM": [("projects", "ProjectTile"), ("accounts", "AccountVM"), ("needsYou", "NeedsYouVM")],
+        "AccountVM": [("lanes", "LaneVM"), ("queued", "QueuedVM")],
+        "UsageVM": [("points", "UsagePointVM")],
         "ProjectVM": [("inbox", "ReviewVM"), ("lanes", "LaneVM")],
     }
     for key, sub in nested.get(name, []):
@@ -149,6 +183,8 @@ def check_vm(name: str, vm: Any) -> List[str]:
                 errs.append(f"ProjectVM.board: missing {col}")
             for i, t in enumerate((vm.get("board") or {}).get(col) or []):
                 errs += [f"board.{col}[{i}].{e}" for e in check_vm("TaskVM", t)]
+    if name == "AccountVM" and vm.get("usage") is not None:
+        errs += [f"usage.{e}" for e in check_vm("UsageVM", vm["usage"])]
     if name == "ReviewVM" and isinstance(vm.get("task"), dict):
         errs += [f"task.{e}" for e in check_vm("TaskVM", vm["task"])]
     return errs

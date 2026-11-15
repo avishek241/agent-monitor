@@ -7,7 +7,15 @@ import { projectView } from "./views/project.js";
 import { taskView, reviewSheet, reassignSheet, answerSheet } from "./views/task.js";
 import { settingsView } from "./views/settings.js";
 import * as theme from "./theme.js";
-import { RENDERERS } from "./layouts/index.js";
+// Layouts load on demand (W0 integration): Studio needs neither, so the first load of any one layout stays under
+// the 60 KB gzipped budget as deckd serves it (tests/test_web.py). layouts/index.js stays the eager registry for tests.
+const LAYOUTS = { mission: () => import("./layouts/mission.js"), paper: () => import("./layouts/paper.js") };
+const RENDERERS = {};
+async function ensureLayout(name) {
+  if (!LAYOUTS[name] || RENDERERS[name]) return false;
+  RENDERERS[name] = (await LAYOUTS[name]()).render;
+  return true;
+}
 
 const qs = new URLSearchParams(location.search);
 const store = {
@@ -26,6 +34,7 @@ function setTheme(p) {
   theme.savePref(window.localStorage, themePref);
   theme.apply(document, themePref, !!darkQuery?.matches);
   if (parseRoute(location.hash).view === "settings") render();
+  else ensureLayout(themePref.layout).catch(() => {}).then(() => render());
 }
 // ?layout=paper&mode=dark previews a theme (screenshots, sharing a link) and remembers it.
 if (qs.get("layout") || qs.get("theme")) { themePref = theme.normalise({ layout: qs.get("layout"), mode: qs.get("mode"), theme: qs.get("theme") }); theme.savePref(window.localStorage, themePref); }
@@ -49,7 +58,7 @@ function toast(text, kind = "") {
 }
 
 async function load(route, force = false) {
-  const jobs = [];
+  const jobs = [ensureLayout(themePref.layout).catch(() => {})];
   // Overview first: non-Studio layouts need its project list to load every project on the very first paint.
   if (force || !S.overview) { const o = await api.overview(); S.overview = o; S.ovAt = nowLocal(); }
   const p = route.project;

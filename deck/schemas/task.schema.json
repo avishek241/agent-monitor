@@ -78,7 +78,9 @@
       }
     },
     "priority": {
+      "description": "P0 = drop-everything (W0 decision at integration), P1 urgent, P2 normal, P3 when idle.",
       "enum": [
+        "P0",
         "P1",
         "P2",
         "P3"

@@ -20,7 +20,7 @@ from . import clock
 from . import workspace as wsmod
 from .errors import DeckError
 
-PRIO = {"P1": 0, "P2": 1, "P3": 2}
+PRIO = {"P0": -1, "P1": 0, "P2": 1, "P3": 2}
 BUSY_RETRY = 120
 GATE_TIMEOUT = 1800
 

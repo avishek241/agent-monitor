@@ -115,6 +115,13 @@ class RealRuntime(B2Case):
         self.assertIn("area:apps/api", reason)
         holder = a if waiting == b else b
         self.assertIn(holder, reason)
+        # the planner lists the waiter under the account expected to run it (Workers section "queued")
+        q = self.g.account_state.get("cx")["capacity"]["queued"]
+        self.assertEqual([x["task"] for x in q], [waiting])
+        self.assertEqual((q[0]["worker"], q[0]["why"]), ("W1", reason[len("waiting: "):]))
+        from deck.views import Views
+        acc = Views(self.cfg, self.g, self.stores).accounts()[0]
+        self.assertEqual([x["task"] for x in acc["queued"]], [waiting])
 
     def test_workspace_on_attempt_and_cost_learned_after_a_job(self):
         self.build_real([account("cx")], [worker("W1", "cx")], [project("shop")])

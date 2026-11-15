@@ -3,6 +3,16 @@
 @font-face { font-family: "Space Grotesk"; src: url(fonts/SpaceGrotesk.woff2) format("woff2"); font-weight: 300 700; font-display: swap; }
 @font-face { font-family: "JetBrains Mono"; src: url(fonts/JetBrainsMono.woff2) format("woff2"); font-weight: 400 800; font-display: swap; }
 @font-face { font-family: "Doto"; src: url(fonts/Doto.woff2) format("woff2"); font-weight: 500 900; font-display: swap; }
+/* Mission Control (W0 integration). Downloaded only when a layout uses the family. */
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/IBMPlexMono-Regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/IBMPlexMono-SemiBold.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/IBMPlexMono-Bold.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Barlow Semi Condensed"; src: url(fonts/BarlowSemiCondensed-Medium.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Barlow Semi Condensed"; src: url(fonts/BarlowSemiCondensed-SemiBold.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow Semi Condensed"; src: url(fonts/BarlowSemiCondensed-Bold.woff2) format("woff2"); font-weight: 700 900; font-display: swap; }
+/* Paper */
+@font-face { font-family: "Fraunces"; src: url(fonts/Fraunces.woff2) format("woff2"); font-weight: 300 900; font-display: swap; }
+@font-face { font-family: "Source Sans 3"; src: url(fonts/SourceSans3.woff2) format("woff2"); font-weight: 200 900; font-display: swap; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { background: var(--page); }

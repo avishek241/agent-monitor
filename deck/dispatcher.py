@@ -20,7 +20,7 @@ from .adapters.claude_headless import ClaudeHeadless
 from .errors import DeckError, IllegalTransition, PolicyDenied
 from .supervise import ACTIVE, Probe, Supervisor, backoff
 
-PRIO = {"P1": 0, "P2": 1, "P3": 2}
+PRIO = {"P0": -1, "P1": 0, "P2": 1, "P3": 2}
 USAGE_TTL = 20
 FAILOVER_MIN_SEC = 45 * 60
 BACKLOG_DEDUP = 30 * 60
@@ -332,12 +332,46 @@ class Dispatcher:
             st = self.stores[pid]
             if hasattr(st, "set_reason"):
                 st.set_reason(task["id"], f"waiting: {why}")
+        self.queues = self.account_queues(cands, caps, now)
         self._publish_account_state(caps, inputs, now)
         if started:
             self.emit(None, "plan.round", "debug", f"started {len(started)} job(s)",
                       data={"started": [f"{p}/{t}@{w}·{l}" for p, t, w, l in started]})
         self.last_plan = started
         return started
+
+    def account_queues(self, cands, caps, now, limit=10):
+        """{account: [{project, task, num, title, worker, why}]}: what each account is expected to run next.
+
+        A waiting candidate goes to the account of its last attempt's worker when that account may still run it
+        (resume on its own worker), else to the eligible dispatch account with the highest urgency. limit_paused
+        tasks are listed under the account they resume on. Shown as AccountVM.queued (Workers section)."""
+        out = {}
+
+        def put(aid, pid, task, worker, why):
+            q = out.setdefault(aid, [])
+            if len(q) < limit:
+                q.append({"project": pid, "task": task["id"], "num": int(str(task["id"]).split("-")[0])
+                          if str(task["id"]).split("-")[0].isdigit() else None,
+                          "title": task.get("title"), "worker": worker, "why": why})
+        accts = [a for a in self.cfg.accounts.values() if a.dispatch]
+        for pid, task in cands:
+            pcfg = self.cfg.project(pid)
+            fits = [(a, self.workers_for(a.id, pid, task, now)) for a in accts]
+            fits = [(a, ws) for a, ws in fits if ws and policy.allow(a, pcfg)[0]]
+            if not fits:
+                continue
+            last = (task.get("attempts") or [{}])[-1] if task.get("attempts") else {}
+            mine = [f for f in fits if f[1][0].id == last.get("worker")]
+            a, ws = mine[0] if mine else max(fits, key=lambda f: (0 if (caps.get(f[0].id) and caps[f[0].id].hard_stop)
+                                                                   else 1, getattr(caps.get(f[0].id), "urgency", 0)))
+            put(a.id, pid, task, ws[0].id, self.notes.get((pid, task["id"])))
+        for pid, st in self.stores.items():
+            for task in st.list(["limit_paused"]):
+                last = (task.get("attempts") or [{}])[-1] if task.get("attempts") else {}
+                if last.get("account"):
+                    put(last["account"], pid, task, last.get("worker"), "resumes after the reset")
+        return out
 
     def _note(self, pid, task, why, strength):
         k = (pid, task["id"])
@@ -671,7 +705,9 @@ class Dispatcher:
                 why = mine[0] if mine else None
             state = ("cooling" if cap.cooling else "unknown" if cap.unknown else "full" if cap.hard_stop or fits is None
                      else "tight" if fits == "S" else "ok")
+            vm = cap.as_vm(fits, spare, why)
+            vm["queued"] = (getattr(self, "queues", None) or {}).get(aid, [])
             try:
-                self.gstore.account_state.put(aid, state, cap.as_vm(fits, spare, why))
+                self.gstore.account_state.put(aid, state, vm)
             except Exception:  # noqa: BLE001
                 pass

@@ -81,6 +81,11 @@ class _Usage:
         row = self.g.conn.execute("SELECT * FROM usage WHERE account=? ORDER BY read_at DESC LIMIT 1", (account,)).fetchone()
         return dict(row) if row else None
 
+    def since(self, account: str, ts: int) -> list:
+        """Readings of one account from ``ts`` on, oldest first (usage history for the Workers section)."""
+        return [dict(r) for r in self.g.conn.execute(
+            "SELECT * FROM usage WHERE account=? AND read_at>=? ORDER BY read_at", (account, ts))]
+
 
 class _Limits:
     def __init__(self, g):
@@ -362,6 +367,12 @@ class ProjectStore(ProjectStoreAPI):
         if not r:
             return None
         return {"attempt": r["attempt"], "ts": r["ts"], "valid": bool(r["valid"]), "data": json.loads(r["data"])}
+
+    def attempts_ended_since(self, ts: int) -> list:
+        """[{account, worker, outcome, n}] counts of attempts that ended at or after ``ts`` (jobs done today)."""
+        return [dict(r) for r in self.conn.execute(
+            "SELECT account, worker, outcome, COUNT(*) AS n FROM attempts WHERE ended_at>=? GROUP BY account, worker, outcome",
+            (ts,))]
 
     def merge_queue(self) -> list:
         return [dict(r) for r in self.conn.execute("SELECT * FROM merge_queue ORDER BY enqueued_at, id")]

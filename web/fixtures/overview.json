@@ -306,7 +306,10 @@
     {
      "project": "shop-ops",
      "task": "110-attendance-history",
-     "title": "Attendance history"
+     "num": 110,
+     "title": "Attendance history",
+     "worker": "W1",
+     "why": "waiting: domain area:apps/api/** held by 109-stock-costs"
     }
    ]
   },
@@ -548,7 +551,10 @@
     {
      "project": "shop-ops",
      "task": "112-payment-ageing",
-     "title": "Payment ageing view"
+     "num": 112,
+     "title": "Payment ageing view",
+     "worker": "W2",
+     "why": "waiting: no free lane on its workers"
     }
    ]
   },
@@ -992,7 +998,10 @@
     {
      "project": "shop-ops",
      "task": "104-vendor-model",
-     "title": "Vendor model (resume)"
+     "num": 104,
+     "title": "Vendor model (resume)",
+     "worker": "W3",
+     "why": "resumes after the reset"
     }
    ]
   },

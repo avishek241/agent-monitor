@@ -147,6 +147,8 @@ class MergeQueueTests(DeckCase):
         self.setup_mq()
         self.task_branch("slow", {"a.txt": "a\n"}, priority="P3")
         self.task_branch("urgent", {"b.txt": "b\n"}, priority="P1")
+        self.task_branch("fire", {"c.txt": "c\n"}, priority="P0")
+        self.assertEqual(self.mq.step("shop", self.stores["shop"])[0], "fire")
         self.assertEqual(self.mq.step("shop", self.stores["shop"])[0], "urgent")
 
     def test_busy_main_stays_merging_then_merges_after_the_timer(self):

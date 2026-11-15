@@ -16,6 +16,46 @@ from .errors import NotFound
 from .events import rank
 
 DAY = 86400
+USAGE_BUCKET = 900          # usage history: one point per 15 min over 24 h (96 points at most)
+BURN_WINDOW = 3600          # burn rate: pct5 slope over the last hour of the current 5-hour window
+BURN_MIN_SPAN = 300         # ... measured over at least 5 minutes of readings
+
+
+def usage_series(readings: list, limits: list, now: int) -> dict:
+    """Workers-section usage block from raw `usage` rows (oldest first) and `limits` rows.
+
+    points: last reading per 15-min bucket over 24 h, {ts, pct5, pct7}. resets: 5-hour reset times seen in the
+    readings or limits, from 24 h ago up to the next reset. burn5PerHour: slope of pct5 over the last hour within
+    the current window (None when there is under 5 min of readings or the window rolled over). minutesToLimit:
+    (100 - pct5) / burn, None when burn is not positive."""
+    t0 = now - DAY
+    rows = [r for r in readings if r.get("read_at") is not None and t0 <= r["read_at"] <= now]
+    buckets = {}
+    for r in rows:
+        buckets[(r["read_at"] - t0) // USAGE_BUCKET] = r
+    points = [{"ts": r["read_at"], "pct5": r.get("pct5"), "pct7": r.get("pct7")} for _k, r in sorted(buckets.items())]
+    nxt = None
+    resets = set()
+    for r in rows:
+        if r.get("resets5"):
+            resets.add(int(r["resets5"]))
+    for lim in limits:
+        if lim.get("resets_at"):
+            resets.add(int(lim["resets_at"]))
+    latest = rows[-1] if rows else None
+    if latest and latest.get("resets5") and latest["resets5"] > now:
+        nxt = int(latest["resets5"])
+    resets = sorted(x for x in resets if t0 <= x <= (nxt or now))
+    burn = mins = None
+    if latest and latest.get("pct5") is not None and not (latest.get("resets5") and latest["resets5"] <= now):
+        win = [r for r in rows if r["read_at"] >= now - BURN_WINDOW and r.get("pct5") is not None
+               and r.get("resets5") == latest.get("resets5")]
+        if len(win) >= 2 and win[-1]["read_at"] - win[0]["read_at"] >= BURN_MIN_SPAN:
+            burn = max(0.0, (win[-1]["pct5"] - win[0]["pct5"]) / ((win[-1]["read_at"] - win[0]["read_at"]) / 3600))
+            burn = round(burn, 1)
+            if burn > 0:
+                mins = max(0, round((100 - latest["pct5"]) / burn * 60))
+    return {"points": points, "resets": resets, "burn5PerHour": burn, "minutesToLimit": mins}
 
 
 def _midnight(now: int) -> int:
@@ -106,7 +146,7 @@ class Views:
             "metrics": metric_rates(hist, card.get("metrics") or [], now),
             "lastActiveSec": (now - last) if last and t["state"] in states.ACTIVE_ATTEMPT else None,
             "warnings": warnings, "deps": deps, "resumeAt": t.get("resumeAt"), "kind": t.get("kind") or "normal",
-            "note": card.get("note"), "question": card.get("question"), "project": s.pid,
+            "note": card.get("note"), "question": card.get("question"), "project": s.pid, "rev": t.get("rev"),
         }
 
     def review_vm(self, s, t: dict, now: int) -> dict:
@@ -120,7 +160,7 @@ class Views:
                 "waitingSec": max(0, now - req), "pilot": t.get("kind") == "pilot", "unlocks": s.dependants(t["id"])}
 
     # ---------------- accounts
-    def account_vm(self, a, now: int, titles=None) -> dict:
+    def account_vm(self, a, now: int, titles=None, done_today=None) -> dict:
         r = self.g.usage.latest(a.id)
         lim = self.g.limits.active(a.id, now)
         st = self.g.account_state.get(a.id)
@@ -157,10 +197,23 @@ class Views:
         if lim:
             cap["why"] = cap.get("why") or f"limit — resumes {_hm((lim[0]['resets_at'] or now) + 90)}"
         cap.setdefault("why", None if a.dispatch else "dispatch off (usage shown only)")
-        return {"id": a.id, "label": a.label, "tool": a.tool, "scope": a.scope, "pct5": pct5,
-                "pct7": r["pct7"] if r else None, "resets5": (lim[0]["resets_at"] if lim else (r or {}).get("resets5")),
-                "resets7": (r or {}).get("resets7"), "readAgeSec": (now - r["read_at"]) if r else None,
-                "confidence": confidence, "state": state, "dispatch": a.dispatch, "capacity": cap, "lanes": lanes}
+        queued = cap.pop("queued", None)                      # the planner's per-account queue (dispatcher)
+        hist = self.g.usage.since(a.id, now - DAY) if hasattr(self.g.usage, "since") else []
+        lims = [dict(x) for x in self.g.conn.execute(
+            "SELECT resets_at FROM limits WHERE account=? AND (resets_at IS NULL OR resets_at>=?)",
+            (a.id, now - DAY))] if hasattr(self.g, "conn") else []
+        out = {"id": a.id, "label": a.label, "tool": a.tool, "scope": a.scope, "pct5": pct5,
+               "pct7": r["pct7"] if r else None, "resets5": (lim[0]["resets_at"] if lim else (r or {}).get("resets5")),
+               "resets7": (r or {}).get("resets7"), "readAgeSec": (now - r["read_at"]) if r else None,
+               "confidence": confidence, "state": state, "dispatch": a.dispatch, "capacity": cap, "lanes": lanes,
+               "usage": usage_series(hist, lims, now) if hist or lims else None,
+               "doneToday": (done_today or {}).get(a.id, 0) if done_today is not None else None,
+               "queued": queued if queued is not None else []}
+        if (a.raw or {}).get("color"):
+            out["color"] = a.raw["color"]
+        if lim and out["usage"]:
+            out["usage"]["burn5PerHour"] = out["usage"]["minutesToLimit"] = None      # at the limit: no estimate
+        return out
 
     def lane_vm(self, worker, n, row, now) -> dict:
         out = {"worker": worker, "lane": n, "state": "running", "project": row.get("project"), "task": row.get("task")}
@@ -176,9 +229,66 @@ class Views:
             pass
         return out
 
+    def done_today(self, now) -> dict:
+        """{account: attempts that ended with a handoff since local midnight}, across every project."""
+        mid = _midnight(now)
+        out = {}
+        for p in self.cfg.projects.values():
+            try:
+                rows = self.store(p.id).attempts_ended_since(mid)
+            except (NotFound, AttributeError):
+                continue
+            for r in rows:
+                if r["outcome"] == "handoff" and r["account"]:
+                    out[r["account"]] = out.get(r["account"], 0) + r["n"]
+        return out
+
     def accounts(self, now=None) -> list:
         now = clock.now() if now is None else now
-        return [self.account_vm(a, now) for a in self.cfg.accounts.values()]
+        done = self.done_today(now)
+        return [self.account_vm(a, now, done_today=done) for a in self.cfg.accounts.values()]
+
+    def needs_you(self, now, limit=30) -> list:
+        """Everything waiting on a person, across projects: questions, blocked/failed tasks, reviews, then recent
+        alert events on live tasks. Items: {kind, project, task, num, title, text, rev, options?, eventId?}."""
+        items = {"question": [], "blocked": [], "review": [], "alert": []}
+        for p in self.cfg.projects.values():
+            s = self.store(p.id)
+            tasks = {t["id"]: t for t in s.list()}
+            for t in tasks.values():
+                base = {"project": p.id, "task": t["id"], "num": int(t["id"].split("-")[0]), "title": t["title"],
+                        "rev": t.get("rev")}
+                if t["state"] == "blocked":
+                    q = (s.card(t["id"]) or {}).get("question")
+                    if q:
+                        who = (t.get("attempts") or [{}])[-1].get("worker") if t.get("attempts") else None
+                        items["question"].append({**base, "kind": "question",
+                                                  "text": (f"{who} asks · " if who else "") + str(q)[:160]})
+                    else:
+                        items["blocked"].append({**base, "kind": "blocked", "text": t.get("stateReason") or "blocked"})
+                elif t["state"] == "failed":
+                    items["blocked"].append({**base, "kind": "failed", "text": t.get("stateReason") or "failed"})
+                elif t["state"] == "review":
+                    h = (s.handoff(t["id"]) or {}).get("data") or {}
+                    dw = h.get("doneWhen") or []
+                    req = (t.get("review") or {}).get("requestedAt") or t.get("stateSince") or now
+                    items["review"].append({**base, "kind": "review", "text": " · ".join(x for x in (
+                        "PILOT" if t.get("kind") == "pilot" else "", h.get("outcome") or "",
+                        f"{sum(1 for d in dw if d.get('met'))}/{len(dw)} done-when" if dw else "",
+                        f"waiting {max(0, now - req) // 60} min") if x), "waitingSec": max(0, now - req)})
+            seen = set()
+            for e in reversed(s.events.last(200, min_severity="alert")):
+                t = tasks.get(e.get("task") or "")
+                if now - e["ts"] >= DAY or t is None or t["state"] in states.TERMINAL or e["task"] in seen:
+                    continue
+                if t["state"] in ("blocked", "failed", "review"):
+                    continue                                    # already listed above
+                seen.add(e["task"])
+                items["alert"].append({"project": p.id, "task": t["id"], "num": int(t["id"].split("-")[0]),
+                                       "title": t["title"], "rev": t.get("rev"), "kind": "alert",
+                                       "text": e["text"][:200], "eventId": e.get("gid") or e["id"]})
+        items["review"].sort(key=lambda x: -x["waitingSec"])
+        return (items["question"] + items["blocked"] + items["review"] + items["alert"])[:limit]
 
     # ---------------- overview
     def overview(self, now=None) -> dict:
@@ -247,6 +357,7 @@ class Views:
                             "freeRamGb": free_ram_gb()},
                 "backlog": {"eligible": eligible, "target": target, "low": eligible < target,
                             "hint": ("Spare: " + hint) if hint and eligible < target else None},
+                "needsYou": self.needs_you(now),
                 "alerts": list(reversed(glob_alerts))}
 
     # ---------------- project page

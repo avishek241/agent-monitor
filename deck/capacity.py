@@ -7,7 +7,7 @@
     committed5 = Σ burn_j × min(T5, max(0, D_j - elapsed_j))   only spend that lands before the reset
     committed7 = Σ est_j × k7
     admit ⇔ lanes < parallel.max ∧ machine ok ∧ committed5 + burn×min(T5, D) ≤ R5
-            ∧ committed7 + est×k7 ≤ R7 (+5 for P1) ∧ not cooling ∧ eff5 < ceiling
+            ∧ committed7 + est×k7 ≤ R7 (+5 for P0/P1) ∧ not cooling ∧ eff5 < ceiling
     waste = max(0, R5 - committed5) ; urgency = waste / max(T5, 15)
 """
 from __future__ import annotations
@@ -118,9 +118,9 @@ def admit(cap: Capacity, a: AccountInput, est: float, minutes: float, priority: 
     need5 = burn * min(cap.T5, minutes)
     if cap.committed5 + need5 > cap.R5 + 1e-9:
         return False, f"5-hour quota: needs {need5:.1f}% before reset, {max(0.0, cap.R5 - cap.committed5):.1f}% free"
-    grace = P1_WEEKLY_GRACE if priority == "P1" else 0.0
+    grace = P1_WEEKLY_GRACE if priority in ("P0", "P1") else 0.0
     if cap.committed7 + est * a.k7 > cap.R7 + grace + 1e-9:
-        return False, "weekly quota" + ("" if priority == "P1" else " (only P1 may use the 5-point grace)")
+        return False, "weekly quota" + ("" if priority in ("P0", "P1") else " (only P0/P1 may use the 5-point grace)")
     return True, None
 
 

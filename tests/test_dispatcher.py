@@ -17,6 +17,7 @@ class Planner(DeckCase):
         self.usage("cx", 5, 250)
         self.add("shop", "old-p3", priority="P3", createdAt=T0 - 900)
         self.add("shop", "p1", priority="P1", createdAt=T0)
+        self.add("shop", "p0", priority="P0", createdAt=T0 + 50)
         self.add("shop", "p2-unblocks", priority="P2", createdAt=T0)
         self.add("shop", "p2-plain", priority="P2", createdAt=T0 - 100)
         self.add("shop", "child", state="ready", deps=["p2-unblocks"])
@@ -24,7 +25,7 @@ class Planner(DeckCase):
         self.stores["shop"].tasks["resume"]["attempts"] = [{"n": 1, "worker": "W1", "adapter": "codex-exec",
                                                             "account": "cx", "outcome": "limit", "sessionId": "s1"}]
         order = [t for _p, t in [(p, t["id"]) for p, t in self.d.candidates(T0)]]
-        self.assertEqual(order, ["resume", "p1", "p2-unblocks", "p2-plain", "old-p3"])
+        self.assertEqual(order, ["resume", "p0", "p1", "p2-unblocks", "p2-plain", "old-p3"])
 
     def test_fair_share_across_projects(self):
         self.two_projects()

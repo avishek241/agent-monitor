@@ -186,6 +186,12 @@ class TestAuth(ApiCase):
                             token=self.token)
         self.assertEqual(st, 200)
         self.assertEqual(res["task"]["priority"], "P1")
+        st, res = self.post(f"/api/projects/shop-ops/tasks/{t['id']}/actions", {"action": "priority", "priority": "P0"},
+                            token=self.token)
+        self.assertEqual((st, res["task"]["priority"]), (200, "P0"))                       # W0: P0 allowed
+        st, err = self.post(f"/api/projects/shop-ops/tasks/{t['id']}/actions", {"action": "priority", "priority": "P4"},
+                            token=self.token)
+        self.assertEqual((st, err["code"]), (400, "invalid"))
 
     def test_host_header_checked(self):
         st, err = self.get("/api/overview", headers={"Host": "evil.example"})

@@ -9,6 +9,7 @@ Auth rules
 """
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import mimetypes
@@ -28,6 +29,38 @@ from .store import GlobalStore
 from .views import Views
 
 WEB = Path(__file__).resolve().parent.parent / "web"
+
+# Static deck assets (W0 integration). Explicit types: module scripts are refused unless served as JavaScript.
+STATIC_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+                ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+                ".json": "application/json; charset=utf-8", ".webmanifest": "application/manifest+json",
+                ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2",
+                ".woff": "font/woff", ".txt": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8"}
+GZIP_TYPES = (".html", ".js", ".mjs", ".css", ".json", ".webmanifest", ".svg", ".txt", ".md")
+GZIP_MIN = 512
+_static_cache: dict = {}
+_static_lock = threading.Lock()
+
+
+def static_asset(f: Path):
+    """(content type, raw bytes, gzip bytes or None, etag) for a web/ file, cached by (path, mtime, size).
+    gzip level 9, so the deck's JS + CSS stays inside the §13.3 60 KB transfer budget (tests/test_web.py)."""
+    st = f.stat()
+    key = str(f)
+    with _static_lock:
+        hit = _static_cache.get(key)
+        if hit and hit[0] == (st.st_mtime_ns, st.st_size):
+            return hit[1]
+    data = f.read_bytes()
+    ctype = STATIC_TYPES.get(f.suffix.lower()) or mimetypes.guess_type(str(f))[0] or "application/octet-stream"
+    gz = None
+    if f.suffix.lower() in GZIP_TYPES and len(data) >= GZIP_MIN:
+        gz = gzip.compress(data, compresslevel=9, mtime=0)
+    etag = '"' + hashlib.sha256(data).hexdigest()[:20] + '"'
+    out = (ctype, data, gz, etag)
+    with _static_lock:
+        _static_cache[key] = ((st.st_mtime_ns, st.st_size), out)
+    return out
 LOOPBACK = ("127.0.0.1", "::1", "::ffff:127.0.0.1")
 
 
@@ -134,8 +167,8 @@ class DeckApp:
             t = s.transition(tid, "queued", actor=actor, reason=f"answered by {actor}", rev=rev,
                              answer=note, decision=body.get("decision"), option=body.get("option"))
         elif act == "priority":
-            if body.get("priority") not in ("P1", "P2", "P3"):
-                raise ValidationError("priority must be P1, P2 or P3")
+            if body.get("priority") not in ("P0", "P1", "P2", "P3"):
+                raise ValidationError("priority must be P0, P1, P2 or P3")
             t = s.edit(tid, {"priority": body["priority"]}, by=actor, rev=rev)
         elif act == "reassign":
             w = body.get("worker")
@@ -292,15 +325,27 @@ def make_handler(app: DeckApp, bound_host: str):
                     self.wfile.write(data)
                     return
                 return self._json(404, {"ok": False, "code": "not_found", "reason": "no such file"})
-            data = f.read_bytes()
-            ctype = mimetypes.guess_type(str(f))[0] or "application/octet-stream"
-            if f.suffix == ".webmanifest" or f.name == "manifest.json":
+            ctype, data, gz, etag = static_asset(f)
+            if f.name == "manifest.json":
                 ctype = "application/manifest+json"
+            if self.headers.get("If-None-Match") == etag:
+                self.send_response(304)
+                self.send_header("ETag", etag)
+                self.end_headers()
+                return
+            use_gz = gz is not None and "gzip" in (self.headers.get("Accept-Encoding") or "").lower()
+            body = gz if use_gz else data
             self.send_response(200)
             self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")       # revalidate (ETag) so an update shows at once
+            if gz is not None:
+                self.send_header("Vary", "Accept-Encoding")
+            if use_gz:
+                self.send_header("Content-Encoding", "gzip")
             self.end_headers()
-            self.wfile.write(data)
+            self.wfile.write(body)
 
         # ---- POST
         def do_POST(self):

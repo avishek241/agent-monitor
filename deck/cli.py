@@ -692,7 +692,7 @@ def build_parser():
     sp.add_argument("title")
     sp.add_argument("--summary", required=True)
     sp.add_argument("--size", choices=["S", "M", "L", "XL"], default="M")
-    sp.add_argument("--prio", choices=["P1", "P2", "P3"], default="P2")
+    sp.add_argument("--prio", choices=["P0", "P1", "P2", "P3"], default="P2")
     sp.add_argument("--cap", choices=["code", "data", "ui", "infra", "browser", "research", "review"], default="code")
     sp.add_argument("--kind", choices=["normal", "pilot", "scale", "review", "chore"], default="normal")
     sp.add_argument("--deps")

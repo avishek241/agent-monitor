@@ -43,6 +43,7 @@ class CapacityMaths(unittest.TestCase):
         cap = capacity.account_capacity(a, T0)
         self.assertFalse(capacity.admit(cap, a, 40, 180, "P2")[0])
         self.assertTrue(capacity.admit(cap, a, 40, 180, "P1")[0])          # 4.8 ≤ 2 + 5
+        self.assertTrue(capacity.admit(cap, a, 40, 180, "P0")[0])          # P0 gets the same grace
 
     def test_caps_parallel_max_machine_ram(self):
         a = ai(10, 200, jobs=[capacity.Job(8, 30)] * 3, parallel_max=3)
