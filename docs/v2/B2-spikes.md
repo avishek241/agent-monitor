@@ -1,7 +1,7 @@
 # B2 verification spikes (2026-11-15)
 
-Versions: Claude Code 2.1.325, codex-cli 0.169.0. Personal accounts only (`CLAUDE_CONFIG_DIR=~/.claude-personal`,
-`~/.claude-veggie`; `CODEX_HOME=~/.codex-veggie`). Prompts were tiny ("reply with a handoff object, no tools") in an
+Versions: Claude Code 2.1.325, codex-cli 0.169.0. Personal accounts only (`CLAUDE_CONFIG_DIR=~/.claude-b`,
+`~/.claude-a`; `CODEX_HOME=~/.codex-b`). Prompts were tiny ("reply with a handoff object, no tools") in an
 empty scratch git repo. No business data was used.
 
 ## Spike 1: does Claude's stream-json `result` line carry the handoff JSON? **Yes (with one schema fix).**
@@ -48,12 +48,12 @@ claude -p --output-format stream-json --verbose --session-id <uuid> \
 
 ## Spike 3: can a Claude session be resumed across config folders? **Yes, by transcript path; not by id.**
 
-- `CLAUDE_CONFIG_DIR=~/.claude-veggie claude -p --resume <session id from ~/.claude-personal>` →
+- `CLAUDE_CONFIG_DIR=~/.claude-a claude -p --resume <session id from ~/.claude-b>` →
   `No conversation found with session ID: …` (exit 1).
 - `--resume /abs/path/<session>.jsonl` (the transcript inside the other config dir) **works**: same `session_id`, and
   the model quoted text from the earlier turn.
 - **Catch**: the continuation is appended to the transcript **next to the given path**, here inside the other
-  account's folder (`~/.claude-personal/projects/…`), not in the resuming account's folder. So the adapter must copy the
+  account's folder (`~/.claude-b/projects/…`), not in the resuming account's folder. So the adapter must copy the
   transcript into the run dir first (`runs/…/<n>/<session>.jsonl`) and resume from the copy, exactly as the design says.
   Verified: resuming a copy wrote `<run>/<session_id>.jsonl` beside it and left both config folders untouched.
 - Later resumes on the new account must keep using the path (the new account's own folder doesn't know the id), so
