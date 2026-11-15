@@ -2,6 +2,7 @@
 // Action keys carry data-act; app.js turns them into api.actionBody(...) POSTs with the task's rev.
 import { html, hhmm, dur, until, num, bumpPriority, stateWord, stateIcon, tnum, rateText } from "../fmt.js";
 import { lcd, label, eventRow, empty } from "./common.js";
+import { mergingText } from "./project.js";
 
 const backTo = (p, title) => html`<a href="#/p/${encodeURIComponent(p)}/board">◀ ${String(title).toUpperCase()}</a>`;
 
@@ -51,6 +52,7 @@ export function taskView(detail, tvm, vm, now, conn) {
   const cur = attempts[attempts.length - 1];
   const stats = [{ t: `${stateIcon(t.state)} ${stateWord(t.state).toUpperCase()}${t.stateSince ? ` ${dur(now - t.stateSince)}` : ""}` }];
   if (t.etaFinish) stats.push({ t: `ETA ~${dur(t.etaFinish - now)} (${hhmm(t.etaFinish)})`, hot: true });
+  if (t.state === "merging") stats.push({ t: mergingText(t, now).toUpperCase(), hot: !!t.resumeAt });
   if (t.state === "limit_paused" && t.resumeAt) stats.push({ t: `RESUMES ${hhmm(t.resumeAt)} ${until(t.resumeAt, now)}`, hot: true });
   if (cur) stats.push({ t: `ATTEMPT ${cur.n}` });
   const head = lcd({

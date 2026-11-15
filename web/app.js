@@ -32,6 +32,9 @@ if (qs.get("layout") || qs.get("theme")) { themePref = theme.normalise({ layout:
 theme.apply(document, themePref, !!darkQuery?.matches);
 darkQuery?.addEventListener?.("change", () => theme.apply(document, themePref, darkQuery.matches));
 
+// Expanded workers (account ids, "*" = all) survive re-renders and reloads.
+const openWorkers = new Set(JSON.parse(store.get("deck.openWorkers") || "[]"));
+if (qs.get("workers") === "open") openWorkers.add("*"); // ?workers=open (screenshots, links)
 const S = { overview: null, ovAt: 0, projects: {}, details: {}, eligible: {}, conn: FIXTURES ? "fixtures" : "live", lastEventId: 0 };
 const $app = document.getElementById("app");
 const nowLocal = () => Date.now() / 1000;
@@ -68,13 +71,13 @@ function view(route) {
   const o = S.overview;
   const r = RENDERERS[themePref.layout];
   if (r && o && route.view !== "settings") {
-    const out = r(route, { o, projects: S.projects, details: S.details, eligible: S.eligible, now: t, conn: S.conn, pref: themePref, token: store.get("deck.token") || "", fixtures: FIXTURES });
+    const out = r(route, { openWorkers, o, projects: S.projects, details: S.details, eligible: S.eligible, now: t, conn: S.conn, pref: themePref, token: store.get("deck.token") || "", fixtures: FIXTURES });
     if (out != null) return out;
   }
   if (route.view === "page" && o) return route.project && S.projects[route.project] ? projectView(S.projects[route.project], o, { inbox: "review", ops: "alerts", workers: "workers" }[route.page] || "board", t, S.conn) : route.page === "workers" ? accountsView(o, t, S.conn) : overviewView(o, t, S.conn);
   if (route.view === "settings") return settingsView(themePref, { token: store.get("deck.token") || "", fixtures: FIXTURES, conn: S.conn });
   if (!o) return html`<div class="empty">Loading…</div>`;
-  if (route.view === "accounts") return accountsView(o, t, S.conn);
+  if (route.view === "accounts") return accountsView(o, t, S.conn, openWorkers);
   const vm = S.projects[route.project];
   if (route.view === "project") {
     if (!vm) return html`<div class="empty">No data for project ${route.project}. <a href="#/">Back to all projects</a></div>`;
@@ -91,7 +94,7 @@ function view(route) {
     if (route.sheet === "answer") return answerSheet(merged, vm, t, S.conn);
     return taskView(detail, tvm, vm, t, S.conn);
   }
-  return overviewView(o, t, S.conn);
+  return overviewView(o, t, S.conn, openWorkers);
 }
 
 let renderSeq = 0;
@@ -137,7 +140,7 @@ async function runAction(el, act) {
   const res = await api.action(p, t, body);
   el.disabled = false;
   if (res.simulated) { toast(`Fixtures: would POST ${JSON.stringify(body)}`); console.info("deck action", p, t, body); return; }
-  if (!res.ok) { toast(res.reason || res.code || "Refused", "err"); if (res.code === "stale") render(true); return; }
+  if (!res.ok) { toast(res.reason || res.code || "Refused", "err"); if (res.code === "stale") render(true); if (res.code === "auth") location.hash = "#/settings"; return; }
   toast(`${act} ✓`);
   if (act === "approve" || act === "changes" || act === "reject" || act === "reassign") location.hash = routeHash({ view: "project", project: p, tab: "board" });
   render(true);
@@ -154,6 +157,16 @@ document.addEventListener("click", (ev) => {
     th.blur?.();
     setTheme(next);
     toast(`Theme: ${theme.label(next)}`);
+    return;
+  }
+  const wx = ev.target.closest("[data-wexpand]");
+  if (wx) {
+    const id = wx.dataset.wexpand;
+    if (id === "*") { if (openWorkers.has("*")) openWorkers.clear(); else openWorkers.add("*"); }
+    else if (openWorkers.has("*")) { openWorkers.delete("*"); for (const a of S.overview?.accounts || []) if (a.id !== id) openWorkers.add(a.id); }
+    else if (openWorkers.has(id)) openWorkers.delete(id); else openWorkers.add(id);
+    store.set("deck.openWorkers", JSON.stringify([...openWorkers]));
+    render();
     return;
   }
   const pair = ev.target.closest("[data-pair]");
@@ -216,6 +229,13 @@ function onEvent(e) {
 const ctl = new AbortController();
 api.stream({ since: 0, onEvent, onState: (s) => setConn(s), signal: ctl.signal });
 setInterval(() => render(S.conn !== "live" && !FIXTURES), 15000); // countdowns tick; poll while SSE is down
+// Waiting reasons (domains, merge retry timers) change without an event: re-fetch the board every 10 s while it is open.
+setInterval(() => {
+  const r = parseRoute(location.hash);
+  if (!FIXTURES && !document.hidden && (r.view === "project" || (r.view === "page" && r.page === "board"))) render(true);
+}, 10000);
+// First run: actions need a token even on this Mac, so offer pairing once (6-digit code or the local token).
+if (!FIXTURES && !store.get("deck.token") && !store.get("deck.firstRun")) { store.set("deck.firstRun", "1"); if (!location.hash || location.hash === "#/") location.hash = "#/settings"; }
 window.addEventListener("hashchange", () => render(false, true));
 render(false, true);
 

@@ -100,9 +100,9 @@ test("workers: office account greyed with its reason in a personal project; free
   assert.match(h, /<section class="ac grey" aria-disabled="true">.*W4.*🔒 Claude · office.*Greyed out.<\/b> Office account: never runs personal projects \(account policy\)/s);
   assert.match(h, /🔒 free · no eligible task: 3 queued tasks are personal projects \(account policy\)/);
   assert.match(h, /○ free · waits on ext:pc-ssh \(held by 109\)/);
-  assert.match(h, /class="ln spare">.*FREE · 36% to spend before 22:42 · M fits · ⚠ spare 5m/s);
+  assert.match(h, /class="ln spare"[^>]*>.*FREE · 36% to spend before 22:42 · M fits · ⚠ spare 5m/s);
   assert.match(h, /W1.*Shop ops: allowed/s);
-  assert.match(h, /class="ln  oos" href="#\/p\/client-portal\/t\/12-login-copy">.*Client · /s, "other projects' lanes are marked");
+  assert.match(h, /class="ln  oos"[^>]* href="#\/p\/client-portal\/t\/12-login-copy">.*Client · /s, "other projects' lanes are marked");
   assert.match(h, /QUIET 16m/);
   assert.match(h, /<div class="v">1<\/div><div class="l"><span class="led am"[^>]*><\/span>SPARE/);
   assert.match(h, /2 ready \/ target 5/);

@@ -65,8 +65,8 @@ test("a cooling account shows a LIMIT countdown, never '100%'", () => {
 test("accounts screen: every lane W·n is listed; policy-idle lane is grey not orange; spare card for codex-a", () => {
   const h = s(accountsView(o, now, "live"));
   for (const id of ["W1·1", "W1·2", "W1·3", "W2·1", "W2·2", "W2·3", "W4·1", "W4·2", "W3·1"]) assert.ok(h.includes(`>${id}<`), id);
-  assert.match(h, /lane pol"><span class="id">W4·2/);
-  assert.match(h, /lane free"><span class="id">W1·3/);
+  assert.match(h, /lane pol"[^>]*><span class="id">W4·2/);
+  assert.match(h, /lane free"[^>]*><span class="id">W1·3/);
   assert.match(h, /resumes 21:52 \(same session\)/);
   assert.match(h, /Spare: Codex · a · M fits/);
   assert.match(h, /MACHINE CAP 6/);

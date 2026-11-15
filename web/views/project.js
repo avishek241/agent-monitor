@@ -2,11 +2,13 @@
 import { html, hhmm, dur, tnum } from "../fmt.js";
 import { lcd, label, accountBlock, taskKey, eventRow, empty, scopeBadge } from "./common.js";
 import { TABS } from "../store.js";
+import { setWorkerColors } from "../workers.js";
 
 const TAB_LABEL = { workers: "WORKERS", board: "BOARD", review: "REVIEW", alerts: "ALERTS", timeline: "LOG", repo: "REPO" };
 const COLUMNS = [["running", "RUNNING"], ["review", "REVIEW"], ["needsYou", "NEEDS YOU"], ["upNext", "UP NEXT"], ["backlog", "BACKLOG"], ["doneToday", "DONE TODAY"]];
 
 export function projectView(vm, overview, tab, now, conn) {
+  setWorkerColors(overview);
   const p = vm.project;
   const b = vm.board || {};
   const n = (k) => (b[k] || []).length;
@@ -56,14 +58,14 @@ function boardTab(vm, now) {
 }
 
 /** Review inbox: one key per ReviewVM, tap opens the review sheet. */
-function reviewTab(vm) {
+function reviewTab(vm, now) {
   const inbox = vm.inbox || [];
   if (!inbox.length) return empty("Review inbox is empty.");
   const pid = vm.project.id;
   return html`<div class="list">${inbox.map((r) => {
     const met = (r.doneWhen || []).filter((d) => d.met).length;
     const tests = (r.tests || []).reduce((a, t) => ({ p: a.p + (t.passed || 0), f: a.f + (t.failed || 0) }), { p: 0, f: 0 });
-    const bits = [r.pilot ? "PILOT" : null, r.task.state === "merging" ? `merging${r.merging ? ` · gates ${r.merging.gatesDone}/${r.merging.gatesTotal}` : ""}` : `waiting ${dur(r.waitingSec)}`,
+    const bits = [r.pilot ? "PILOT" : null, r.task.state === "merging" ? mergingText(r.task, now, r.merging) : `waiting ${dur(r.waitingSec)}`,
       `${met}/${(r.doneWhen || []).length} done-when ✓`, `tests ${tests.p}${tests.f ? ` · ${tests.f} failed` : ""}`,
       r.git?.uncommitted ? `⚠ ${r.git.uncommitted} uncommitted` : null, r.decisionsNeeded?.length ? `${r.decisionsNeeded.length} decision` : null].filter(Boolean);
     return html`<a class="key review${r.git?.uncommitted ? " amber" : ""}" href="#/p/${encodeURIComponent(pid)}/t/${encodeURIComponent(r.task.id)}/review">
@@ -98,4 +100,14 @@ function repoTab(vm, now) {
       (d.waiting || []).length ? ` · ${d.waiting.map((w) => tnum({ id: w })).join(", ")} waiting` : ""}${d.reserved ? " · reserved" : ""}</span></div>`)}
       <div class="kv"><span class="mono">merge</span><span>${m.active ? `${tnum({ id: m.active.task })} (gates ${m.active.gatesDone}/${m.active.gatesTotal})` : "idle"} · queue: ${(m.queue || []).length ? m.queue.map((q) => tnum({ id: q.task || q })).join(", ") : "—"}</span></div></div>
     ${label("SCOPE")}<div class="panel-box">${scopeBadge(p.scope)} ${p.scope === "office" ? (p.allowPersonalAccounts ? "personal accounts allowed" : "office accounts only") : "office accounts never run this project"}</div>`;
+}
+
+/** "merging · retry in 1m · main checkout busy" when the merge queue is waiting (T26), else gates progress. */
+export function mergingText(t, now, m) {
+  const bits = ["merging"];
+  if (t.resumeAt && t.resumeAt > now) bits.push(`retry in ${dur(t.resumeAt - now)}`);
+  const why = (t.stateReason || "").replace(/^merge waits:\s*/i, "").replace(/\s*·\s*retry \d\d:\d\d$/, "");
+  if (why && why !== "merging") bits.push(why);
+  else if (m) bits.push(`gates ${m.gatesDone}/${m.gatesTotal}`);
+  return bits.join(" · ");
 }

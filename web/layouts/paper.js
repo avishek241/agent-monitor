@@ -1,3 +1,5 @@
+import { workersSection, setWorkerColors, wcStyle } from "../workers.js";
+import { mergingText } from "../views/project.js";
 // Paper layout, ported from docs/v2/mockups/alt-b/deck.html: calm editorial phone deck (Today · Projects · Accounts ·
 // Board · Inbox). render(route, ctx) is pure (view models in, HTML out); task detail and its sheets fall back to the
 // shared views (null). A little browser-only glue at the bottom keeps in-page state the router does not carry.
@@ -64,6 +66,7 @@ function tcard(t, pid, ctx, showProj) {
   const s = t.step;
   let line = t.stateReason || "";
   if (t.state === "running" && s) line = `${t.worker ? `${t.worker}${t.lane ? `·${t.lane}` : ""} · ` : ""}step ${s.index} of ${s.count}, ${String(s.title).toLowerCase()}${s.etaMin != null ? ` · about ${s.etaMin} min` : ""}`;
+  if (t.state === "merging" && t.resumeAt > ctx.now) line = mergingText(t, ctx.now);
   if (t.state === "limit_paused") line = `${t.worker || ""} · resumes by itself after the reset (${until(t.resumeAt, ctx.now)})`;
   const quiet = t.state === "running" && t.lastActiveSec > 600;
   const m = (t.metrics || []).find((x) => x.total);
@@ -71,7 +74,7 @@ function tcard(t, pid, ctx, showProj) {
     : t.progress != null && t.state === "running" ? html`<div class="pbar p-sage"><i style="width:${Math.round(t.progress * 100)}%"></i></div>` : "";
   const deps = (t.deps || []).map((d) => html`<span class="dep p-${d.state === "done" ? "sage" : "butter"}">after #${tnum({ id: d.id })} · ${d.state === "done" ? "done ✓" : d.state === "review" ? "in review" : d.state.replace("_", " ")}</span>`);
   const st = quiet ? pill("rose", "Looks stuck") : t.state === "limit_paused" ? pill("butter", "Resting") : t.state === "merging" ? pill("sage", "Merging") : t.question ? pill("peach", "Question") : "";
-  return html`<a class="tcard" href="${tHref(pid, t.id)}"><b><span class="num">#${tnum(t)}</span>${t.title}</b><small>${line}</small>${quiet && t.warnings?.[0] ? html`<small class="warn">${t.warnings[0]}</small>` : ""}${bar}
+  return html`<a class="tcard"${wcStyle(t.worker)} href="${tHref(pid, t.id)}"><b><span class="num">#${tnum(t)}</span>${t.title}</b><small>${line}</small>${quiet && t.warnings?.[0] ? html`<small class="warn">${t.warnings[0]}</small>` : ""}${bar}
     <span class="meta">${st}${showProj ? projPill(ctx, pid) : ""}${deps}</span></a>`;
 }
 
@@ -179,6 +182,7 @@ function today(ctx) {
     <h2>Your accounts <small>5-hour quota</small></h2>
     <div class="card"><div class="rings">${accts.map((a) => html`<a href="#/accounts" class="${off(a) ? "off" : ""}" title="${a.label} · ${a.state === "cooling" ? "at limit" : `${a.pct5 ?? "?"}% used`} · resets ${hhmm(a.resets5)}">${ring(usagePct(a), tone(a), 62, `${usagePct(a)}%`, "", `${a.label}: ${usagePct(a)}% of 5-hour quota used`)}<b>${wid(a)}</b><span>${a.resets5 ? dur(a.resets5 - now) : "—"}</span></a>`)}</div>
       ${greyed.map((a) => html`<p class="note">${a.label} is greyed out: ${a.capacity?.why || "usage only"}.</p>`)}</div>
+    <h2>Workers <small>tap to expand</small></h2>${workersSection(o, now, ctx.openWorkers || new Set(), "paper")}
     <h2>Worth a look <small>${nOf(al.length, "alert", "alerts", false)}</small></h2>
     ${al.slice(0, 3).map((e) => alertCard(e, ctx))}${al.length ? html`<a class="back" href="#/go/ops">See all alerts ›</a>` : html`<p class="muted">No alerts.</p>`}
     ${tl.length ? html`<h2>The day so far</h2>${feed(tl, ctx)}` : ""}`;
@@ -300,6 +304,7 @@ function inbox(ctx, seg) {
 
 /** Layout entry point: whole-screen HTML, or null for task detail / sheets (shared views, restyled by tokens). */
 export function render(route, ctx) {
+  setWorkerColors(ctx?.o);
   if (!ctx?.o || route.view === "task" || route.view === "settings") return null;
   if (route.view === "accounts" || route.page === "workers") return chrome(ctx, "accounts", accounts(ctx));
   if (route.view === "project" || (route.page === "projects" && route.project)) return chrome(ctx, "projects", projectPage(ctx, route.project));

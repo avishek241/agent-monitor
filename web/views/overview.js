@@ -1,5 +1,6 @@
 // Overview (all projects) and Accounts & parallel lanes screens (design §13.2 screens 1 and 6).
 import { html, hhmm, dayLabel, tnum } from "../fmt.js";
+import { workersSection, setWorkerColors } from "../workers.js";
 import { lcd, label, accountStrip, accountBlock, eventRow, empty, scopeBadge } from "./common.js";
 
 const projectsById = (o) => Object.fromEntries((o.projects || []).map((p) => [p.id, p]));
@@ -41,7 +42,8 @@ function tile(p) {
     : html`<a class="tile" style="--c:${p.color || "#888"}" href="#/p/${encodeURIComponent(p.id)}/board">${inner}</a>`;
 }
 
-export function overviewView(o, now, conn) {
+export function overviewView(o, now, conn, openWorkers = new Set()) {
+  setWorkerColors(o);
   const accts = o.accounts || [];
   const running = o.machine?.running ?? accts.reduce((s, a) => s + (a.lanes || []).filter((l) => l.state === "running").length, 0);
   const lanesTotal = o.machine?.lanesTotal ?? accts.reduce((s, a) => s + (a.capacity?.lanesMax || 0), 0);
@@ -58,6 +60,7 @@ export function overviewView(o, now, conn) {
       ${label("ACCOUNTS · LANES", `${running}/${lanesTotal} JOBS`)}
       <div class="accts">${accts.map((a) => accountStrip(a, now))}</div>
       ${backlogBar(o)}
+      ${workersSection(o, now, openWorkers, "studio")}
     </div>
     <div class="ov-b">${label("PROJECTS", (o.projects || []).filter((p) => p.enabled !== false).length)}
       <div class="tiles">${(o.projects || []).map(tile)}<div class="tile ghost" aria-hidden="true"><b>＋ add in config</b></div></div>
@@ -74,7 +77,8 @@ export function backlogBar(o) {
   return html`<div class="backlog${b.low ? " low" : ""}"><span>${b.low ? "▲ " : ""}BACKLOG</span><b>${b.eligible} ready / target ${b.target}</b>${b.hint ? html`<small>${b.hint}</small>` : ""}</div>`;
 }
 
-export function accountsView(o, now, conn) {
+export function accountsView(o, now, conn, openWorkers = new Set()) {
+  setWorkerColors(o);
   const accts = o.accounts || [];
   const m = o.machine || {};
   const running = m.running ?? 0;
@@ -89,6 +93,7 @@ export function accountsView(o, now, conn) {
   const pid = projectsById(o);
   return html`${head}
     ${accts.map((a) => accountBlock(a, now, pid, { worker: [...new Set((a.lanes || []).map((l) => l.worker))].join(" ") }))}
+    ${workersSection(o, now, openWorkers, "studio")}
     ${backlogBar(o)}
     <div class="list">${spare.map((a) => html`<div class="key q"><span class="ico">⚡</span><span class="t"><b>Spare: ${a.label} · ${a.capacity.fitsSize || "?"} fits</b>
       <small>${a.capacity.spendable5 ?? "?"}% to spend before ${hhmm(a.resets5)}${o.backlog?.hint ? ` · ${o.backlog.hint}` : ""}</small></span></div>`)}</div>

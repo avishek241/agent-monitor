@@ -1,5 +1,5 @@
 // Settings: layout (Studio · Mission Control · Paper) and mode (Auto · Light · Dark) chosen separately, device token, notifications.
-import { html } from "../fmt.js";
+import { html, raw } from "../fmt.js";
 import { LAYOUTS, MODES, normalise } from "../theme.js";
 import { lcd, label } from "./common.js";
 
@@ -18,7 +18,7 @@ export function settingsView(pref, { token = "", fixtures = false, conn = "live"
       <input id="pairname" class="notefield" autocomplete="off" placeholder="device name (e.g. phone)" aria-label="Device name">
       <div class="btns"><button class="btn go" data-pair="code">PAIR</button><button class="btn" data-pair="clear">FORGET</button></div>
       <div class="hint">${token ? "This device is paired." : "Not paired yet."}</div>
-      <details><summary class="muted">Paste a token instead</summary>
+      <details${token ? "" : raw(" open")}><summary class="muted">On this Mac: paste the local token instead (<code>cat ~/.local/share/agent-deck/token</code>)</summary>
         <input id="tok" class="notefield" autocomplete="off" placeholder="device token" value="${token}" aria-label="Device token">
         <div class="btns"><button class="btn" data-pair="save">SAVE TOKEN</button></div></details>
       <div class="btns"><button class="btn" data-pair="notify">ENABLE NOTIFICATIONS</button></div>

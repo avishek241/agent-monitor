@@ -140,3 +140,40 @@ button { font: inherit; color: inherit; cursor: pointer; }
   body[data-view="overview"] .ov { display: grid; grid-template-columns: 1.05fr 1fr 1fr; gap: var(--s4); align-items: start; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Workers section (all layouts): colour per worker, expand like a task card */
+.wsec { display: flex; flex-direction: column; gap: var(--s2); }
+.whead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); min-height: var(--tap); padding: var(--s2) var(--s3); border-radius: var(--r-card);
+  border: var(--bw) solid var(--border); background: var(--card); color: var(--tx); font-weight: 800; letter-spacing: .08em; text-align: left; }
+.whead .wlegend { flex: 1; display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); font-weight: 400; letter-spacing: 0; color: var(--muted); }
+.wdot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--wc, var(--muted)); margin-right: var(--s1); vertical-align: -1px; flex: none; }
+.wlegend span { display: inline-flex; align-items: center; }
+.wlegend .wdot { background: var(--wc); }
+.witem { border-left: 6px solid var(--wc, var(--line)); border-radius: var(--r-key); background: var(--card); border-top: var(--bw) solid var(--border); border-right: var(--bw) solid var(--border); border-bottom: var(--bw) solid var(--border); box-shadow: var(--card-shadow); }
+.wrow { display: flex; align-items: center; gap: var(--s2); width: 100%; min-height: var(--tap); padding: var(--s2) var(--s3); background: none; border: 0; color: var(--tx); text-align: left; }
+.wrow .wname { flex: 1; font-weight: 700; } .wrow .wname small { color: var(--muted); font-weight: 400; }
+.wrow .wsum { color: var(--muted); } .wchev { color: var(--muted); }
+.wdetail { display: flex; flex-direction: column; gap: var(--s2); padding: 0 var(--s3) var(--s3); }
+.ugraph { width: 100%; height: 96px; background: var(--bg); border-radius: var(--r-bar); }
+.ugraph .grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ugraph .p5 { fill: none; stroke: var(--wc, var(--accent)); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.ugraph .p7 { fill: none; stroke: var(--wc, var(--accent)); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .8; vector-effect: non-scaling-stroke; }
+.ugraph .reset { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.ugraph.dm { background: var(--lcd-bg); height: auto; padding: var(--s2); }
+.ugraph.dm .on { fill: var(--wc, var(--lcd-hot)); } .ugraph.dm .off { fill: var(--lcd-track); } .ugraph.dm .w7 { fill: none; stroke: var(--wc); stroke-width: 1; }
+.wlegend.small { display: flex; gap: var(--s3); color: var(--muted); font-size: var(--fs-label); }
+.wfacts { display: grid; grid-template-columns: auto 1fr; gap: var(--s1) var(--s3); margin: 0; } .wfacts dt { color: var(--muted); } .wfacts dd { margin: 0; font-weight: 700; }
+.wsub { font-size: var(--fs-label); font-weight: 800; letter-spacing: var(--track-label); color: var(--muted); text-transform: uppercase; margin-top: var(--s1); }
+.wlane { display: flex; align-items: center; min-height: 44px; padding: var(--s1) var(--s2); border-radius: var(--r-bar); border-left: 3px solid var(--wc); background: var(--bg); }
+.wlane.q { border-left-style: dashed; color: var(--muted); }
+.wspare { padding: var(--s2); border-radius: var(--r-bar); background: var(--tint-off); color: var(--tint-off-tx); } .wspare.free { background: var(--tint-free); color: var(--tint-free-tx); }
+/* worker colour on cards, lanes, account rows and the timeline */
+[style*="--wc"].key, [style*="--wc"].lane { border-left: 6px solid var(--wc); }
+[style*="--wc"].acct { border-left: 6px solid var(--wc); }
+.ev[style*="--wc"] { border-left: 4px solid var(--wc); padding-left: var(--s2); }
+.wbadge { display: inline-flex; align-items: center; gap: 4px; } .wbadge::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--wc); }
+
+/* worker colour stripes in Mission / Paper rows */
+:root[data-layout="mission"] .row[style*="--wc"], :root[data-layout="mission"] .ln[style*="--wc"] { box-shadow: inset 4px 0 0 var(--wc); }
+:root[data-layout="mission"] .mwsec { padding: var(--s2) var(--s3); }
+:root[data-layout="paper"] .tcard[style*="--wc"] { box-shadow: inset 5px 0 0 var(--wc), var(--card-shadow); }

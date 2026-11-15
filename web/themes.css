@@ -6,6 +6,8 @@
    theme.js resolves "auto" to light/dark from prefers-color-scheme. Layout-specific structure lives in layouts/*.css. */
 
 :root, :root[data-layout="studio"] {
+  /* worker colours: Okabe–Ito order, tuned for this set (≥ 3:1 on cards) */
+  --w0: #0072b2; --w1: #b06a00; --w2: #007a59; --w3: #a8437f; --w4: #2b7bb0; --w5: #c04a00; --w6: #7a6c00;
   /* type & density (phone) */
   --font-body: "JetBrains Mono", ui-monospace, Menlo, monospace;
   --font-title: "Space Grotesk", -apple-system, system-ui, sans-serif;
@@ -34,6 +36,8 @@
 }
 
 :root[data-layout="mission"] {
+  /* worker colours: Okabe–Ito order, tuned for this set (≥ 3:1 on cards) */
+  --w0: #56b4e9; --w1: #e69f00; --w2: #2bc08f; --w3: #e08fbf; --w4: #9ab8ff; --w5: #ff7a3d; --w6: #f0e442;
   --font-body: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   --font-title: "Barlow Semi Condensed", "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-big: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -56,6 +60,8 @@
 }
 
 :root[data-layout="paper"] {
+  /* worker colours: Okabe–Ito order, tuned for this set (≥ 3:1 on cards) */
+  --w0: #0072b2; --w1: #a86400; --w2: #007a59; --w3: #a8437f; --w4: #2b7bb0; --w5: #b84400; --w6: #776a00;
   --font-body: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
   --font-title: "Fraunces", "Iowan Old Style", "New York", Georgia, serif;
   --font-big: "Fraunces", "Iowan Old Style", "New York", Georgia, serif;
@@ -78,6 +84,8 @@
 }
 
 :root[data-layout="paper"][data-mode="dark"] {
+  /* worker colours: Okabe–Ito order, tuned for this set (≥ 3:1 on cards) */
+  --w0: #56b4e9; --w1: #e69f00; --w2: #2bc08f; --w3: #e08fbf; --w4: #9ab8ff; --w5: #ff8a52; --w6: #f0e442;
   --key-shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); --card-shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
   --page: #121110; --bg: #1b1a17; --bg2: #1b1a17; --screw: #1b1a17;
   --card: #25231f; --tx: #efe9df; --muted: #b0a89c; --line: #38352f; --border: #38352f;
@@ -93,6 +101,8 @@
 }
 
 :root[data-layout="studio"][data-mode="dark"] {
+  /* worker colours: Okabe–Ito order, tuned for this set (≥ 3:1 on cards) */
+  --w0: #56b4e9; --w1: #e69f00; --w2: #2bc08f; --w3: #e08fbf; --w4: #9ab8ff; --w5: #ff8a52; --w6: #f0e442;
   --key-shadow: 0 4px 0 #000000; --scan: 0.03;
   --page: #121212; --bg: #232220; --bg2: #1b1a18; --screw: #3a3833;
   --card: #2e2c29; --tx: #f2f0ea; --muted: #b5b0a6; --line: #4a4740; --border: #0a0a0a;
@@ -108,6 +118,8 @@
 }
 
 :root[data-layout="mission"][data-mode="light"] {
+  /* worker colours: Okabe–Ito order, tuned for this set (≥ 3:1 on cards) */
+  --w0: #0072b2; --w1: #a86400; --w2: #007a59; --w3: #a8437f; --w4: #2b6fa8; --w5: #b84400; --w6: #6f6300;
   --glow: none; --proj-glow: none;
   --page: #dfe5ec; --bg: #eef2f6; --bg2: #eef2f6; --screw: #eef2f6;
   --card: #ffffff; --tx: #0f1720; --muted: #4a5868; --line: #cfd8e2; --border: #b9c4d0;

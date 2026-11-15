@@ -1,3 +1,4 @@
+import { workersSection, setWorkerColors, wcStyle } from "../workers.js";
 // Mission Control layout (docs/v2/mockups/alt-a/deck.html): top bar, LIVE ticker, scope strip, OVR·WORKERS·BOARD·REVIEW·OPS.
 // Pure: view models in, HTML out. Task detail + reassign/answer sheets fall back to shared views (null). No sparklines:
 // the VMs carry no usage history, so quota is a 20-cell bar.
@@ -37,6 +38,7 @@ function screen(r) {
 }
 
 export function render(route, ctx) {
+  setWorkerColors(ctx?.o);
   const scr = screen(route);
   if (!scr || !ctx?.o) return null;
   const { o, projects = {} } = ctx, scope = route.project || null;
@@ -117,9 +119,10 @@ function overview(m) {
   })}
   ${h(m.accts.length, "Accounts · 5h quota")}${m.accts.map((a) => {
     const g = a.dispatch === false, cool = a.state === "cooling";
-    return html`<a class="row acr${g ? " grey" : ""}" href="#/go/workers">${led(g ? "off" : pc(a), cool)}<div class="tt"><b>${wid(a, m)} ${a.scope === "office" ? tag("office") : ""}</b><small>${a.label}</small></div>
+    return html`<a class="row acr${g ? " grey" : ""}"${wcStyle(a.id)} href="#/go/workers">${led(g ? "off" : pc(a), cool)}<div class="tt"><b>${wid(a, m)} ${a.scope === "office" ? tag("office") : ""}</b><small>${a.label}</small></div>
       ${qbar(a)}<div class="r"><b class="${cool ? "hot" : ""}">${cool ? "LIMIT" : pct(a.pct5)}</b>5h</div><div class="r"><b>${left(a.resets5, m.now)}</b>reset</div></a>`;
-  })}${grey.map((a) => html`<div class="row">${led("off")}<div class="tt"><small>🔒 ${wid(a, m) || a.label} is greyed: ${a.capacity?.why || "usage only"}</small></div></div>`)}${needs(m)}`;
+  })}${grey.map((a) => html`<div class="row">${led("off")}<div class="tt"><small>🔒 ${wid(a, m) || a.label} is greyed: ${a.capacity?.why || "usage only"}</small></div></div>`)}
+  <div class="mwsec">${workersSection(m.o, m.now, m.openWorkers || new Set(), "mission")}</div>${needs(m)}`;
 }
 
 function lane(l, a, m) {
@@ -137,7 +140,7 @@ function lane(l, a, m) {
     cls = { free: "spare", pol: "locked", cool: "cooling" }[f.cls] || "idle"; lt = `${f.icon} ${f.text}`; lr = f.cls === "free" ? "⚠" : "—";
   }
   const inner = html`<span class="lid">${l.worker}·${l.lane}</span><span class="lt">${lt}</span><span class="lr">${lr}</span>`, c = `ln ${cls}${other ? " oos" : ""}`;
-  return l.project && l.task ? html`<a class="${c}" href="${tH(l.project, l.task)}">${inner}</a>` : html`<div class="${c}">${inner}</div>`;
+  return l.project && l.task ? html`<a class="${c}"${wcStyle(l.worker)} href="${tH(l.project, l.task)}">${inner}</a>` : html`<div class="${c}"${wcStyle(l.worker)}>${inner}</div>`;
 }
 
 /** WORKERS account block. w = the project's WorkerVM in project scope (allowed/reason), else greyed when usage-only. */
@@ -166,11 +169,11 @@ function trow(t, m) {
   const right = q ? html`<b class="hot">${dur(t.lastActiveSec)}</b>quiet`
     : t.state === "running" ? html`<b>${t.step?.etaMin != null ? `~${t.step.etaMin}m` : "—"}</b>${t.size}·${t.priority}`
     : t.state === "limit_paused" ? html`<b class="am">${left(t.resumeAt, m.now)}</b>to reset`
-    : t.state === "merging" ? html`<b>MERGE</b>${r?.merging ? `gates ${r.merging.gatesDone}/${r.merging.gatesTotal}` : ""}`
+    : t.state === "merging" ? html`<b>MERGE</b>${t.resumeAt && t.resumeAt > m.now ? `retry ${left(t.resumeAt, m.now)}` : r?.merging ? `gates ${r.merging.gatesDone}/${r.merging.gatesTotal}` : ""}`
     : t.state === "review" && r ? html`<b>${dur(r.waitingSec)}</b>waiting` : html`<b>${t.size || ""}</b>${t.priority || ""}`;
   const x = [...(t.deps || []).map((d) => html`<span class="cp ${d.state === "done" ? "ok" : "wait"}">⟵ ${tnum(d)} ${sw(d.state)}</span>`), m.scope ? "" : html`<span class="cp">${m.short(t.p)}</span>`,
     ...(t.metrics || []).filter((x) => x.total).slice(0, 1).map((x) => html`<span class="cp">${x.label} ${x.done}/${x.total}</span>`)].filter(Boolean);
-  return html`<a class="row" href="${tH(t.p, t.id)}">${led(q ? "rd" : SC[t.state] || "off", q)}<div class="tt"><b>${num(t.id)}${t.title}</b><small>${meta}</small></div><div class="r">${right}</div>${x.length ? html`<div class="x">${x}</div>` : ""}</a>`;
+  return html`<a class="row"${wcStyle(t.worker)} href="${tH(t.p, t.id)}">${led(q ? "rd" : SC[t.state] || "off", q)}<div class="tt"><b>${num(t.id)}${t.title}</b><small>${meta}</small></div><div class="r">${right}</div>${x.length ? html`<div class="x">${x}</div>` : ""}</a>`;
 }
 
 function projectPage(m) {
