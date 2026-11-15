@@ -215,6 +215,8 @@ _RATE = {}  # (task, metric label) -> [(t, done)] samples, for speed and time-le
 def metrics_of(task, raw):
     """Normalise card metrics and add speed/time left from successive readings (kept in memory in --serve mode)."""
     out = []
+    if isinstance(raw, dict):  # {"Files": [3, 10]} or {"Files": 3} forms
+        raw = [{"label": k, "done": (v[0] if isinstance(v, (list, tuple)) else v), "total": (v[1] if isinstance(v, (list, tuple)) and len(v) > 1 else None)} for k, v in raw.items()]
     for m in (raw or [])[:6]:
         try:
             label, done = str(m.get("label", ""))[:40], float(m.get("done"))
@@ -267,7 +269,8 @@ def with_eta(steps, note):
     startedAt (unix seconds when the step became active). Steps without etaMin show 'ETA ?'."""
     out, left, known = [], 0.0, True
     for s in steps[:10]:
-        title, status = str(s.get("title", ""))[:70], s.get("status", "pending")
+        # accept "title", "name" or "label" — agents don't all use the same key
+        title, status = str(s.get("title") or s.get("name") or s.get("label") or "")[:70], s.get("status", "pending")
         eta = s.get("etaMin")
         if status != "done":
             if isinstance(eta, (int, float)):
