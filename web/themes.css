@@ -1,0 +1,92 @@
+/* Agent Deck themes = design tokens only. One component structure (styles.css) reads these variables.
+   Colour tokens are plain hex so tests/web/themes.test.mjs can check WCAG AA contrast for every theme.
+   deck    = the original v2 Studio mockups (default)
+   mission = docs/v2/mockups/alt-a "Mission Control"
+   paper   = docs/v2/mockups/alt-b "Paper" (light; data-mode="dark" for dark; theme.js resolves "auto") */
+
+:root, :root[data-theme="deck"] {
+  /* type & density (phone) */
+  --font-body: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --font-title: "Space Grotesk", -apple-system, system-ui, sans-serif;
+  --font-big: "Doto", "JetBrains Mono", monospace;
+  --fs-body: 15px; --fs-title: 16px; --fs-label: 12px; --fs-big: 44px; --fs-proj: 22px; --lh: 1.45;
+  --track-label: .2em; --big-weight: 900; --title-weight: 700;
+  /* 4/8 spacing scale */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px;
+  --gap-card: 12px; --pad-key: 12px; --tap: 48px;
+  /* shape & component variants */
+  --r-card: 14px; --r-key: 14px; --r-chip: 999px; --r-bar: 4px;
+  --bw: 2px; --drop: 4px; --key-shadow: 0 4px 0 #141414; --card-shadow: none; --lane-dash: dashed;
+  --scan: 0.035; --glow: 0 0 14px rgba(255,255,255,.28); --proj-glow: 0 0 12px rgba(255,90,31,.6); --big-case: uppercase;
+  /* colour */
+  --page: #c9c6be; --bg: #f5f4f0; --bg2: #e6e4dd; --screw: #bdbab2;
+  --card: #fbfaf7; --tx: #141414; --muted: #5c584f; --line: #c4c0b6; --border: #141414;
+  --accent: #ff5a1f; --on-accent: #141414; --accent-tx: #b7410e;
+  --ok: #12b76a; --on-ok: #141414; --ok-tx: #0a7a45;
+  --warn: #e3a13a; --warn-tx: #8a5a00; --bad: #d4382c; --bad-tx: #b42318; --on-bad: #ffffff;
+  --office: #3a5fd6; --personal: #c2410c; --on-scope: #ffffff;
+  --lcd-bg: #0f0f10; --lcd-tx: #f4f4f4; --lcd-muted: #a3a3a3; --lcd-hot: #ff7a45; --lcd-line: #2a2a2a; --lcd-track: #2a2a2a;
+  --tint-review: #fff3ea; --tint-q: #fffbea; --tint-alert: #fff0ed; --tint-free: #fff3ea; --tint-free-tx: #7a3a10;
+  --tint-cool: #f3e9e7; --tint-cool-tx: #8a2a20; --tint-off: #ecebe6; --tint-off-tx: #5c584f;
+  --chip-on: #141414; --on-chip-on: #ffffff; --focus: #3a5fd6;
+  --tile-mix: 78%;
+}
+
+:root[data-theme="mission"] {
+  --font-body: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --font-title: "Barlow Semi Condensed", "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-big: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --fs-title: 17px; --fs-big: 40px; --fs-proj: 24px; --track-label: .2em; --big-weight: 600; --title-weight: 600;
+  --gap-card: 8px; --pad-key: 12px;
+  --r-card: 3px; --r-key: 3px; --r-chip: 3px; --r-bar: 1px;
+  --bw: 1px; --drop: 0px; --key-shadow: none; --card-shadow: none; --lane-dash: solid;
+  --scan: 0; --glow: 0 0 10px rgba(46,230,255,.35); --proj-glow: 0 0 10px rgba(46,230,255,.4); --big-case: uppercase;
+  --page: #050608; --bg: #0a0c0f; --bg2: #0a0c0f; --screw: #0a0c0f;
+  --card: #0f1318; --tx: #dbe4ee; --muted: #93a1b2; --line: #1f2731; --border: #2c3744;
+  --accent: #2ee6ff; --on-accent: #001318; --accent-tx: #2ee6ff;
+  --ok: #3dff9a; --on-ok: #00160a; --ok-tx: #3dff9a;
+  --warn: #ffc53d; --warn-tx: #ffc53d; --bad: #ff5872; --bad-tx: #ff7a8e; --on-bad: #1a0006;
+  --office: #b9a2ff; --personal: #2ee6ff; --on-scope: #05070a;
+  --lcd-bg: #0f1318; --lcd-tx: #dbe4ee; --lcd-muted: #93a1b2; --lcd-hot: #2ee6ff; --lcd-line: #2c3744; --lcd-track: #1f2731;
+  --tint-review: #121a22; --tint-q: #17160f; --tint-alert: #1c1016; --tint-free: #0c1b1f; --tint-free-tx: #2ee6ff;
+  --tint-cool: #1c1016; --tint-cool-tx: #ff7a8e; --tint-off: #0d1014; --tint-off-tx: #93a1b2;
+  --chip-on: #2ee6ff; --on-chip-on: #001318; --focus: #2ee6ff;
+  --tile-mix: 55%;
+}
+
+:root[data-theme="paper"] {
+  --font-body: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-title: "Fraunces", "Iowan Old Style", "New York", Georgia, serif;
+  --font-big: "Fraunces", "Iowan Old Style", "New York", Georgia, serif;
+  --fs-body: 16px; --fs-title: 18px; --fs-big: 40px; --fs-proj: 28px; --track-label: .08em; --big-weight: 400; --title-weight: 500;
+  --gap-card: 16px; --pad-key: 16px;
+  --r-card: 22px; --r-key: 18px; --r-chip: 999px; --r-bar: 3px;
+  --bw: 0px; --drop: 0px; --key-shadow: 0 1px 2px rgba(60,45,20,.06), 0 6px 20px rgba(60,45,20,.08); --card-shadow: 0 1px 2px rgba(60,45,20,.06), 0 6px 20px rgba(60,45,20,.06);
+  --lane-dash: solid; --scan: 0; --glow: none; --proj-glow: none; --big-case: none;
+  --page: #ebe5d9; --bg: #f6f2ea; --bg2: #f6f2ea; --screw: #f6f2ea;
+  --card: #fffdf8; --tx: #2a2723; --muted: #5e584f; --line: #e6dfd2; --border: #e6dfd2;
+  --accent: #58429a; --on-accent: #ffffff; --accent-tx: #58429a;
+  --ok: #2c6a3d; --on-ok: #ffffff; --ok-tx: #2c6a3d;
+  --warn: #735600; --warn-tx: #735600; --bad: #a02d33; --bad-tx: #a02d33; --on-bad: #ffffff;
+  --office: #2a5a88; --personal: #934514; --on-scope: #ffffff;
+  --lcd-bg: #fffdf8; --lcd-tx: #2a2723; --lcd-muted: #5e584f; --lcd-hot: #934514; --lcd-line: #e6dfd2; --lcd-track: #ece9e3;
+  --tint-review: #ebe5f6; --tint-q: #f6edcb; --tint-alert: #f8dfdf; --tint-free: #fbe5d4; --tint-free-tx: #7a3a10;
+  --tint-cool: #f8dfdf; --tint-cool-tx: #8a2228; --tint-off: #ece9e3; --tint-off-tx: #5e584f;
+  --chip-on: #58429a; --on-chip-on: #ffffff; --focus: #2a5a88;
+  --tile-mix: 70%;
+}
+
+:root[data-theme="paper"][data-mode="dark"] {
+  --key-shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); --card-shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  --page: #121110; --bg: #1b1a17; --bg2: #1b1a17; --screw: #1b1a17;
+  --card: #25231f; --tx: #efe9df; --muted: #b0a89c; --line: #38352f; --border: #38352f;
+  --accent: #cbbcf2; --on-accent: #1b1a17; --accent-tx: #cbbcf2;
+  --ok: #a3d9b1; --on-ok: #1b1a17; --ok-tx: #a3d9b1;
+  --warn: #ead17c; --warn-tx: #ead17c; --bad: #f4a6ac; --bad-tx: #f4a6ac; --on-bad: #1b1a17;
+  --office: #a8caef; --personal: #f3bb8f; --on-scope: #1b1a17;
+  --lcd-bg: #25231f; --lcd-tx: #efe9df; --lcd-muted: #b0a89c; --lcd-hot: #f3bb8f; --lcd-line: #38352f; --lcd-track: #2f2d29;
+  --tint-review: #2e2842; --tint-q: #3a3219; --tint-alert: #40232a; --tint-free: #3e2b1d; --tint-free-tx: #f3bb8f;
+  --tint-cool: #40232a; --tint-cool-tx: #f4a6ac; --tint-off: #2f2d29; --tint-off-tx: #b0a89c;
+  --chip-on: #cbbcf2; --on-chip-on: #1b1a17; --focus: #a8caef;
+  --tile-mix: 45%;
+}

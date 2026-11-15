@@ -18,7 +18,7 @@ export function projectView(vm, overview, tab, now, conn) {
     stats: [{ b: n("running"), t: "RUN" }, { b: n("upNext"), t: "NEXT" }, { b: n("review"), t: "REVIEW", hot: n("review") > 0 },
       { b: n("needsYou"), t: "BLOCKED", hot: n("needsYou") > 0 }, { b: n("doneToday"), t: "DONE TODAY" }],
   });
-  const seg = html`<nav class="seg" role="tablist">${TABS.map((t) => html`<a role="tab" aria-selected="${t === tab}" class="${t === tab ? "on" : ""}" href="#/p/${encodeURIComponent(p.id)}/${t}">${TAB_LABEL[t]}${
+  const seg = html`<nav class="seg" role="tablist">${TABS.map((t) => html`<a role="tab" aria-selected="${String(t === tab)}" class="${t === tab ? "on" : ""}" href="#/p/${encodeURIComponent(p.id)}/${t}">${TAB_LABEL[t]}${
     t === "review" && (vm.inbox || []).length ? ` ${vm.inbox.length}` : t === "alerts" && (vm.alerts || []).length ? ` ${vm.alerts.length}` : ""}</a>`)}</nav>`;
   const body = { workers: workersTab, board: boardTab, review: reviewTab, alerts: alertsTab, timeline: timelineTab, repo: repoTab }[tab] || boardTab;
   return html`${head}${seg}<div class="tabbody">${body(vm, now, pid)}</div>`;

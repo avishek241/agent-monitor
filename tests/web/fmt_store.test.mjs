@@ -37,7 +37,7 @@ test("task number chip and state icons", () => {
 
 test("routes round-trip", () => {
   const cases = [
-    { view: "overview" }, { view: "accounts" }, { view: "pair" },
+    { view: "overview" }, { view: "accounts" }, { view: "settings" },
     { view: "project", project: "shop-ops", tab: "workers" },
     { view: "task", project: "shop-ops", task: "107-supplier-import", sheet: null },
     { view: "task", project: "shop-ops", task: "110-attendance-history", sheet: "reassign" },
@@ -45,6 +45,7 @@ test("routes round-trip", () => {
   for (const r of cases) assert.deepEqual(parseRoute(routeHash(r)), r);
   assert.deepEqual(parseRoute("#/p/x/bogus"), { view: "project", project: "x", tab: "board" });
   assert.deepEqual(parseRoute("#/nonsense"), { view: "overview" });
+  assert.deepEqual(parseRoute("#/pair"), { view: "settings" });
   assert.deepEqual(parseRoute(""), { view: "overview" });
 });
 

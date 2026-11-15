@@ -8,7 +8,7 @@ export const SHEETS = ["review", "reassign", "answer"];
 export function parseRoute(hash = "") {
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   if (parts[0] === "accounts") return { view: "accounts" };
-  if (parts[0] === "pair") return { view: "pair" };
+  if (parts[0] === "settings" || parts[0] === "pair") return { view: "settings" };
   if (parts[0] === "p" && parts[1]) {
     const project = parts[1];
     if (parts[2] === "t" && parts[3]) {
@@ -25,7 +25,7 @@ export function routeHash(r) {
   const e = encodeURIComponent;
   switch (r.view) {
     case "accounts": return "#/accounts";
-    case "pair": return "#/pair";
+    case "settings": return "#/settings";
     case "project": return `#/p/${e(r.project)}/${r.tab || "board"}`;
     case "task": return `#/p/${e(r.project)}/t/${e(r.task)}${r.sheet ? `/${r.sheet}` : ""}`;
     default: return "#/";

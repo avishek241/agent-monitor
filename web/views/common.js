@@ -12,7 +12,7 @@ export function lcd({ left, mid, right, big, bigClass = "big", stats = [], stats
     : conn === "fixtures" ? html`<span class="fx-badge">FIXTURES</span>` : html`<span class="led" aria-label="live"></span>`;
   const row = (s) => (s.length ? html`<div class="stats">${s.map((x) => html`<span class="${x.hot ? "hot" : ""}">${x.b != null ? html`<b>${x.b}</b> ` : ""}${x.t}</span>`)}</div>` : "");
   return html`<header class="lcd">
-    <div class="l1">${led}${left}<span>${mid}</span><span>${right}</span></div>
+    <div class="l1">${led}${left}<span>${mid}</span><span>${right}</span><button class="themebtn" data-theme-cycle aria-label="Switch theme" title="Switch theme">◐</button><a href="#/settings" aria-label="Settings" title="Settings">⚙</a></div>
     <div class="${bigClass}">${big}</div>${row(stats)}${row(stats2)}</header>`;
 }
 
@@ -90,13 +90,14 @@ export function accountBlock(a, now, projectsById, { worker, allowed = true, rea
 export function accountStrip(a, now) {
   const q = quotaText(a, now);
   const chips = (a.lanes || []).map((l) => {
-    if (l.state === "running") return html`<i class="r">${tnum({ id: l.task })}</i>`;
-    if (l.state === "cooling") return html`<i class="c">⏸ ${l.task ? tnum({ id: l.task }) : ""}</i>`;
+    const tip = `${l.worker}·${l.lane} ${l.state === "free" ? freeLane(a, now).text : `${l.task || ""} ${l.title || ""}`}`;
+    if (l.state === "running") return html`<i class="r" title="${tip}">${tnum({ id: l.task })}</i>`;
+    if (l.state === "cooling") return html`<i class="c" title="${tip}">⏸ ${l.task ? tnum({ id: l.task }) : ""}</i>`;
     const f = freeLane(a, now);
-    if (f.cls === "pol") return html`<i class="o">🔒 POLICY</i>`;
-    if (f.cls === "cool") return html`<i class="c">⏸</i>`;
-    if (f.cls === "free") return html`<i class="f">FREE · ${a.capacity?.fitsSize ?? ""} FITS</i>`;
-    return html`<i class="o">·</i>`;
+    if (f.cls === "pol") return html`<i class="o" title="${tip}">🔒 POLICY</i>`;
+    if (f.cls === "cool") return html`<i class="c" title="${tip}">⏸</i>`;
+    if (f.cls === "free") return html`<i class="f" title="${tip}">FREE · ${a.capacity?.fitsSize ?? ""} FITS</i>`;
+    return html`<i class="o" title="${tip}">·</i>`;
   });
   return html`<a class="acct" href="#/accounts"><span class="n">${a.label}${scopeBadge(a.scope)}</span><span class="v${q.hot ? " hot" : ""}">${q.text}</span>${quotaBar(a)}${chips.length ? html`<span class="lanes">${chips}</span>` : ""}</a>`;
 }

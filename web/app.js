@@ -5,6 +5,8 @@ import { html, esc } from "./fmt.js";
 import { overviewView, accountsView } from "./views/overview.js";
 import { projectView } from "./views/project.js";
 import { taskView, reviewSheet, reassignSheet, answerSheet } from "./views/task.js";
+import { settingsView } from "./views/settings.js";
+import * as theme from "./theme.js";
 
 const qs = new URLSearchParams(location.search);
 const store = {
@@ -14,6 +16,20 @@ const store = {
 const FIXTURES = qs.get("fixtures") === "1";
 const base = location.pathname.replace(/[^/]*$/, "");
 let api = createApi({ base, fixtures: FIXTURES, token: store.get("deck.token") });
+
+// Theme: tokens in themes.css; the choice is persisted per device and Paper "auto" follows the OS.
+const darkQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+let themePref = theme.loadPref(window.localStorage);
+function setTheme(p) {
+  themePref = theme.normalise(p);
+  theme.savePref(window.localStorage, themePref);
+  theme.apply(document, themePref, !!darkQuery?.matches);
+  if (parseRoute(location.hash).view === "settings") render();
+}
+// ?theme=mission&mode=dark previews a theme (screenshots, sharing a link) and remembers it.
+if (qs.get("theme")) { themePref = theme.normalise({ theme: qs.get("theme"), mode: qs.get("mode") || themePref.mode }); theme.savePref(window.localStorage, themePref); }
+theme.apply(document, themePref, !!darkQuery?.matches);
+darkQuery?.addEventListener?.("change", () => theme.apply(document, themePref, darkQuery.matches));
 
 const S = { overview: null, ovAt: 0, projects: {}, details: {}, eligible: {}, conn: FIXTURES ? "fixtures" : "live", lastEventId: 0 };
 const $app = document.getElementById("app");
@@ -44,7 +60,7 @@ async function load(route, force = false) {
 function view(route) {
   const t = now();
   const o = S.overview;
-  if (route.view === "pair") return pairView();
+  if (route.view === "settings") return settingsView(themePref, { token: store.get("deck.token") || "", fixtures: FIXTURES, conn: S.conn });
   if (!o) return html`<div class="empty">Loading…</div>`;
   if (route.view === "accounts") return accountsView(o, t, S.conn);
   const vm = S.projects[route.project];
@@ -66,16 +82,6 @@ function view(route) {
   return overviewView(o, t, S.conn);
 }
 
-function pairView() {
-  return html`<header class="lcd"><div class="l1"><a href="#/">◀ ALL</a><span>PAIR THIS DEVICE</span><span></span></div><div class="proj">DEVICE TOKEN</div>
-    <div class="stats"><span>RUN <b>deck pair</b> ON THE MAC</span></div></header>
-    <div class="sheet"><p class="summary">Paste the device token shown by <code>deck pair</code>. GETs on localhost need no token; actions always do.</p>
-      <input id="tok" class="notefield" autocomplete="off" placeholder="device token" value="${store.get("deck.token") || ""}">
-      <div class="btns"><button class="btn go" data-pair="save">SAVE</button><button class="btn" data-pair="clear">FORGET</button></div>
-      <div class="btns"><button class="btn" data-pair="notify">ENABLE NOTIFICATIONS</button></div>
-      <div class="hint">${FIXTURES ? "Fixture mode: actions are simulated, nothing is sent." : ""}</div></div>`;
-}
-
 let renderSeq = 0;
 async function render(force = false, top = false) {
   const route = parseRoute(location.hash);
@@ -83,7 +89,7 @@ async function render(force = false, top = false) {
   try {
     await load(route, force);
   } catch (e) {
-    if (e.code === "auth" && route.view !== "pair") { location.hash = "#/pair"; return; }
+    if (e.code === "auth" && route.view !== "settings") { location.hash = "#/settings"; return; }
     if (S.overview) setConn("offline", false);
     else { $app.innerHTML = String(html`<div class="empty">Can't reach the deck (${e.message}). Retrying…</div>`); return; }
   }
@@ -128,6 +134,14 @@ async function runAction(el, act) {
 document.addEventListener("click", (ev) => {
   const swipe = ev.target.closest("[data-swipe]");
   if (swipe) { ev.preventDefault(); goProject(+1); return; }
+  const th = ev.target.closest("[data-theme-cycle],[data-theme-set],[data-mode-set]");
+  if (th) {
+    const d = th.dataset;
+    const next = d.themeSet ? { ...themePref, theme: d.themeSet } : d.modeSet ? { ...themePref, mode: d.modeSet } : theme.nextPref(themePref);
+    setTheme(next);
+    toast(`Theme: ${theme.label(next)}`);
+    return;
+  }
   const pair = ev.target.closest("[data-pair]");
   if (pair) { pairAction(pair.dataset.pair); return; }
   const el = ev.target.closest("[data-act]");
@@ -139,7 +153,7 @@ function pairAction(what) {
   if (what === "clear") { store.set("deck.token", null); toast("Forgotten"); }
   if (what === "notify" && "Notification" in window) Notification.requestPermission().then((p) => toast(`Notifications: ${p}`));
   api = createApi({ base, fixtures: FIXTURES, token: store.get("deck.token") });
-  if (what !== "notify") location.hash = "#/";
+  if (what === "save" || what === "clear") location.hash = "#/";
 }
 
 // Hold-to-confirm for destructive keys (cancel, reject): 1.2 s press, released early = nothing.
