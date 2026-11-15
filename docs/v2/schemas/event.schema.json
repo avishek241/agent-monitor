@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-deck/event.schema.json",
+  "title": "Agent Deck event",
+  "description": "One line of the append-only event log (events table, mirrored to events.jsonl and streamed over SSE). Events are facts; consumers never derive state by replaying them — state lives in the tasks/workers tables.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "ts",
+    "type",
+    "severity",
+    "text"
+  ],
+  "properties": {
+    "id": {
+      "type": "integer",
+      "description": "Monotonic; SSE 'id:' and the resume cursor (?since=)."
+    },
+    "ts": {
+      "type": "integer",
+      "description": "Unix seconds."
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Project id; null for machine-wide events (accounts, daemon)."
+    },
+    "type": {
+      "enum": [
+        "task.created",
+        "task.validated",
+        "task.invalid",
+        "task.state",
+        "task.priority",
+        "task.reassigned",
+        "attempt.started",
+        "attempt.heartbeat",
+        "attempt.suspect",
+        "attempt.hung",
+        "attempt.ended",
+        "attempt.killed",
+        "card.updated",
+        "card.rejected",
+        "question.asked",
+        "question.answered",
+        "handoff.received",
+        "handoff.invalid",
+        "review.requested",
+        "review.overdue",
+        "review.decided",
+        "merge.queued",
+        "merge.started",
+        "merge.gate",
+        "merge.done",
+        "merge.conflict",
+        "merge.failed",
+        "limit.hit",
+        "limit.reset",
+        "usage.reading",
+        "usage.stale",
+        "worker.idle",
+        "worker.busy",
+        "worker.offline",
+        "worker.cooling",
+        "lock.acquired",
+        "lock.released",
+        "lock.waiting",
+        "lock.expired",
+        "orphan.killed",
+        "port.conflict",
+        "daemon.started",
+        "daemon.reconciled",
+        "daemon.error",
+        "policy.denied",
+        "project.added",
+        "project.removed",
+        "project.offline",
+        "account.untagged",
+        "account.spare",
+        "backlog.low",
+        "plan.round",
+        "domain.waiting"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "debug",
+        "info",
+        "action",
+        "warn",
+        "alert"
+      ],
+      "description": "action = someone (usually W0) must do something; alert = something is wrong now. UIs notify on action/alert only."
+    },
+    "task": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "attempt": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "worker": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "for": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Who must act: ['W0'], ['owner'], or a worker id. Drives 'deck watch --for W0'."
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "One plain-English line, ready to show or speak."
+    },
+    "data": {
+      "type": "object",
+      "description": "Type-specific details (e.g. {from, to} for task.state; {resetsAt, account} for limit.hit)."
+    }
+  }
+}

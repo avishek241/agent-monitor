@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Deck phone mockup</title>
+<!-- Static mockup for B3 (P3). Studio look from the owner's PhoneDeck: warm-grey hardware body, dark LCD, chunky keys with 2px ink border + 4px drop,
+     JetBrains Mono caps labels, Space Grotesk titles, Doto LCD digits, orange #ff5a1f. The real PWA self-hosts these fonts (no CDN at runtime). -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700;800&family=Doto:wght@700;900&display=swap">
+<style>
+  :root { --ink:#141414; --muted:#6b675f; --body1:#f5f4f0; --body2:#e6e4dd; --key:#fbfaf7; --accent:#ff5a1f; --ok:#12b76a; --warn:#e3a13a; --bad:#d4382c;
+    --office:#4f7cff; --personal:#ff5a1f; --page:#c9c6be; }
+  * { box-sizing: border-box; }
+  body { margin:0; background: radial-gradient(120% 100% at 50% 0%, #dad7d0 0%, #c3c0b8 100%); font: 13px/1.3 "JetBrains Mono", ui-monospace, monospace; color: var(--ink); padding: 24px 16px 48px; }
+  h1 { font: 700 26px/1.1 "Space Grotesk", sans-serif; margin: 0 0 4px; }
+  .intro { max-width: 1200px; margin: 0 auto 20px; color: #3b3832; }
+  .row { display:flex; flex-wrap: wrap; gap: 28px; justify-content:center; }
+  .frame { width: 360px; display:flex; flex-direction:column; gap:8px; }
+  .cap { font-size: 10px; font-weight: 800; letter-spacing: .22em; color: #5f5b53; text-transform: uppercase; }
+  .phone { height: 740px; border-radius: 26px; padding: 12px; display:flex; flex-direction:column; gap: 10px; overflow:hidden;
+    background: radial-gradient(circle at 11px 11px, #bdbab2 2.5px, transparent 3.5px), radial-gradient(circle at calc(100% - 11px) 11px, #bdbab2 2.5px, transparent 3.5px),
+      radial-gradient(circle at 11px calc(100% - 11px), #bdbab2 2.5px, transparent 3.5px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), #bdbab2 2.5px, transparent 3.5px),
+      linear-gradient(180deg, var(--body1), var(--body2));
+    box-shadow: inset 0 1px 0 #fff, inset 0 -2px 0 rgba(0,0,0,.08), 0 10px 30px rgba(0,0,0,.18); }
+  .label { display:flex; align-items:center; gap:8px; font-size:9px; font-weight:800; letter-spacing:.22em; color:#8a867d; }
+  .label i { flex:1; height:1px; background:#cfccc4; } .label em { font-style:normal; color: var(--accent); }
+  .lcd { position:relative; overflow:hidden; border-radius:14px; padding:10px 12px; background:#0f0f10; color:#eee; box-shadow: inset 0 0 0 3px #2a2a2a, inset 0 6px 16px rgba(0,0,0,.7); }
+  .lcd::after { content:""; position:absolute; inset:0; pointer-events:none; background: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px); }
+  .lcd .l1 { display:flex; gap:8px; font-size:9.5px; letter-spacing:.14em; color:#8f8f8f; } .lcd .l1 span:last-child { margin-left:auto; }
+  .big { font-family: Doto, monospace; font-weight:900; font-size: 40px; line-height: 1; color:#f4f4f4; text-shadow: 0 0 14px rgba(255,255,255,.28); }
+  .proj { font-family: Doto, monospace; font-weight:900; font-size: 20px; color: var(--accent); text-shadow: 0 0 12px rgba(255,90,31,.6); }
+  .stats { display:flex; gap: 12px; font-size: 10px; letter-spacing:.1em; color:#bdbdbd; margin-top: 4px; }
+  .stats b { color:#fff; } .stats .hot { color: var(--accent); }
+  .led { display:inline-block; width:7px; height:7px; border-radius:50%; background:#35e07f; box-shadow:0 0 8px #35e07f; }
+  .tiles { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { position:relative; border-radius:14px; border:2px solid var(--ink); box-shadow: 0 4px 0 var(--ink); color:#fff; padding: 10px; min-height: 104px; display:flex; flex-direction:column; gap:4px;
+    background: linear-gradient(150deg, color-mix(in srgb, var(--c) 75%, #fff) 0%, var(--c) 50%, color-mix(in srgb, var(--c) 72%, #000) 100%); }
+  .tile b { font: 700 16px/1.1 "Space Grotesk", sans-serif; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .tile small { font-size: 9.5px; letter-spacing:.08em; opacity:.95; }
+  .tile .ic { font-size: 22px; }
+  .tile .scope { position:absolute; top:7px; right:8px; font-size:8.5px; font-weight:800; letter-spacing:.14em; padding:2px 6px; border-radius:999px; background: rgba(0,0,0,.32); }
+  .tile .cnt { display:flex; gap:6px; margin-top:auto; font-size:10px; font-weight:800; }
+  .tile .cnt span { background: rgba(0,0,0,.28); border-radius: 6px; padding: 2px 5px; }
+  .tile.ghost { --c:#fbfaf7; color: var(--ink); border-style: dashed; box-shadow:none; background: transparent; justify-content:center; align-items:center; }
+  .acct { display:grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 8px 10px; border-radius: 12px; background:#0f0f10; color:#ddd; box-shadow: inset 0 0 0 2px #2a2a2a; }
+  .acct .n { font-size: 11px; font-weight: 700; color:#fff; } .acct .v { font-size: 11px; text-align:right; }
+  .bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: #2a2a2a; overflow:hidden; } .bar i { display:block; height:100%; background: var(--ok); }
+  .sc { font-size: 8px; font-weight: 800; letter-spacing:.14em; padding: 1px 5px; border-radius: 999px; margin-left:6px; color:#fff; }
+  .sc.o { background: var(--office); } .sc.p { background: var(--personal); }
+  .list { display:flex; flex-direction:column; gap: 8px; overflow:hidden; }
+  .key { position:relative; display:flex; align-items:center; gap:10px; padding: 9px 10px; border-radius: 14px; background: var(--key); border: 2px solid var(--ink); box-shadow: 0 4px 0 var(--ink); }
+  .key .num { font-weight: 800; font-size: 11px; background: var(--accent); color:#000; border-radius: 5px; padding: 2px 5px; }
+  .key .t { flex:1; min-width:0; } .key .t b { display:block; font: 700 13.5px/1.15 "Space Grotesk", sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .key .t small { font-size: 9.5px; color: var(--muted); letter-spacing: .04em; }
+  .key .ico { font-size: 16px; width: 22px; text-align:center; }
+  .key.alert { background:#fff0ed; } .key.review { background:#fff3ea; } .key.q { background:#fffbea; }
+  .seg { display:flex; gap: 6px; }
+  .seg span { flex:1; text-align:center; font-size: 9px; font-weight: 800; letter-spacing:.12em; padding: 8px 2px; border-radius: 10px; border:2px solid var(--ink); background: var(--key); box-shadow: 0 3px 0 var(--ink); }
+  .seg span.on { background: var(--accent); color:#fff; }
+  .col { font-size: 9px; font-weight: 800; letter-spacing:.2em; color:#8a867d; margin-top: 2px; }
+  .steps { display:flex; flex-direction:column; gap:4px; font-size: 11px; }
+  .steps div { display:flex; gap:8px; } .steps .d { color: var(--ok); } .steps .a { color: var(--accent); font-weight:700; } .steps .p { color: #9a968e; }
+  .btns { display:flex; gap: 10px; margin-top:auto; }
+  .btn { flex:1; text-align:center; padding: 14px 6px; border-radius: 14px; border: 2px solid var(--ink); box-shadow: 0 4px 0 var(--ink); font-weight: 800; letter-spacing:.14em; font-size: 12px; background: var(--key); }
+  .btn.go { background: var(--ok); color:#fff; } .btn.warn { background: var(--accent); color:#fff; }
+  .chk { display:grid; grid-template-columns: 18px 1fr; gap: 2px 6px; font-size: 11px; }
+  .chk .y { color: var(--ok); font-weight: 800; } .chk .n { color: var(--bad); font-weight: 800; } .chk small { grid-column: 2; color: var(--muted); font-size: 9.5px; }
+  .chip { display:inline-block; font-size: 10px; font-weight: 700; padding: 6px 9px; border-radius: 999px; border: 2px solid var(--ink); background: var(--key); margin: 3px 4px 0 0; }
+  .chip.on { background: var(--ink); color: #fff; }
+  .sheet { margin-top:auto; border-radius: 20px 20px 14px 14px; background: #f2f0ea; border: 2px solid var(--ink); padding: 12px; display:flex; flex-direction:column; gap: 8px; box-shadow: 0 -6px 20px rgba(0,0,0,.15); }
+  .wk { display:flex; align-items:center; gap:10px; padding: 10px; border-radius: 14px; border: 2px solid var(--ink); box-shadow: 0 4px 0 var(--ink); background: var(--key); }
+  .wk b { font: 700 14px "Space Grotesk", sans-serif; } .wk .t { flex:1; } .wk small { display:block; font-size: 9.5px; color: var(--muted); }
+  .wk.off { opacity: .5; border-style: dashed; box-shadow: none; background: repeating-linear-gradient(135deg, #ecebe6 0 6px, #e3e1da 6px 12px); }
+  .wk.off small { color: var(--bad); font-weight: 700; }
+  .wk .lock { font-size: 16px; }
+  .lanes { display:flex; gap:4px; grid-column: 1 / -1; }
+  .lanes i { flex:1; height: 14px; border-radius: 4px; border: 1.5px solid #444; font-style:normal; font-size: 8px; line-height: 11px; text-align:center; color:#000; font-weight:800; }
+  .lanes i.r { background: #35e07f; border-color:#35e07f; } .lanes i.f { background: transparent; border-style: dashed; color:#ff7a45; border-color:#ff7a45; }
+  .lanes i.c { background: #3a2a2a; border-color:#d4382c; color:#ff6b5e; } .lanes i.o { background: transparent; border-style: dashed; color:#777; }
+  .lane { display:flex; align-items:center; gap:8px; padding: 7px 9px; border-radius: 12px; border: 2px solid var(--ink); background: var(--key); box-shadow: 0 3px 0 var(--ink); font-size: 10.5px; }
+  .lane .id { font-weight: 800; font-size: 10px; min-width: 34px; } .lane .t { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lane.free { border-style: dashed; box-shadow:none; background: #fff3ea; color:#7a3a10; }
+  .lane.cool { border-style: dashed; box-shadow:none; background: #f3e9e7; color:#8a2a20; }
+  .lane.pol { border-style: dashed; box-shadow:none; background: transparent; color:#6b675f; }
+  .acctcard { display:flex; flex-direction:column; gap:5px; }
+  .backlog { display:flex; align-items:center; gap:8px; padding: 8px 10px; border-radius: 12px; background:#0f0f10; color:#ddd; font-size: 10.5px; box-shadow: inset 0 0 0 2px #2a2a2a; }
+  .backlog b { color: #ff7a45; }
+  .note { max-width: 1200px; margin: 28px auto 0; font-size: 12px; color:#3b3832; line-height: 1.5; }
+  .note code { background: rgba(0,0,0,.08); padding: 1px 4px; border-radius: 4px; }
+  @media (max-width: 400px) { .frame { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>Agent Deck · phone deck (PWA) mockup</h1>
+  <div>Six portrait screens with the same navigation as the floating panel: Overview → Project → Task → sheets. The data is made up and the project names are neutral.</div>
+</div>
+<div class="row">
+
+  <!-- 1. OVERVIEW -->
+  <div class="frame"><div class="cap">1 · Overview (all projects)</div>
+  <div class="phone">
+    <div class="lcd">
+      <div class="l1"><span class="led"></span><span>AGENT DECK</span><span>SAT 15 NOV</span></div>
+      <div class="big">21:42</div>
+      <div class="stats"><span><b>4</b> RUNNING</span><span class="hot"><b>2</b> REVIEW</span><span><b>1</b> ?</span><span class="hot"><b>1</b> !</span></div>
+      <div class="stats"><span>NEXT RESET · CLAUDE·W 20:51 → resumes 104</span></div>
+    </div>
+    <div class="label">PROJECTS<i></i><em>2</em></div>
+    <div class="tiles">
+      <div class="tile" style="--c:#ff5a1f"><span class="scope">PERSONAL</span><span class="ic">🛠</span><b>Shop ops</b><small>107 pilot ready to review</small>
+        <div class="cnt"><span>▶2</span><span>⏳3</span><span>▣2</span><span>✋1</span></div></div>
+      <div class="tile" style="--c:#4f7cff"><span class="scope">OFFICE</span><span class="ic">🏢</span><b>Client portal</b><small>W4 on 12 · step 2/4</small>
+        <div class="cnt"><span>▶1</span><span>✓1</span></div></div>
+      <div class="tile" style="--c:#12a37b"><span class="scope">PERSONAL</span><span class="ic">🏡</span><b>Home lab</b><small>paused (disabled)</small>
+        <div class="cnt"><span>—</span></div></div>
+      <div class="tile ghost"><b>＋ add in config</b></div>
+    </div>
+    <div class="label">ACCOUNTS · LANES<i></i><em>5/8 JOBS</em></div>
+    <div class="acct"><span class="n">Codex · a<span class="sc p">PERSONAL</span></span><span class="v">52% · ↻ 60m</span><span class="bar"><i style="width:52%;background:#e3a13a"></i></span>
+      <span class="lanes"><i class="r">106</i><i class="r">12</i><i class="f">FREE · M FITS</i></span></div>
+    <div class="acct"><span class="n">Codex · b<span class="sc p">PERSONAL</span></span><span class="v">55% · ↻ 2h10</span><span class="bar"><i style="width:55%;background:#e3a13a"></i></span>
+      <span class="lanes"><i class="r">107</i><i class="r">109</i><i class="o">·</i></span></div>
+    <div class="acct"><span class="n">Claude · office<span class="sc o">OFFICE</span></span><span class="v">18% · ↻ 3h20</span><span class="bar"><i style="width:18%"></i></span>
+      <span class="lanes"><i class="r">13</i><i class="o">OFFICE ONLY</i></span></div>
+    <div class="acct"><span class="n">Claude · worker<span class="sc p">PERSONAL</span></span><span class="v" style="color:#ff6b5e">LIMIT → 20:51</span><span class="bar"><i style="width:100%;background:#d4382c"></i></span>
+      <span class="lanes"><i class="c">⏸ 104</i><i class="c">⏸</i><i class="c">⏸</i></span></div>
+    <div class="acct"><span class="n">Claude · main (W0)<span class="sc p">PERSONAL</span></span><span class="v">41% · orchestrator</span><span class="bar"><i style="width:41%"></i></span></div>
+    <div class="label">NEEDS YOU<i></i><em>4</em></div>
+    <div class="list">
+      <div class="key review"><span class="ico">▣</span><span class="num">107</span><span class="t"><b>Import the supplier list</b><small>PILOT · W2 · approving starts 108</small></span></div>
+      <div class="key alert"><span class="ico">!</span><span class="num">109</span><span class="t"><b>Stock costs quiet 16 min</b><small>deepest child: ssh pc profile.py · 15m</small></span></div>
+    </div>
+  </div></div>
+
+  <!-- 2. PROJECT PAGE -->
+  <div class="frame"><div class="cap">2 · Project page (swipe ← → between projects)</div>
+  <div class="phone">
+    <div class="lcd">
+      <div class="l1"><span>◀ ALL</span><span>PERSONAL · SHOP OPS</span><span>▶</span></div>
+      <div class="proj">SHOP OPS</div>
+      <div class="stats"><span><b>2</b> RUN</span><span><b>3</b> NEXT</span><span class="hot"><b>2</b> REVIEW</span><span><b>1</b> BLOCKED</span><span><b>4</b> DONE TODAY</span></div>
+    </div>
+    <div class="seg"><span>WORKERS</span><span class="on">BOARD</span><span>REVIEW</span><span>ALERTS</span><span>LOG</span></div>
+    <div class="col">RUNNING</div>
+    <div class="list">
+      <div class="key"><span class="ico">▶</span><span class="num">106</span><span class="t"><b>Match receipts to bills</b><small>W1 Codex·a · 3/5 Map columns · ~22m · 412/1,050 rows</small></span></div>
+      <div class="key"><span class="ico">⏸</span><span class="num">104</span><span class="t"><b>Vendor model</b><small>W3 limit · resumes 20:51 (same session)</small></span></div>
+    </div>
+    <div class="col">REVIEW</div>
+    <div class="list">
+      <div class="key review"><span class="ico">▣</span><span class="num">107</span><span class="t"><b>Import the supplier list</b><small>PILOT · waiting 12m · 3/3 done-when ✓</small></span></div>
+      <div class="key review"><span class="ico">⇄</span><span class="num">105</span><span class="t"><b>Payment reminders</b><small>merging · gates 2/3</small></span></div>
+    </div>
+    <div class="col">UP NEXT</div>
+    <div class="list">
+      <div class="key"><span class="ico">⏳</span><span class="num">108</span><span class="t"><b>Import suppliers (full)</b><small>waits for pilot 107</small></span></div>
+      <div class="key"><span class="ico">🔒</span><span class="num">110</span><span class="t"><b>Attendance history</b><small>waiting for lock ext:pc-ssh (held by 109)</small></span></div>
+    </div>
+    <div class="col">NEEDS YOU</div>
+    <div class="list">
+      <div class="key q"><span class="ico">?</span><span class="num">111</span><span class="t"><b>Rows without tax number?</b><small>W2 asks · options: inactive / skip</small></span></div>
+    </div>
+  </div></div>
+
+  <!-- 3. TASK DETAIL -->
+  <div class="frame"><div class="cap">3 · Task detail</div>
+  <div class="phone">
+    <div class="lcd">
+      <div class="l1"><span>◀ SHOP OPS</span><span>106 · P1 · M</span><span>W1 CODEX·A</span></div>
+      <div class="proj" style="font-size:17px">MATCH RECEIPTS</div>
+      <div class="stats"><span>RUNNING 1H 08M</span><span class="hot">ETA ~22M (22:04)</span><span>ATTEMPT 2</span></div>
+    </div>
+    <div class="label">STEPS<i></i><em>3/5</em></div>
+    <div class="steps">
+      <div class="d">✓ Read sources · 12m</div><div class="d">✓ Profile exports · 31m</div>
+      <div class="a">◉ Map columns · ~22m left</div><div class="p">○ Pilot 20 rows · ~15m</div><div class="p">○ Handoff · ~5m</div>
+      <div class="p" style="font-size:9.5px">2 steps added by attempt 2 (resumed after limit)</div>
+    </div>
+    <div class="label">NUMBERS<i></i></div>
+    <div class="acct"><span class="n">Rows matched</span><span class="v">412 / 1,050 · ≈18/min</span><span class="bar"><i style="width:39%"></i></span></div>
+    <div class="acct"><span class="n">Errors</span><span class="v" style="color:#ff6b5e">3</span></div>
+    <div class="label">LAST EVENTS<i></i></div>
+    <div class="steps" style="font-size:10.5px">
+      <div>21:40 card · step "Map columns" started</div><div>21:31 attempt 2 started · resume session</div><div>20:51 limit reset · Claude·worker</div>
+    </div>
+    <div class="btns"><div class="btn">PAUSE</div><div class="btn">REASSIGN</div><div class="btn">PRIO ▲</div></div>
+    <div class="btns" style="margin-top:0"><div class="btn" style="color:#d4382c">HOLD TO CANCEL</div></div>
+  </div></div>
+
+  <!-- 4. REVIEW SHEET -->
+  <div class="frame"><div class="cap">4 · Review sheet (one-tap decisions)</div>
+  <div class="phone">
+    <div class="lcd">
+      <div class="l1"><span>◀ REVIEW</span><span>107 · PILOT</span><span>WAITING 12M</span></div>
+      <div class="proj" style="font-size:17px">SUPPLIER LIST</div>
+      <div class="stats"><span>W2 CODEX·B</span><span>4 COMMITS</span><span>9 FILES</span><span class="hot">0 UNCOMMITTED</span></div>
+    </div>
+    <div style="font: 500 13px/1.35 'Space Grotesk', sans-serif">Imported 20 of 53 suppliers as a dry run. Names, tax numbers and phones were checked against the export. Two rows had the city in the address field and were fixed. Nothing was written to the live data.</div>
+    <div class="label">DONE WHEN<i></i><em>3/3</em></div>
+    <div class="chk">
+      <span class="y">✓</span><span>20-row pilot file written</span><small>pilot/suppliers-20.json · 20 rows</small>
+      <span class="y">✓</span><span>Tax numbers valid format</span><small>20/20 pass checksum</small>
+      <span class="y">✓</span><span>Tests pass</span><small>unit 48/48 · e2e 12/12</small>
+    </div>
+    <div class="label">RISKS<i></i></div>
+    <div style="font-size:11px">3 suppliers share one phone number (kept, flagged)</div>
+    <div class="label">DECISIONS NEEDED<i></i><em>1</em></div>
+    <div style="font-size:11px">Import suppliers with no tax number as…</div>
+    <div><span class="chip on">inactive (default)</span><span class="chip">active</span><span class="chip">skip</span></div>
+    <div class="btns"><div class="btn warn">CHANGES…</div><div class="btn go">APPROVE ✓</div></div>
+    <div style="font-size:9.5px;color:#6b675f;text-align:center">Approving queues the merge and unlocks 108 (full import)</div>
+  </div></div>
+
+  <!-- 5. REASSIGN SHEET with account policy -->
+  <div class="frame"><div class="cap">5 · Reassign sheet · account policy</div>
+  <div class="phone">
+    <div class="lcd">
+      <div class="l1"><span>◀ 110</span><span>PERSONAL PROJECT</span><span>SHOP OPS</span></div>
+      <div class="proj" style="font-size:17px">ATTENDANCE HISTORY</div>
+      <div class="stats"><span>NEEDS: DATA · CODEX/CLAUDE</span></div>
+    </div>
+    <div class="sheet">
+      <div class="label">RUN ON WHICH WORKER?<i></i></div>
+      <div class="wk"><span class="lock">🟢</span><span class="t"><b>W1 · Codex·a · lane 3</b><small style="color:#6b675f">PERSONAL · 52% · resets in 60m · best use of expiring quota</small></span><span>›</span></div>
+      <div class="wk"><span class="lock">🟡</span><span class="t"><b>W2 · Codex·b</b><small style="color:#6b675f">PERSONAL · 55% · lanes 2/3 · L fits</small></span><span>›</span></div>
+      <div class="wk off"><span class="lock">⏸</span><span class="t"><b>W3 · Claude·worker</b><small>Cooling: limit resets 20:51</small></span></div>
+      <div class="wk off"><span class="lock">🔒</span><span class="t"><b>W4 · Claude·office</b><small>Office account: never runs personal projects (account policy)</small></span></div>
+      <div class="wk off"><span class="lock">🔒</span><span class="t"><b>W0 · Claude·main</b><small>Orchestrator: interactive, offer only</small></span></div>
+      <div style="font-size:9.5px;color:#6b675f">Greyed rows can't be tapped. Trying through the CLI or API is refused and logged as an alert.</div>
+    </div>
+  </div></div>
+
+
+  <!-- 6. ACCOUNTS & PARALLEL LANES -->
+  <div class="frame"><div class="cap">6 · Accounts &amp; parallel lanes</div>
+  <div class="phone">
+    <div class="lcd">
+      <div class="l1"><span>◀ ALL</span><span>CAPACITY</span><span>RE-PLANNED 21:41:58</span></div>
+      <div class="big" style="font-size:34px">5/8 JOBS</div>
+      <div class="stats"><span>MACHINE CAP 6</span><span>RAM 5.1 GB FREE</span><span class="hot">2 SPARE LANES</span></div>
+    </div>
+    <div class="acctcard">
+      <div class="acct"><span class="n">Codex · a · W1<span class="sc p">PERSONAL</span></span><span class="v">52% · ↻ 60m · 2/3</span><span class="bar"><i style="width:52%;background:#e3a13a"></i></span></div>
+      <div class="lane"><span class="id">W1·1</span><span class="t">▶ Shop · 106 Match receipts · 3/5 · ~22m</span></div>
+      <div class="lane"><span class="id">W1·2</span><span class="t">▶ Client · 12 Login wording · 2/3 · ~9m</span></div>
+      <div class="lane free"><span class="id">W1·3</span><span class="t">○ FREE · 36% to spend before 22:42 · M fits ⚠ 5m</span></div>
+    </div>
+    <div class="acctcard">
+      <div class="acct"><span class="n">Claude · office · W4<span class="sc o">OFFICE</span></span><span class="v">18% · ↻ 3h20 · 1/2</span><span class="bar"><i style="width:18%"></i></span></div>
+      <div class="lane"><span class="id">W4·1</span><span class="t">▶ Client · 13 Export CSV · 1/4 · ~40m</span></div>
+      <div class="lane pol"><span class="id">W4·2</span><span class="t">🔒 free · only office projects may use it (policy)</span></div>
+    </div>
+    <div class="acctcard">
+      <div class="acct"><span class="n">Claude · worker · W3<span class="sc p">PERSONAL</span></span><span class="v" style="color:#ff6b5e">LIMIT → 20:51</span><span class="bar"><i style="width:100%;background:#d4382c"></i></span></div>
+      <div class="lane cool"><span class="id">W3·1</span><span class="t">⏸ Shop · 104 Vendor model · resumes 20:51 (same session)</span></div>
+    </div>
+    <div class="backlog"><span>BACKLOG</span><b>2 ready / target 5</b><span style="margin-left:auto">brief 3 more · S/M fit</span></div>
+    <div class="list">
+      <div class="key q"><span class="ico">⚡</span><span class="t"><b>Spare: Codex·a lane 3</b><small>110 waits on ext:pc-ssh (held by 109) · 2 drafts can be made ready</small></span></div>
+    </div>
+  </div></div>
+
+</div>
+<div class="note">
+  <b>Notes for B3.</b>
+  <ul>
+    <li>Data comes only from <code>/api/overview</code>, <code>/api/projects/{p}</code>, <code>…/tasks/{id}</code> and <code>…/eligible-workers</code>, plus SSE <code>/api/events</code>.</li>
+    <li>Scope badges come from the view models. The UI never infers them.</li>
+    <li>Disabled worker rows use <code>allowed:false</code> and show the server's <code>reason</code> verbatim.</li>
+    <li>Landscape and tablet: Overview becomes PhoneDeck's three-column grid (LCD + accounts | projects | needs-you).</li>
+    <li>An OFFLINE badge replaces the LED when SSE drops.</li>
+    <li>Lanes come from <code>accounts[].lanes</code> and <code>accounts[].capacity</code>. A free lane always shows the planner's reason: what size fits, or why nothing fits (domain, policy, cooling). Spare lanes with eligible work turn orange after <code>spareAlertMin</code>.</li>
+  </ul>
+</div>
+</body>
+</html>

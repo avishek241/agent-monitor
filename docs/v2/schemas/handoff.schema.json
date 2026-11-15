@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-deck/handoff.schema.json",
+  "title": "Agent Deck handoff",
+  "description": "What a worker returns at the end of an attempt. Passed to the agent as the structured-output schema (claude -p --json-schema / codex exec --output-schema), so the final message IS this object. The daemon adds the readOnly facts from git and the run, writes <runDir>/handoff.json and renders handoff.md into the task worktree. A run that ends without a valid handoff gets outcome 'unknown' and a red 'no valid handoff' flag in the review inbox.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["outcome", "summary", "doneWhen", "tests", "risks", "decisionsNeeded"],
+  "properties": {
+    "schema": { "const": "deck.handoff/1" },
+    "task": { "type": "string", "readOnly": true },
+    "attempt": { "type": "integer", "readOnly": true },
+    "outcome": { "enum": ["done", "partial", "blocked", "failed", "unknown"], "description": "'done' only when every doneWhen item is met. 'unknown' is set by the daemon only." },
+    "summary": { "type": "string", "minLength": 20, "maxLength": 1200, "description": "Plain words for the reviewer: what changed and why." },
+    "doneWhen": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["item", "met", "evidence"],
+        "properties": {
+          "item": { "type": "string", "description": "Copied verbatim from the brief's Done-when list." },
+          "met": { "type": "boolean" },
+          "evidence": { "type": "string", "maxLength": 400, "description": "Command + result, file path, or count that proves it." }
+        }
+      }
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["command", "result"],
+        "properties": {
+          "command": { "type": "string" },
+          "result": { "enum": ["pass", "fail", "skipped", "not-run"] },
+          "passed": { "type": ["integer", "null"] }, "failed": { "type": ["integer", "null"] },
+          "note": { "type": "string", "maxLength": 300 }
+        }
+      }
+    },
+    "risks": { "type": "array", "items": { "type": "string", "maxLength": 300 } },
+    "decisionsNeeded": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["question"],
+        "properties": {
+          "question": { "type": "string", "maxLength": 300 },
+          "options": { "type": "array", "items": { "type": "string" } },
+          "default": { "type": ["string", "null"], "description": "What the worker assumed (reversible) if nobody answers." }
+        }
+      }
+    },
+    "followUps": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["title", "summary"],
+      "properties": { "title": { "type": "string" }, "summary": { "type": "string" }, "size": { "enum": ["S", "M", "L", "XL"] } } },
+      "description": "Become 'draft' tasks automatically (never ready without W0)." },
+    "migrations": { "type": "array", "items": { "type": "string" }, "description": "Migration files added; triggers the db-migrations preMerge rule." },
+    "servicesStarted": { "type": "array", "items": { "type": "string" }, "description": "Anything left running on purpose (should be empty)." },
+    "nextStep": { "type": "string", "maxLength": 300, "description": "For partial/blocked: exactly where a continuation should pick up." },
+    "git": {
+      "type": "object", "readOnly": true, "additionalProperties": false,
+      "properties": {
+        "branch": { "type": "string" }, "base": { "type": "string" },
+        "commits": { "type": "array", "items": { "type": "object", "properties": { "sha": { "type": "string" }, "subject": { "type": "string" } } } },
+        "filesChanged": { "type": "integer" }, "insertions": { "type": "integer" }, "deletions": { "type": "integer" },
+        "uncommitted": { "type": "integer" }, "conflictsWithMain": { "type": "boolean" }
+      }
+    },
+    "run": {
+      "type": "object", "readOnly": true, "additionalProperties": false,
+      "properties": {
+        "worker": { "type": "string" }, "adapter": { "type": "string" }, "minutes": { "type": "number" },
+        "tokens": { "type": ["integer", "null"] }, "usageDelta": { "type": ["number", "null"] },
+        "exitCode": { "type": ["integer", "null"] }, "orphansKilled": { "type": "integer" }
+      }
+    }
+  }
+}

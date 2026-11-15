@@ -1,0 +1,561 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-deck/task.schema.json",
+  "title": "Agent Deck task",
+  "description": "One unit of work. Stored as a row in deck.db (tasks.data holds this JSON); 'deck show <id> --json' prints exactly this shape. Fields marked readOnly are owned by the daemon and are ignored on input.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "project",
+    "title",
+    "summary",
+    "brief",
+    "state",
+    "capability",
+    "priority",
+    "size"
+  ],
+  "properties": {
+    "schema": {
+      "const": "deck.task/1"
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,31}$",
+      "description": "Project id from the private global config. Each project has its own store; the id is repeated here so exported JSON is self-describing."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9]{3,5}(-[a-z0-9]+)*$",
+      "description": "Number + slug, e.g. '107-supplier-import'. The number is allocated by 'deck new' (never by hand)."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 4,
+      "maxLength": 80,
+      "description": "Plain-English name a non-technical owner understands."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 160,
+      "description": "One line: what and why."
+    },
+    "brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Brief path relative to project.repo (or absolute for non-repo tasks)."
+        },
+        "sha256": {
+          "type": "string",
+          "readOnly": true,
+          "description": "Hash of the validated brief, frozen when the task enters 'ready'. Editing the brief afterwards sends the task back to 'draft'."
+        },
+        "snapshot": {
+          "type": "string",
+          "readOnly": true,
+          "description": "Copy of the validated brief inside the run dir; the adapter always passes THIS path to the worker."
+        },
+        "validatedAt": {
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]{0,19}$"
+      }
+    },
+    "priority": {
+      "enum": [
+        "P1",
+        "P2",
+        "P3"
+      ]
+    },
+    "size": {
+      "enum": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "description": "S <1h, M 1-3h, L half day, XL multi-day. Drives the quota estimate."
+    },
+    "kind": {
+      "enum": [
+        "normal",
+        "pilot",
+        "scale",
+        "review",
+        "chore"
+      ],
+      "default": "normal",
+      "description": "A 'pilot' must be approved before any task with 'pilotOf' pointing at it can leave 'draft'."
+    },
+    "pilotOf": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "For kind=scale: id of the pilot task that must be done first (added to deps automatically)."
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "Task ids that must be 'done' before this one is queued."
+    },
+    "capability": {
+      "enum": [
+        "code",
+        "data",
+        "ui",
+        "infra",
+        "browser",
+        "research",
+        "review"
+      ]
+    },
+    "workerClass": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "claude-headless",
+          "codex-exec",
+          "interactive",
+          "shell"
+        ]
+      },
+      "minItems": 1,
+      "default": [
+        "claude-headless",
+        "codex-exec"
+      ],
+      "description": "Adapters allowed to run this task, in preference order."
+    },
+    "pinWorker": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Worker id (e.g. 'W2') the task must run on, or null. Rejected at write time if the worker's account may not run this project (account policy)."
+    },
+    "domains": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(area:[^\\s]+|seq:[a-z0-9-]+|ext:[a-z0-9-]+|res:[a-z0-9-]+)$"
+      },
+      "description": "Conflict domains that decide which tasks may run in parallel. area:<glob> = files/areas of the repo (two tasks conflict when their globs overlap); seq:<name> = shared numbering such as db-migrations (parallel allowed, serialised and renumbered at merge; set capacity 1 in project config for strict mode); ext:<name> = single-stream external resource such as a remote PC or accounting system (machine-wide, capacity 1); res:<name> = other declared project resource with capacity. 'merge' is reserved for the merge queue. If no area: is given, areas are derived from paths in the brief (top two path segments) at validation and shown for editing."
+    },
+    "estimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pct5": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Override of the learned 5-hour % cost for this task."
+        },
+        "minutes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Override of the learned duration."
+        }
+      }
+    },
+    "isolation": {
+      "enum": [
+        "worktree",
+        "main-checkout",
+        "none"
+      ],
+      "default": "worktree"
+    },
+    "timeouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attemptMin": {
+          "type": "integer",
+          "minimum": 5,
+          "default": 240,
+          "description": "Start-to-close per attempt."
+        },
+        "taskHours": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 48,
+          "description": "Schedule-to-close over all attempts."
+        },
+        "quietMin": {
+          "type": "integer",
+          "minimum": 3,
+          "default": 15,
+          "description": "No heartbeat for this long -> 'suspect'; x2 -> 'hung'."
+        }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "onLimit": {
+          "enum": [
+            "wait",
+            "failover",
+            "auto"
+          ],
+          "default": "auto"
+        },
+        "onHang": {
+          "enum": [
+            "alert",
+            "restart",
+            "block"
+          ],
+          "default": "restart"
+        }
+      }
+    },
+    "merge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "string",
+          "default": "main"
+        },
+        "preMerge": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Commands run in the task worktree, under the merge lock, after main is merged in (e.g. regenerate a migration)."
+        },
+        "gates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra gate commands; project gates from config always run too."
+        },
+        "auto": {
+          "type": "boolean",
+          "default": false,
+          "description": "Merge without human approval when gates pass (chores only)."
+        }
+      }
+    },
+    "doneWhen": {
+      "type": "array",
+      "readOnly": true,
+      "items": {
+        "type": "string"
+      },
+      "description": "Parsed from the brief's 'Done when' checklist at validation."
+    },
+    "stopPoint": {
+      "type": "string",
+      "readOnly": true,
+      "description": "Parsed from the brief's 'Stop point' section."
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "ready",
+        "queued",
+        "starting",
+        "running",
+        "blocked",
+        "limit_paused",
+        "hung",
+        "review",
+        "changes_requested",
+        "merging",
+        "done",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "stateSince": {
+      "type": "integer",
+      "readOnly": true
+    },
+    "stateReason": {
+      "type": "string",
+      "maxLength": 300,
+      "readOnly": true,
+      "description": "Why the task is in this state, in plain words (e.g. 'W2 hit 5-hour limit; resumes 20:51')."
+    },
+    "waitingFor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 160,
+      "description": "Human-readable gate for draft/blocked tasks, e.g. 'owner answers Q7-Q11'."
+    },
+    "resumeAt": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "readOnly": true,
+      "description": "Unix seconds; set in limit_paused/changes_requested backoff. Durable timer."
+    },
+    "worker": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "readOnly": true,
+      "description": "Worker id holding the current lease."
+    },
+    "attempts": {
+      "type": "array",
+      "readOnly": true,
+      "items": {
+        "$ref": "#/$defs/attempt"
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "readOnly": true,
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "base": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "integer",
+          "description": "Isolation slot; ports and DB names derive from it (config.slots)."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "readOnly": true,
+      "additionalProperties": false,
+      "properties": {
+        "requestedAt": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "decision": {
+          "enum": [
+            null,
+            "approved",
+            "changes",
+            "rejected"
+          ]
+        },
+        "by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decidedAt": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "createdBy": {
+      "type": "string",
+      "description": "W0, owner, or a worker id (workers may only create 'draft' follow-ups)."
+    },
+    "createdAt": {
+      "type": "integer",
+      "readOnly": true
+    },
+    "updatedAt": {
+      "type": "integer",
+      "readOnly": true
+    },
+    "rev": {
+      "type": "integer",
+      "readOnly": true,
+      "description": "Optimistic-lock counter; every write must send the rev it read."
+    }
+  },
+  "$defs": {
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "n",
+        "worker",
+        "adapter",
+        "startedAt",
+        "outcome"
+      ],
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "worker": {
+          "type": "string"
+        },
+        "adapter": {
+          "enum": [
+            "claude-headless",
+            "codex-exec",
+            "interactive",
+            "shell"
+          ]
+        },
+        "account": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Agent session/thread id for resume."
+        },
+        "pid": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "pgid": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "pidStart": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Process start time (ps lstart) to detect PID reuse on reconcile."
+        },
+        "runDir": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "integer"
+        },
+        "endedAt": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "leaseUntil": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lastHeartbeat": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "exitCode": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "running",
+            "handoff",
+            "limit",
+            "hung",
+            "crashed",
+            "timeout",
+            "cancelled",
+            "blocked"
+          ]
+        },
+        "usageStart": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Account 5h % at start (for learning cost per size)."
+        },
+        "usageEnd": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "tokens": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "continuationOf": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Attempt number this one continues (resume or failover)."
+        },
+        "lane": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Parallel lane on the worker/account (W1·2 = lane 2)."
+        }
+      }
+    }
+  }
+}

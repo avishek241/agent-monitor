@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-deck/card.schema.json",
+  "title": "Agent Deck progress card (protocol v2)",
+  "description": "Live progress of one task, written by the worker through 'deck card …' (or POST /api/tasks/{id}/card). The daemon MERGES patches into the stored card and appends every accepted patch to card_history; a card is never replaced or reset. Unknown keys are rejected with a clear error (exit 2), never silently ignored.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task", "steps", "metrics"],
+  "properties": {
+    "schema": { "const": "deck.card/2" },
+    "task": { "type": "string" },
+    "attempt": { "type": "integer", "minimum": 1, "readOnly": true, "description": "Attempt that last wrote the card." },
+    "steps": {
+      "type": "array", "maxItems": 20,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "title", "status", "etaMin"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]{1,32}$", "description": "Stable key; derived from the title on 'step add' if omitted." },
+          "title": { "type": "string", "minLength": 2, "maxLength": 70 },
+          "status": { "enum": ["pending", "active", "done", "skipped", "failed"] },
+          "etaMin": { "type": "number", "exclusiveMinimum": 0, "maximum": 2880, "description": "Estimated minutes for this step. Required." },
+          "startedAt": { "type": ["integer", "null"], "readOnly": true, "description": "Set by the daemon when status becomes active." },
+          "endedAt": { "type": ["integer", "null"], "readOnly": true },
+          "attempt": { "type": "integer", "readOnly": true, "description": "Attempt that added the step (continuations append, older steps keep their attempt number)." }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array", "maxItems": 8,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["label", "done"],
+        "properties": {
+          "label": { "type": "string", "minLength": 2, "maxLength": 40 },
+          "done": { "type": "number", "minimum": 0 },
+          "total": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+          "kind": { "enum": ["count", "bad", "pass"], "default": "count", "description": "bad = errors (red when > 0); pass = tests passing." },
+          "updatedAt": { "type": "integer", "readOnly": true }
+        }
+      }
+    },
+    "note": { "type": "string", "maxLength": 200, "description": "One line: current activity." },
+    "question": { "type": ["string", "null"], "maxLength": 500, "readOnly": true, "description": "Open question raised with 'deck ask' (task is 'blocked' until answered)." },
+    "warnings": { "type": "array", "readOnly": true, "items": { "type": "string" }, "description": "Normalisations applied to legacy (v1) cards, shown on the UI, e.g. \"step key 'name' renamed to 'title'\"." },
+    "updatedAt": { "type": "integer", "readOnly": true },
+    "rev": { "type": "integer", "readOnly": true }
+  }
+}

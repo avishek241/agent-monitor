@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Deck panel mockup</title>
+<!-- Static mockup for B3 (PanelV2.swift). Keeps the v1 panel look: near-black background, orange section titles, rounded cards,
+     Claude terracotta / Codex blue badges. Left: Overview (All). Right: one project page. Data is fictional. -->
+<style>
+  :root { --bg:#171717; --card:#272727; --line:#454545; --dim:#ccc; --faint:#9e9e9e; --orange:#ff730d; --claude:#cc7352; --codex:#3880f2;
+    --ok:#34c759; --warn:#ffcc00; --bad:#ff453a; --office:#4f7cff; --personal:#ff5a1f; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding: 24px 16px 48px; background:#0b0b0b; color:#fff; font: 15px/1.35 -apple-system, "SF Pro Text", system-ui, sans-serif; }
+  h1 { font: 700 22px/1.2 -apple-system, system-ui; margin: 0 auto 6px; max-width: 1100px; }
+  p.lead { max-width: 1100px; margin: 0 auto 20px; color: var(--faint); font-size: 13px; }
+  .row { display:flex; flex-wrap: wrap; gap: 24px; justify-content:center; }
+  .cap { font: 800 11px/1 ui-monospace, Menlo, monospace; letter-spacing:.2em; color:#888; margin-bottom: 8px; }
+  .panel { width: 520px; max-width: 100%; background: var(--bg); border-radius: 12px; padding: 18px; display:flex; flex-direction:column; gap: 20px; box-shadow: 0 20px 50px rgba(0,0,0,.6); border: 1px solid #2a2a2a; }
+  .hdr { display:flex; align-items:center; gap:10px; } .hdr b { font-size: 19px; font-weight: 800; } .hdr .t { margin-left:auto; font: 13px ui-monospace, Menlo; color: var(--faint); }
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+  .pill.rv { background: var(--orange); color:#000; } .pill.q { background: var(--warn); color:#000; } .pill.al { background: var(--bad); }
+  .chips { display:flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display:flex; align-items:center; gap:6px; font-size: 12.5px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); }
+  .chip.on { border-color: var(--orange); background: rgba(255,115,13,.15); }
+  .chip i { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .sc { font-size: 9px; font-weight: 800; letter-spacing: .12em; padding: 1px 5px; border-radius: 999px; color:#fff; }
+  .sc.o { background: var(--office); } .sc.p { background: var(--personal); }
+  .blk { display:flex; flex-direction:column; gap: 10px; }
+  .blk > .h { font-size: 12px; font-weight: 900; letter-spacing: .12em; color: var(--orange); display:flex; gap:8px; }
+  .blk > .h span { margin-left:auto; color: var(--faint); font-weight: 700; letter-spacing: .04em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display:flex; flex-direction:column; gap: 7px; }
+  .card.hot { border-color: rgba(255,115,13,.7); } .card.bad { border-color: rgba(255,69,58,.7); } .card.q { border-color: rgba(255,204,0,.6); }
+  .ln { display:flex; align-items:center; gap: 8px; font-size: 13.5px; }
+  .num { font: 800 11px ui-monospace, Menlo; background: var(--orange); color:#000; padding: 2px 6px; border-radius: 5px; }
+  .badge { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; color:#fff; margin-left:auto; }
+  .badge.cl { background: var(--claude); } .badge.cx { background: var(--codex); }
+  .small { font-size: 12px; color: var(--dim); } .faint { color: var(--faint); font-size: 11.5px; }
+  .btns { display:flex; gap: 8px; } .btn { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 7px; background:#3a3a3a; }
+  .btn.go { background: var(--ok); color:#000; } .btn.o { background: var(--orange); color:#000; }
+  .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.1); overflow:hidden; } .bar i { display:block; height:100%; border-radius: 4px; }
+  .acct { display:flex; flex-direction:column; gap: 5px; }
+  .acct .top { display:flex; align-items:center; gap: 8px; font-size: 14px; font-weight: 600; }
+  .acct .top .v { margin-left:auto; font: 12.5px ui-monospace, Menlo; color: var(--dim); }
+  .lane { display:flex; align-items:center; gap: 8px; margin-left: 12px; padding: 5px 8px; border-radius: 8px; background: #1f1f1f; font-size: 12.5px; }
+  .lane .id { font: 800 11px ui-monospace, Menlo; color: var(--faint); min-width: 34px; }
+  .lane .eta { margin-left:auto; font: 11.5px ui-monospace, Menlo; color: var(--orange); }
+  .lane.free { border: 1px dashed rgba(255,115,13,.7); color: #ffb37a; background: transparent; }
+  .lane.pol { border: 1px dashed #555; color: var(--faint); background: transparent; }
+  .lane.cool { border: 1px dashed rgba(255,69,58,.6); color: #ff8a80; background: transparent; }
+  .proj { display:flex; align-items:center; gap: 8px; font-size: 13.5px; padding: 8px 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); }
+  .proj .cnt { margin-left:auto; font: 12px ui-monospace, Menlo; color: var(--dim); display:flex; gap: 8px; }
+  .cols { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .col { background: #202020; border-radius: 10px; padding: 8px; display:flex; flex-direction:column; gap: 6px; }
+  .col .h { font: 800 10.5px ui-monospace, Menlo; letter-spacing: .14em; color: var(--faint); }
+  .tk { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 12px; display:flex; flex-direction:column; gap: 3px; }
+  .tk b { font-weight: 600; } .tk .faint { font-size: 10.5px; }
+  .tk.rv { border-color: rgba(255,115,13,.7); } .tk.bl { border-color: rgba(255,204,0,.6); }
+  .steps { font-size: 12.5px; display:flex; flex-direction:column; gap: 3px; }
+  .ok { color: var(--ok); } .ac { color: var(--orange); font-weight: 600; } .pe { color: var(--faint); }
+  .dom { display:flex; gap: 8px; font: 12px ui-monospace, Menlo; color: var(--dim); }
+  .dom .w { margin-left:auto; color: var(--warn); }
+  .backlog { display:flex; align-items:center; gap: 8px; font-size: 12.5px; background: rgba(255,115,13,.1); border: 1px dashed rgba(255,115,13,.6); border-radius: 10px; padding: 7px 10px; }
+  .collapsed { width: 520px; max-width:100%; background: var(--bg); border-radius: 12px; padding: 14px 18px; display:flex; gap: 14px; align-items:center; font: 600 13px ui-monospace, Menlo; border: 1px solid #2a2a2a; flex-wrap: wrap; }
+  .note { max-width: 1100px; margin: 26px auto 0; color: var(--faint); font-size: 12.5px; line-height: 1.55; }
+  code { background: #222; padding: 1px 4px; border-radius: 4px; color: #ddd; }
+</style>
+</head>
+<body>
+<h1>Agent Deck · floating panel v2 mockup</h1>
+<p class="lead">Full-height panel on the right edge, 520 px wide, as in v1. The project chips switch between <b>All</b> (Overview) and one project. Accounts show parallel lanes. The office account is visible with real usage, and its spare lane is explained, not alarmed.</p>
+<div class="row">
+
+<!-- OVERVIEW -->
+<div><div class="cap">OVERVIEW (ALL PROJECTS)</div>
+<div class="panel">
+  <div class="hdr"><span style="color:var(--orange);font-size:20px">⚙</span><b>Agent Deck</b><span class="pill rv">2 review</span><span class="pill q">1 ?</span><span class="pill al">1 !</span><span class="t">21:42:07</span></div>
+  <div class="chips">
+    <span class="chip on">All</span>
+    <span class="chip"><i style="background:#ff5a1f"></i>🛠 Shop ops <span class="sc p">P</span></span>
+    <span class="chip"><i style="background:#4f7cff"></i>🏢 Client portal <span class="sc o">O</span></span>
+    <span class="chip" style="opacity:.5"><i style="background:#12a37b"></i>🏡 Home lab · paused</span>
+  </div>
+
+  <div class="blk"><div class="h">NEEDS YOU · 4 <span>newest first</span></div>
+    <div class="card hot"><div class="ln"><span class="num">107</span><b>Import the supplier list</b><span class="badge cx">W2·1 Codex·b</span></div>
+      <div class="small">PILOT · Shop ops · 3/3 done-when ✓ · tests 60/60 · waiting 12 min · approving starts 108</div>
+      <div class="btns"><span class="btn go">Approve</span><span class="btn">Changes…</span><span class="btn">Open</span></div></div>
+    <div class="card q"><div class="ln"><span class="num">111</span><b>Rows without tax number?</b></div>
+      <div class="small">W2 asks: import as inactive (default) / active / skip</div><div class="btns"><span class="btn">Answer…</span></div></div>
+    <div class="card bad"><div class="ln"><span class="num">109</span><b>Stock costs: quiet 16 min</b></div>
+      <div class="small">deepest child: <code>ssh pc "python profile.py"</code> for 15 min · CPU idle → hung in 14 min</div>
+      <div class="btns"><span class="btn">Open</span><span class="btn o">Kill &amp; retry</span></div></div>
+  </div>
+
+  <div class="blk"><div class="h">ACCOUNTS · PARALLEL LANES <span>5 / 6 jobs · RAM 5.1 GB free</span></div>
+    <div class="acct">
+      <div class="top">Codex · a <span class="sc p">PERSONAL</span><span class="v">5h 52% · 7d 40% · ↻ 60m · 2/3</span></div>
+      <div class="bar"><i style="width:52%;background:var(--warn)"></i></div>
+      <div class="lane"><span class="id">W1·1</span>▶ Shop · 106 Match receipts · 3/5<span class="eta">~22m</span></div>
+      <div class="lane"><span class="id">W1·2</span>▶ Client · 12 Login wording · 2/3<span class="eta">~9m</span></div>
+      <div class="lane free"><span class="id">W1·3</span>○ free · 36 % to spend before 22:42 · M fits · ⚠ spare 5 min</div>
+    </div>
+    <div class="acct">
+      <div class="top">Codex · b <span class="sc p">PERSONAL</span><span class="v">5h 55% · 7d 48% · ↻ 2h10 · 2/3</span></div>
+      <div class="bar"><i style="width:55%;background:var(--warn)"></i></div>
+      <div class="lane"><span class="id">W2·1</span>▣ Shop · 107 Supplier list · review</div>
+      <div class="lane"><span class="id">W2·2</span>▶ Shop · 109 Stock costs · 2/4<span class="eta" style="color:var(--bad)">quiet 16m</span></div>
+    </div>
+    <div class="acct">
+      <div class="top">Claude · office <span class="sc o">OFFICE</span><span class="v">5h 18% · 7d 30% · ↻ 3h20 · 1/2</span></div>
+      <div class="bar"><i style="width:18%;background:var(--ok)"></i></div>
+      <div class="lane"><span class="id">W4·1</span>▶ Client · 13 Export CSV · 1/4<span class="eta">~40m</span></div>
+      <div class="lane pol"><span class="id">W4·2</span>🔒 free · only office projects may use it (3 queued tasks are personal)</div>
+    </div>
+    <div class="acct">
+      <div class="top">Claude · worker <span class="sc p">PERSONAL</span><span class="v" style="color:var(--bad)">LIMIT · resets 20:51 (in 9m)</span></div>
+      <div class="bar"><i style="width:100%;background:var(--bad)"></i></div>
+      <div class="lane cool"><span class="id">W3·1</span>⏸ Shop · 104 Vendor model · resumes 20:51, same session</div>
+    </div>
+    <div class="acct">
+      <div class="top">Claude · main (W0 orchestrator) <span class="sc p">PERSONAL</span><span class="v">5h 41% · 7d 62% · reading 35 s ago</span></div>
+      <div class="bar"><i style="width:41%;background:var(--ok)"></i></div>
+    </div>
+    <div class="backlog">▲ <b>Backlog 2 ready / target 5</b><span class="faint" style="margin-left:auto">brief 3 more · S/M fit before 22:42</span></div>
+  </div>
+
+  <div class="blk"><div class="h">PROJECTS</div>
+    <div class="proj">🛠 <b>Shop ops</b> <span class="sc p">P</span><span class="faint">107 pilot ready to review</span><span class="cnt"><span>▶3</span><span>⏳3</span><span>▣2</span><span>✋1</span></span></div>
+    <div class="proj">🏢 <b>Client portal</b> <span class="sc o">O</span><span class="faint">2 running</span><span class="cnt"><span>▶2</span><span>✓1</span></span></div>
+  </div>
+</div></div>
+
+<!-- PROJECT PAGE -->
+<div><div class="cap">PROJECT PAGE · SHOP OPS</div>
+<div class="panel">
+  <div class="hdr"><span style="color:var(--orange);font-size:20px">⚙</span><b>Shop ops</b><span class="sc p">PERSONAL</span><span class="pill rv">2 review</span><span class="t">21:42:07</span></div>
+  <div class="chips">
+    <span class="chip">All</span><span class="chip on"><i style="background:#ff5a1f"></i>🛠 Shop ops <span class="sc p">P</span></span><span class="chip"><i style="background:#4f7cff"></i>🏢 Client portal <span class="sc o">O</span></span>
+  </div>
+
+  <div class="blk"><div class="h">RUNNING · 3 <span>tap a card for steps &amp; numbers</span></div>
+    <div class="card"><div class="ln"><span class="num">106</span><b>Match receipts to bills</b><span class="badge cx">W1·1 Codex·a</span></div>
+      <div class="small">Link every receipt in the export to its bill so money owed is real.</div>
+      <div class="ln small"><span>Progress</span><span style="margin-left:auto;font-weight:700">55%</span></div>
+      <div class="bar"><i style="width:55%;background:var(--orange)"></i></div>
+      <div class="steps"><span class="ok">✓ Read sources · ✓ Profile exports</span><span class="ac">◉ Map columns · ~22m left</span><span class="pe">○ Pilot 20 rows · ○ Handoff</span></div>
+      <div class="small"><b>Rows matched</b> 412 / 1,050 · ≈18/min · ~35 min left</div>
+      <div class="faint">attempt 2 · resumed after limit · 2 steps added by attempt 2 · ETA 22:04</div></div>
+    <div class="card bad"><div class="ln"><span class="num">109</span><b>Stock costs from purchase bills</b><span class="badge cx">W2·2 Codex·b</span></div>
+      <div class="small">quiet 16 min · deepest child <code>ssh pc …</code> · domain ext:pc-ssh held</div></div>
+    <div class="card"><div class="ln"><span class="num">104</span><b>Vendor model</b><span class="badge cl">W3·1 Claude·worker</span></div>
+      <div class="small">⏸ limit paused · resumes 20:51 in the same session · 4/6 steps done</div></div>
+  </div>
+
+  <div class="blk"><div class="h">BOARD</div>
+    <div class="cols">
+      <div class="col"><div class="h">UP NEXT · 3</div>
+        <div class="tk"><b>108 Import suppliers (full)</b><span class="faint">waits for pilot 107</span></div>
+        <div class="tk"><b>110 Attendance history</b><span class="faint">domain ext:pc-ssh held by 109</span></div>
+        <div class="tk"><b>112 Payment ageing view</b><span class="faint">ready · L · fits Codex·b after 109</span></div></div>
+      <div class="col"><div class="h">REVIEW · 2</div>
+        <div class="tk rv"><b>107 Supplier list</b><span class="faint">PILOT · 12 min · Approve / Changes</span></div>
+        <div class="tk rv"><b>105 Payment reminders</b><span class="faint">merging · gates 2/3 (slot 4)</span></div></div>
+      <div class="col"><div class="h">NEEDS YOU · 1</div>
+        <div class="tk bl"><b>111 Rows without tax no.</b><span class="faint">question from W2</span></div></div>
+      <div class="col"><div class="h">DONE TODAY · 4</div>
+        <div class="tk"><b>101 · 102 · 103 · 100</b><span class="faint">merged 14:10–19:30</span></div></div>
+    </div>
+  </div>
+
+  <div class="blk"><div class="h">DOMAINS &amp; MERGE</div>
+    <div class="dom"><span>ext:pc-ssh</span><span>109 since 21:10</span><span class="w">110 waiting 22m</span></div>
+    <div class="dom"><span>area:apps/api/receipts/**</span><span>106</span></div>
+    <div class="dom"><span>seq:db-migrations</span><span>parallel · renumber at merge</span></div>
+    <div class="dom"><span>merge</span><span>105 (gates 2/3)</span><span class="w">queue: —</span></div>
+  </div>
+
+  <div class="blk"><div class="h">REPO &amp; HEALTH</div>
+    <div class="small"><code>a1b2c3d</code> · 103: stock view · 2h ago · working tree clean</div>
+    <div class="small"><span style="color:var(--ok)">●</span> App :3000 &nbsp; <span style="color:var(--ok)">●</span> API :4000 &nbsp; <span style="color:var(--bad)">●</span> Demo :3700</div>
+  </div>
+</div></div>
+
+<!-- COLLAPSED + REASSIGN -->
+<div style="display:flex;flex-direction:column;gap:24px"><div>
+<div class="cap">COLLAPSED BAR</div>
+<div class="collapsed"><span>▶5 running</span><span style="color:var(--orange)">▣2 review</span><span style="color:var(--bad)">! 1</span><span>lanes 5/8</span><span style="color:var(--bad)">Claude·w LIMIT 20:51</span><span style="color:var(--warn)">⚡ Codex·a spare</span></div></div>
+<div><div class="cap">REASSIGN SHEET (TASK 110 · PERSONAL PROJECT)</div>
+<div class="panel" style="gap:10px">
+  <div class="card"><div class="ln">🟢 <b>W1 · Codex·a · lane 3</b><span class="faint" style="margin-left:auto">52% · ↻ 60m · best use of expiring quota</span></div></div>
+  <div class="card"><div class="ln">🟢 <b>W2 · Codex·b · lane 3</b><span class="faint" style="margin-left:auto">55% · L fits</span></div></div>
+  <div class="card" style="opacity:.45;border-style:dashed"><div class="ln">⏸ <b>W3 · Claude·worker</b><span class="faint" style="margin-left:auto">cooling until 20:51</span></div></div>
+  <div class="card" style="opacity:.45;border-style:dashed"><div class="ln">🔒 <b>W4 · Claude·office</b><span style="margin-left:auto;color:var(--bad);font-size:12px;font-weight:700">Office account: never runs personal projects</span></div></div>
+  <div class="faint">Greyed rows are not clickable. The CLI (<code>deck reassign</code>) and API refuse them too (exit 3, <code>policy_denied</code>) and log an alert.</div>
+</div></div></div>
+
+</div>
+<div class="note">
+  <b>Notes for B3.</b>
+  <ul>
+    <li>Sections map 1:1 to <code>OverviewVM</code> / <code>ProjectVM</code> (design §12).</li>
+    <li>The "why" text on free lanes is <code>accounts[].capacity.why</code> or <code>fitsSize</code>. Never compute it in the UI.</li>
+    <li>Spare lanes turn orange and get ⚠ only when the server raised <code>account.spare</code>. Policy-idle lanes stay grey.</li>
+    <li>Task cards keep v1's card anatomy so the owner recognises them.</li>
+    <li>Collapse animates to the 96 px bar as in v1.</li>
+  </ul>
+</div>
+</body>
+</html>
