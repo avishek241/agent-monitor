@@ -10,8 +10,17 @@ import re
 import secrets
 from typing import Iterable, Optional
 
+import json
+from pathlib import Path
+
 from deck import clock, policy
-from deck.errors import IllegalTransition, NotFound, PolicyDenied, StaleRev
+from deck.adapters import schemas as hs
+from deck.errors import DomainBusy, IllegalTransition, NotFound, PolicyDenied, StaleRev, ValidationError
+
+HANDOFF_SCHEMA = json.loads((Path(__file__).resolve().parents[2] / "deck" / "schemas" / "handoff.schema.json").read_text())
+# B1 store.EDITABLE: the dispatcher may not write workspace/stateReason through edit()
+EDITABLE = {"title", "summary", "tags", "priority", "size", "kind", "pilotOf", "deps", "capability", "workerClass",
+            "pinWorker", "domains", "estimate", "isolation", "timeouts", "retry", "merge", "waitingFor", "brief"}
 
 NON_TERMINAL = {"draft", "ready", "queued", "starting", "running", "blocked", "limit_paused", "hung", "review",
                 "changes_requested", "merging"}
@@ -78,11 +87,12 @@ class FakeEvents:
 class FakeDomains:
     """area: overlap-exclusive; seq: capacity (0 = unlimited); ext:/res:/merge capacity (default 1)."""
 
-    def __init__(self, decl=None, events=None):
+    def __init__(self, decl=None, events=None, external=None, ext_holder=None):
         self.decl = decl or {}
         self.held = []          # {name, holder, since, expires}
         self.waits = {}         # (name, holder) -> since
         self.events = events
+        self.external, self.ext_holder = external, ext_holder
 
     @staticmethod
     def overlaps(glob_a, glob_b):
@@ -117,6 +127,20 @@ class FakeDomains:
     def try_acquire(self, names, holder, ttl=None, now=None):
         now = clock.now() if now is None else now
         names = sorted(set(names))
+        if self.external is not None:
+            ext = [n for n in names if n.startswith("ext:")]
+            local = [n for n in names if not n.startswith("ext:")]
+            for n in local:
+                b = self._blocker(n, holder, now)
+                if b:
+                    for m in local:
+                        self.waits.setdefault((m, holder), now)
+                    return False, b
+            if ext:
+                ok, b = self.external.try_acquire(ext, self.ext_holder(holder), ttl, now)
+                if not ok:
+                    return False, b
+            names = local
         for n in names:
             b = self._blocker(n, holder, now)
             if b:
@@ -134,6 +158,14 @@ class FakeDomains:
         self.held = [h for h in self.held if h["holder"] != holder]
         for k in [k for k in self.waits if k[1] == holder]:
             self.waits.pop(k)
+        n = before - len(self.held)
+        if self.external is not None:
+            n += self.external.release_all(self.ext_holder(holder))
+        return n
+
+    def release(self, name, holder=None):
+        before = len(self.held)
+        self.held = [h for h in self.held if not (h["name"] == name and (holder is None or h["holder"] == holder))]
         return before - len(self.held)
 
     def renew(self, holder, ttl=None, now=None):
@@ -187,7 +219,8 @@ class FakeProjectStore:
         self.handoffs = {}
         self.num = (self.pcfg.taskNumberStart if self.pcfg else 1) - 1
         self.events = FakeEvents(pid, gstore.counter, gstore.events.rows)
-        self.domains = FakeDomains(self.pcfg.domains if self.pcfg else {}, self.events)
+        self.domains = FakeDomains(self.pcfg.domains if self.pcfg else {}, self.events, external=gstore.ext_domains,
+                                   ext_holder=lambda h: f"{pid}/{h}")
         self.slots = FakeSlots(self.pcfg.slot_count if self.pcfg else 6)
 
     # ---- tasks
@@ -221,6 +254,9 @@ class FakeProjectStore:
 
     def edit(self, id, fields, *, by="W0", rev=None):
         t = self.tasks[id]
+        bad = set(fields) - EDITABLE
+        if bad:
+            raise ValidationError(f"field(s) not editable: {', '.join(sorted(bad))}")
         if rev is not None and rev != t["rev"]:
             raise StaleRev("stale rev")
         if fields.get("pinWorker"):
@@ -232,7 +268,27 @@ class FakeProjectStore:
         t["rev"] += 1
         return copy.deepcopy(t)
 
-    def transition(self, id, to, *, actor, reason="", rev=None, **effects):
+    # ---- B1-equivalent guards / side effects (deck/store.py _guard/_apply), compressed
+    def _review_rounds(self, tid):
+        return sum(1 for e in self.events.rows if e["task"] == tid and e["type"] == "review.decided"
+                   and e["data"].get("decision") == "changes")
+
+    def attempts_left(self, t):
+        return len(t["attempts"]) < int((t.get("retry") or {}).get("maxAttempts", 3)) + self._review_rounds(t["id"])
+
+    def has_branch(self, t):
+        return not (t.get("isolation") == "none" or t.get("capability") in ("research", "review")
+                    or t.get("isolation") == "main-checkout")
+
+    def _release(self, t, keep_slot=False):
+        self.domains.release_all(t["id"])
+        if not keep_slot:
+            self.slots.release(t["id"])
+        a = t["attempts"][-1] if t["attempts"] else None
+        if a and a.get("lane"):
+            self.g.lanes.release(a["worker"], a["lane"])
+
+    def transition(self, id, to, *, actor, reason="", rev=None, **eff):
         t = self.tasks.get(id)
         if t is None:
             raise NotFound(id)
@@ -242,57 +298,158 @@ class FakeProjectStore:
         if (frm, to) not in ALLOWED:
             raise IllegalTransition(f"{frm} → {to} not allowed")
         now = clock.now()
+        a = t["attempts"][-1] if t["attempts"] else None
+        h = self.handoffs.get((id, a["n"])) if a else None
+        ev = []
+        refuse = None
+        pair = (frm, to)
+        if pair == ("starting", "queued") or pair == ("running", "queued") and actor not in ("W0", "owner"):
+            if not self.attempts_left(t):
+                refuse = "attempts exhausted"
+        elif pair == ("hung", "queued") and not (eff.get("killed") and self.attempts_left(t)
+                                                 and (t.get("retry") or {}).get("onHang", "restart") == "restart"):
+            refuse = "restart guard"
+        elif pair == ("hung", "blocked") and (t.get("retry") or {}).get("onHang", "restart") == "restart" \
+                and self.attempts_left(t):
+            refuse = "onHang=restart with attempts left"
+        elif to == "failed" and frm in ("running", "hung", "starting") and self.attempts_left(t) \
+                and now - ((t["attempts"][0]["startedAt"] if t["attempts"] else now)) < int((t.get("timeouts") or {}).get("taskHours", 48)) * 3600:
+            refuse = "attempts left and within taskHours"
+        elif pair == ("limit_paused", "queued") and not (eff.get("failover") or not t.get("resumeAt") or now >= t["resumeAt"]):
+            refuse = "resume not due"
+        elif pair == ("changes_requested", "queued") and not self.attempts_left(t):
+            refuse = "attempts exhausted"
+        elif pair == ("running", "blocked") and actor not in ("W0", "owner"):
+            if not ((h and h["valid"] and h["data"].get("outcome") == "blocked") or (self.cards.get(id) or {}).get("question")):
+                refuse = "no blocked handoff or question"
+        elif pair == ("review", "merging") and not self.has_branch(t):
+            refuse = "no branch"
+        elif pair == ("review", "done") and self.has_branch(t):
+            refuse = "has a branch"
+        if refuse:
+            raise IllegalTransition(f"{id}: {frm} → {to} refused: {refuse}")
         t["state"], t["stateReason"], t["stateSince"], t["updatedAt"] = to, reason, now, now
         t["rev"] += 1
-        if "resume_at" in effects:
-            t["resumeAt"] = effects["resume_at"]
-        elif to == "limit_paused" and effects.get("resets_at"):
-            t["resumeAt"] = effects["resets_at"] + 90
-        elif to not in ("queued", "limit_paused"):
-            t["resumeAt"] = None
-        if "worker" in effects:
-            t["worker"] = effects["worker"]
-        if "pin_worker" in effects:
-            t["pinWorker"] = effects["pin_worker"]
-        if effects.get("attempts_plus"):
-            t["extraAttempts"] = t.get("extraAttempts", 0) + int(effects["attempts_plus"])
-        if effects.get("failover"):
-            t["pinWorker"] = None
-        if to in ("review",):
-            t.setdefault("review", {})
+        if pair == ("starting", "queued"):
+            self._release(t)
+            crashes = sum(1 for x in t["attempts"] if x["outcome"] == "crashed")
+            t["resumeAt"] = now + 60 * (1, 2, 4)[min(max(crashes - 1, 0), 2)]
+        elif pair == ("running", "queued"):
+            self._release(t)
+            fails = sum(1 for x in t["attempts"] if x["outcome"] in ("crashed", "timeout"))
+            t["resumeAt"] = now + 60 * (2, 4, 8)[min(max(fails - 1, 0), 2)]
+        elif to == "review" and frm == "running":
+            if not (h and h["valid"]):
+                synth = {"schema": "deck.handoff/1", "task": id, "attempt": a["n"] if a else None, "outcome": "unknown",
+                         "summary": "The attempt ended without a valid handoff; review the branch and run output.",
+                         "doneWhen": [], "tests": [], "risks": ["no valid handoff"], "decisionsNeeded": []}
+                if h is None and a:
+                    self.handoffs[(id, a["n"])] = {"attempt": a["n"], "ts": now, "valid": False, "data": synth}
+                ev.append(("handoff.invalid", "alert", f"{id} ended without a valid handoff", ["W0"], {}))
+            self._release(t)
             t["review"] = {"requestedAt": now, "decision": None, "by": None, "note": None, "decidedAt": None}
-        if "note" in effects and effects["note"]:
-            t.setdefault("review", {})["note"] = effects["note"]
-        self.events.emit("task.state", "info", f"{id}: {frm} → {to}" + (f" · {reason}" if reason else ""), task=id,
-                         data={"from": frm, "to": to, "actor": actor})
+            label = "PILOT " if t.get("kind") == "pilot" else ""
+            ev.append(("review.requested", "action", f"{label}{id} ready to review: {t['title']}"[:200], ["W0"], {}))
+        elif to == "limit_paused":
+            t["resumeAt"] = (eff.get("resets_at") or now + 3600) + 90
+            self._release(t, keep_slot=True)
+            ev.append(("limit.hit", "warn", (reason or f"{id} hit a limit")[:200], [],
+                       {"resetsAt": eff.get("resets_at"), "account": (a or {}).get("account")}))
+        elif pair == ("running", "hung"):
+            ev.append(("attempt.hung", "alert", f"{id} hung: {reason}"[:200], ["W0"], dict(eff.get("data") or {})))
+        elif pair == ("hung", "running"):
+            ev.append(("attempt.heartbeat", "info", f"{id} recovered", [], {"recovered": True}))
+        elif pair == ("hung", "queued"):
+            self._release(t)
+            ev.append(("attempt.killed", "warn", f"{id} killed after hang; continuing in a new attempt", [], {}))
+        elif pair == ("hung", "blocked"):
+            self._release(t)
+            ev.append(("task.state", "action", f"{id} blocked: hung", ["W0"], {}))
+        elif to == "failed":
+            self._release(t)
+            ev.append(("task.state", "alert", f"{id} failed: {reason or 'attempts exhausted'}"[:200], ["W0"], {}))
+        elif pair == ("limit_paused", "queued"):
+            t["resumeAt"] = None
+            if eff.get("failover"):
+                t["pinWorker"] = None
+            ev.append(("limit.reset", "info", f"{id} resumes", [], {"failover": bool(eff.get("failover"))}))
+        elif pair in (("ready", "blocked"), ("queued", "blocked")):
+            ev.append(("task.state", "action", f"{id} blocked: upstream {reason or 'dep'} failed", ["W0"], {}))
+        elif pair == ("running", "blocked"):
+            self._release(t)
+        elif pair == ("review", "changes_requested"):
+            t["review"] = {**(t.get("review") or {}), "decision": "changes", "by": actor, "note": eff.get("note"),
+                           "decidedAt": now}
+            ev.append(("review.decided", "info", f"{id} changes by {actor}", [], {"decision": "changes"}))
+        elif pair in (("review", "merging"), ("review", "done")):
+            t["review"] = {**(t.get("review") or {}), "decision": "approved", "by": actor, "decidedAt": now}
+            ev.append(("review.decided", "info", f"{id} approved by {actor}", [], {"decision": "approve"}))
+        elif pair == ("merging", "done"):
+            self.slots.release(id)
+            ev.append(("merge.done", "info", f"{id} merged", [], {}))
+        elif pair == ("merging", "changes_requested"):
+            t["review"] = {**(t.get("review") or {}), "decision": "changes", "by": actor, "note": eff.get("note"),
+                           "decidedAt": now}
+            if not eff.get("event_emitted"):
+                ev.append(("merge.failed", "alert", f"{id} merge failed", ["W0"], {}))
+        elif pair == ("changes_requested", "queued"):
+            t["resumeAt"] = None
+        elif to == "cancelled":
+            self._release(t)
+        if to not in ("starting", "running", "hung", "limit_paused"):
+            t["worker"] = None
+        if "worker" in eff:
+            t["worker"] = eff["worker"]
+        self.events.emit("task.state", "info", f"{id} {frm} → {to}" + (f": {reason}" if reason else ""), task=id,
+                         data={"from": frm, "to": to, "by": actor})
+        for typ, sev, text, for_, data in ev:
+            self.events.emit(typ, sev, text, task=id, attempt=(a or {}).get("n"), worker=(a or {}).get("worker"),
+                             for_=for_, data=data)
         return copy.deepcopy(t)
 
-    def set_reason(self, id, reason):
-        """Planner notes ("waiting: domain … held by …") — B1 exposes this as edit(stateReason)."""
-        self.tasks[id]["stateReason"] = reason
-
-    def lease(self, id, worker, lane, account, *, slot, domains, now=None):
+    def lease(self, id, worker, lane, account, *, slot=None, domains=(), now=None, adapter=None, continuation_of=None):
         now = clock.now() if now is None else now
         t = self.tasks[id]
-        if t["state"] != "queued":
-            raise IllegalTransition(f"{id} is {t['state']}, not queued")
         acct = self.cfg.account(account)
-        ok, why = policy.allow(acct, self.pcfg)
-        if not ok:
-            self.events.emit("policy.denied", "alert", f"lease refused: {why}", task=id, worker=worker,
+        w = self.cfg.worker(worker)
+        why = None
+        if w is not None and w.account != account:
+            why = f"worker {worker} belongs to account {w.account}, not {account}"
+        else:
+            ok, why = policy.allow(acct, self.pcfg)
+            why = None if ok else why
+        if why:
+            self.events.emit("policy.denied", "alert", f"policy denied: {why}"[:200], task=id, worker=worker,
                              for_=["W0"], data={"layer": "lease", "account": account})
             raise PolicyDenied(why)
-        if len(t["attempts"]) >= t["retry"]["maxAttempts"] + t.get("extraAttempts", 0):
-            raise IllegalTransition("attempts exhausted")
-        w = self.cfg.worker(worker)
+        if t["state"] != "queued":
+            raise IllegalTransition(f"{id} is {t['state']}, not queued")
+        if w.capabilities and t["capability"] not in w.capabilities:
+            raise IllegalTransition(f"{worker} lacks capability {t['capability']}")
+        if w.adapter not in (t.get("workerClass") or ["claude-headless", "codex-exec"]):
+            raise IllegalTransition("adapter not in workerClass")
+        if t.get("pinWorker") not in (None, worker):
+            raise IllegalTransition(f"{id} is pinned to {t['pinWorker']}")
+        if not self.attempts_left(t):
+            raise IllegalTransition(f"{id} has no attempts left")
+        ok, blk = self.domains.try_acquire(sorted(set(list(domains or []) + list(t.get("domains") or []))), id, now=now)
+        if not ok:
+            raise DomainBusy(f"waiting: {blk['reason']}", blocker=blk)
+        if slot is None and t.get("isolation", "worktree") != "none":
+            slot = self.slots.take(id)
         prev = t["attempts"][-1]["n"] if t["attempts"] else None
-        att = {"n": len(t["attempts"]) + 1, "worker": worker, "adapter": w.adapter if w else "shell",
+        att = {"n": len(t["attempts"]) + 1, "worker": worker, "adapter": adapter or w.adapter,
                "account": account, "sessionId": None, "pid": None, "pgid": None, "pidStart": None, "runDir": None,
                "startedAt": now, "endedAt": None, "leaseUntil": now + 120, "lastHeartbeat": now, "exitCode": None,
-               "outcome": "running", "usageStart": None, "usageEnd": None, "tokens": None, "continuationOf": prev,
-               "lane": lane, "slot": slot, "outOffset": 0}
+               "outcome": "running", "usageStart": None, "usageEnd": None, "tokens": None,
+               "continuationOf": continuation_of if continuation_of is not None else prev, "lane": lane, "slot": slot,
+               "outOffset": 0}
         t["attempts"].append(att)
-        self.transition(id, "starting", actor="DSP", reason=f"{worker}·{lane}", worker=worker)
+        if slot is not None:
+            t["workspace"] = {**(t.get("workspace") or {}), "slot": slot}
+        t["state"], t["stateReason"], t["stateSince"], t["worker"] = "starting", f"{worker}·{lane} starting", now, worker
+        t["rev"] += 1
+        self.events.emit("task.state", "info", f"{id} queued → starting", task=id, data={"from": "queued", "to": "starting"})
         self.events.emit("attempt.started", "info", f"{id} attempt {att['n']} on {worker}·{lane}", task=id,
                          attempt=att["n"], worker=worker)
         out = copy.deepcopy(att)
@@ -339,8 +496,23 @@ class FakeProjectStore:
         return copy.deepcopy(self.cards.get(task))
 
     def put_handoff(self, task, n, data, valid=None):
-        self.handoffs[(task, n)] = {"data": copy.deepcopy(data), "valid": valid}
-        return data
+        errs = hs.validate(data, HANDOFF_SCHEMA) if isinstance(data, dict) else ["handoff is not an object"]
+        if isinstance(data, dict) and data.get("outcome") == "unknown":
+            errs.append("outcome 'unknown' is set by the daemon only")
+        if valid is None:
+            valid = not errs
+        stored = {**copy.deepcopy(data), "task": task, "attempt": n}
+        self.handoffs[(task, n)] = {"attempt": n, "ts": clock.now(), "valid": bool(valid), "data": stored}
+        if valid:
+            self.events.emit("handoff.received", "info", f"{task} handoff: {stored.get('outcome')}", task=task, attempt=n)
+            for fu in stored.get("followUps") or []:
+                by = self.tasks[task]["attempts"][-1]["worker"] if self.tasks[task]["attempts"] else "worker"
+                self.create_task({"title": fu["title"], "summary": fu.get("summary") or fu["title"],
+                                  "size": fu.get("size", "M"), "createdBy": by}, by=by)
+        else:
+            self.events.emit("handoff.invalid", "alert", f"{task} handoff invalid: {'; '.join(errs[:2])}"[:200],
+                             task=task, attempt=n, for_=["W0"], data={"errors": errs[:10]})
+        return {"valid": bool(valid), "errors": errs, "data": stored}
 
     def handoff(self, task, n=None):
         if n is None:
@@ -349,20 +521,16 @@ class FakeProjectStore:
                 return None
             n = max(ns)
         h = self.handoffs.get((task, n))
-        return copy.deepcopy(h["data"]) if h else None
+        return copy.deepcopy(h) if h else None
 
     def review(self, task, decision, by, note="", rev=None):
         t = self.tasks[task]
-        if decision == "approve":
-            to = "done" if (t.get("isolation") == "none" or not (t.get("workspace") or {}).get("branch")) else "merging"
-            r = self.transition(task, to, actor=by, reason=f"approved by {by}", rev=rev)
-        elif decision == "changes":
-            r = self.transition(task, "changes_requested", actor=by, reason=note, rev=rev, note=note)
-        else:
-            r = self.transition(task, "cancelled", actor=by, reason="rejected", rev=rev)
-        self.tasks[task]["review"].update(decision={"approve": "approved", "changes": "changes"}.get(decision, "rejected"),
-                                          by=by, note=note, decidedAt=clock.now())
-        return r
+        if decision in ("approve", "approved"):
+            return self.transition(task, "merging" if self.has_branch(t) else "done", actor=by,
+                                   reason=f"approved by {by}", rev=rev, note=note)
+        if decision in ("changes", "changes_requested"):
+            return self.transition(task, "changes_requested", actor=by, reason="changes requested", rev=rev, note=note)
+        return self.transition(task, "cancelled", actor=by, reason=f"rejected by {by}", rev=rev, note=note)
 
 
 # ------------------------------------------------------------------ global

@@ -59,7 +59,7 @@ class LimitPauseResume(DeckCase):
         argv = self.launcher.calls[-1]["spec"].argv
         self.assertEqual(argv[argv.index("--resume") + 1], "sess-1")
         self.assertIn("CONTINUATION of attempt 1 (limit)", self.launcher.calls[-1]["spec"].argv[-1])
-        self.assertEqual(len(self.events("limit.reset")), 1)
+        self.assertEqual(len([e for e in self.events("limit.reset") if e["data"].get("account") == "cw"]), 1)
 
     def test_auto_failover_when_reset_far_and_headroom(self):
         homes = {"cw": str(self.state / "home-cw"), "cv": str(self.state / "home-cv")}

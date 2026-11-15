@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import subprocess
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +16,7 @@ from . import clock, quota
 from . import run as deckrun
 from .adapters import base as ab
 from .adapters import schemas as hs
+from .errors import IllegalTransition
 
 ACTIVE = ("starting", "running", "hung")
 START_TIMEOUT = 120
@@ -184,8 +186,7 @@ class Supervisor:
             att["lastHeartbeat"] = now
             m["suspect"] = False
             if task["state"] == "hung":
-                store.transition(tid, "running", actor="SUP", reason="heartbeat resumed")
-                self.rt.emit(pid, "attempt.heartbeat", "info", f"{tid} recovered", task=tid, attempt=n)
+                store.transition(tid, "running", actor="SUP", reason="heartbeat resumed")      # T13 (store emits)
                 task = store.get(tid)
         store.update_attempt(tid, n, lease_until=now + 120)
 
@@ -222,12 +223,10 @@ class Supervisor:
             delta = (cur - old[-1]) if old else 0.0
             if delta < CPU_HUNG:
                 dc = self.rt.probe.deepest_child(att["pgid"])
-                store.transition(tid, "hung", actor="SUP", reason=f"no output for {quiet // 60} min, CPU idle",
-                                 cpu_delta=delta)
-                self.rt.emit(pid, "attempt.hung", "alert",
-                             f"{tid} hung: quiet {quiet // 60} min, CPU idle" + (f" — {dc[0][:60]}" if dc else ""),
-                             task=tid, attempt=n, worker=att["worker"], for_=["W0"],
-                             data={"deepestChild": dc[0] if dc else None, "ageSec": dc[1] if dc else None})
+                store.transition(tid, "hung", actor="SUP",       # T12: the store emits attempt.hung (alert)
+                                 reason=f"quiet {quiet // 60} min, CPU idle" + (f" — {dc[0][:60]}" if dc else ""),
+                                 cpu_delta=delta, data={"deepestChild": dc[0] if dc else None,
+                                                        "ageSec": dc[1] if dc else None})
                 on_hang = (task.get("retry") or {}).get("onHang", "restart")
                 if on_hang in ("restart", "block"):
                     m["killed"] = "hung"
@@ -238,7 +237,8 @@ class Supervisor:
         if task["state"] == "starting" and now > int(att.get("leaseUntil") or 0):
             store.end_attempt(tid, att["n"], "crashed")
             self.rt.release(pid, store, task, att, keep_slot=False)
-            store.transition(tid, "queued", actor="SUP", reason=f"offer to {att['worker']} expired")
+            self._first_ok(store, tid, [("queued", dict(reason=f"offer to {att['worker']} expired"))],
+                           [("failed", dict(reason="offer expired; attempts exhausted"))])
             self.rt.offer_penalty[(pid, tid, att["worker"])] = now + 1800
             self.rt.replan = True
 
@@ -322,11 +322,6 @@ class Supervisor:
             hit = quota.parse_limit_text(((final.text if final else "") or "") + "\n" + err_tail, int(ex.get("endedAt") or now))
             if hit and (code not in (0, None) or (final and final.is_error)):
                 self._record_limit(pid, task, att, ab.Limit(hit[1], hit[0], hit[2]), now)
-        handoff, errors = None, []
-        if final and final.handoff is not None:
-            handoff = dict(final.handoff)
-            handoff.setdefault("schema", "deck.handoff/1")
-            errors = hs.validate(handoff, self.handoff_schema)
         cur = store.get(tid)
         if cur["state"] == "starting" and (final is not None or m["lines"] or att.get("sessionId")):
             cur = store.transition(tid, "running", actor="ADP", reason="started")      # T6 before the end rows
@@ -336,104 +331,117 @@ class Supervisor:
             self.rt.release(pid, store, cur, att, keep_slot=cur["state"] == "blocked")
             self._done(pid, tid, n)
             return
-        retry = cur.get("retry") or {}
-        max_att = int(retry.get("maxAttempts", 3)) + int(cur.get("extraAttempts", 0))
-        more = n < max_att
         usage_end = self.rt.eff5(att["account"], now)
         store.update_attempt(tid, n, usage_end=usage_end)
         self.rt.record_cost(cur, att, usage_end, now)
-
+        # The store's transition rows emit limit.hit / attempt.hung / attempt.killed / review.requested / failed
+        # alerts and compute backoffs; the runtime adds only what the store cannot know.
         if m["limit"]:
             lim = m["limit"]
             store.end_attempt(tid, n, "limit", code)
             self.rt.release(pid, store, cur, att, keep_slot=True)
             resume_at = lim["resets"] + 90
-            hhmm = __import__("time").strftime("%H:%M", __import__("time").localtime(resume_at))
+            hhmm = time.strftime("%H:%M", time.localtime(resume_at))
             store.transition(tid, "limit_paused", actor="ADP", reason=f"{att['worker']} hit its limit · resumes {hhmm}",
-                             resets_at=lim["resets"], resume_at=resume_at)
-            self.rt.emit(pid, "limit.hit", "warn", f"{att['account']} hit its {lim['kind']} limit · {tid} resumes {hhmm}",
-                         task=tid, attempt=n, worker=att["worker"],
-                         data={"account": att["account"], "resetsAt": lim["resets"]})
+                             resets_at=lim["resets"], kind=lim["kind"], resume_at=resume_at)
             self.rt.after_limit(pid, store, tid, att, lim["resets"], now)
         elif m["killed"] == "hung":
             store.end_attempt(tid, n, "hung", code)
             self.rt.release(pid, store, cur, att)
-            on_hang = retry.get("onHang", "restart")
-            if on_hang == "restart" and more:
-                store.transition(tid, "queued", actor="SUP", reason="restarted after hang", killed=True)
-                self.rt.emit(pid, "attempt.killed", "warn", f"{tid} attempt {n} killed after hang; continuing", task=tid,
-                             attempt=n)
-            elif on_hang == "restart":
-                store.transition(tid, "failed", actor="SUP", reason="hung; attempts exhausted")
-                self.rt.emit(pid, "task.state", "alert", f"{tid} failed: hung and no attempts left", task=tid, for_=["W0"])
-            else:
-                store.transition(tid, "blocked", actor="SUP", reason="hung — needs a look")
-        elif handoff is not None and not errors:
-            self._accept_handoff(pid, store, cur, att, handoff, code, now)
-        elif m["killed"] in ("timeout", "start-timeout") or (code not in (0, None)) or (handoff is None and code is None):
-            outcome = "timeout" if m["killed"] == "timeout" else "crashed"
-            store.end_attempt(tid, n, outcome, code)
-            self.rt.release(pid, store, cur, att)
-            if cur["state"] == "starting" and more:
-                store.transition(tid, "queued", actor="SUP", reason="did not start", resume_at=now + backoff(n, 1))
-            elif more:
-                store.transition(tid, "queued", actor="SUP", reason=f"attempt {n} {outcome} (exit {code}) — retry",
-                                 resume_at=now + backoff(n, 2))
-            else:
-                store.transition(tid, "failed", actor="SUP", reason=f"attempt {n} {outcome}; attempts exhausted")
-                self.rt.emit(pid, "task.state", "alert", f"{tid} failed after {n} attempts", task=tid, for_=["W0"])
+            on_hang = (cur.get("retry") or {}).get("onHang", "restart")
+            self._first_ok(store, tid, [("queued", dict(killed=True, reason="restarted after hang"))] if on_hang == "restart" else [],
+                           [("blocked", dict(reason="hung — needs a look")), ("failed", dict(reason="hung; attempts exhausted"))])
         else:
-            # exited cleanly with no valid handoff → synthetic handoff, still reaches review (T9)
-            synth = {"schema": "deck.handoff/1", "outcome": "unknown",
-                     "summary": "No valid handoff was returned; check the run log and the branch before deciding.",
-                     "doneWhen": [], "tests": [], "risks": ["no valid handoff"] + errors[:3], "decisionsNeeded": []}
-            self.rt.emit(pid, "handoff.invalid", "alert", f"{tid} ended without a valid handoff", task=tid, attempt=n,
-                         for_=["W0"], data={"errors": errors[:5]})
-            self._accept_handoff(pid, store, cur, att, synth, code, now, valid=False)
+            submitted = None
+            if final is None or final.handoff is None:
+                submitted = self._stored_handoff(store, tid, n)      # `deck handoff submit` fallback
+            if final is not None and final.handoff is not None:
+                h = self._enrich(dict(final.handoff), cur, att, code, now)
+                res = store.put_handoff(tid, n, h)
+                valid = bool(res.get("valid")) if isinstance(res, dict) and "valid" in res else True
+                self._write_handoff_files(cur, att, h)
+                self._end_with_handoff(pid, store, cur, att, h if valid else None, code, now)
+            elif submitted is not None:
+                self._write_handoff_files(cur, att, submitted)
+                self._end_with_handoff(pid, store, cur, att, submitted, code, now)
+            elif m["killed"] in ("timeout", "start-timeout") or code not in (0, None) or code is None:
+                outcome = "timeout" if m["killed"] == "timeout" else "crashed"
+                store.end_attempt(tid, n, outcome, code)
+                self.rt.release(pid, store, cur, att)
+                self._first_ok(store, tid, [("queued", dict(reason=f"attempt {n} {outcome} (exit {code}) — retry",
+                                                            outcome=outcome, resume_at=now + backoff(n, 2)))],
+                               [("failed", dict(reason=f"attempt {n} {outcome}; attempts exhausted", outcome=outcome))])
+            else:
+                # exited cleanly with no handoff → the store writes the synthetic 'unknown' handoff (T9)
+                self._end_with_handoff(pid, store, cur, att, None, code, now)
         self._done(pid, tid, n)
 
-    def _accept_handoff(self, pid, store, task, att, h, code, now, valid=True):
-        tid, n = task["id"], att["n"]
-        ws = task.get("workspace") or {}
-        h["task"], h["attempt"] = tid, n
+    def _first_ok(self, store, tid, tries, fallback):
+        """Try transitions in order; the store's guards (attempts left, onHang …) decide which one applies."""
+        for to, eff in list(tries) + list(fallback):
+            reason = eff.pop("reason", "")
+            try:
+                return store.transition(tid, to, actor="SUP", reason=reason, **eff)
+            except IllegalTransition:
+                continue
+        return None
+
+    @staticmethod
+    def _stored_handoff(store, tid, n):
+        if not hasattr(store, "handoff"):
+            return None
+        h = store.handoff(tid, n)
+        if h and h.get("valid"):
+            return h.get("data")
+        return None
+
+    def _enrich(self, h, task, att, code, now):
+        ws = self.rt.workspace_of(task)
+        h.setdefault("schema", "deck.handoff/1")
+        h["task"], h["attempt"] = task["id"], att["n"]
         h["git"] = git_facts(ws.get("path"), ws.get("base"), ws.get("branch")) if ws.get("branch") else {}
         h["run"] = {"worker": att["worker"], "adapter": att.get("adapter"),
                     "minutes": round((now - (att.get("startedAt") or now)) / 60, 1), "tokens": att.get("tokens"),
                     "exitCode": code, "orphansKilled": 0}
-        rd = Path(att["runDir"])
         try:
-            ex = json.loads((rd / "exit.json").read_text())
+            ex = json.loads((Path(att["runDir"]) / "exit.json").read_text())
             h["run"]["orphansKilled"] = int(ex.get("orphansKilled") or 0)
-        except (OSError, ValueError):
+        except (OSError, ValueError, TypeError):
             pass
+        h["git"] = {k: v for k, v in h["git"].items() if k in ("branch", "base", "commits", "filesChanged", "insertions",
+                                                               "deletions", "uncommitted", "conflictsWithMain")}
+        return h
+
+    def _write_handoff_files(self, task, att, h):
+        rd = Path(att["runDir"])
         (rd / "handoff.json").write_text(json.dumps(h, indent=1))
         (rd / "handoff.md").write_text(render_handoff_md(task, h))
-        store.put_handoff(tid, n, h, valid)
         self._commit_handoff_md(task, h)
-        outcome = h.get("outcome")
-        if outcome == "blocked":
+
+    def _end_with_handoff(self, pid, store, task, att, h, code, now):
+        """h = a VALID handoff (or None). blocked → T10, otherwise review (T8 valid / T9 synthetic)."""
+        tid, n = task["id"], att["n"]
+        if h is not None and h.get("outcome") == "blocked":
             store.end_attempt(tid, n, "blocked", code)
             self.rt.release(pid, store, task, att)
             q = (h.get("decisionsNeeded") or [{}])[0].get("question") or h.get("nextStep") or "worker is blocked"
             store.transition(tid, "blocked", actor="ADP", reason=q[:160])
-            self.rt.emit(pid, "question.asked", "action", f"{tid} asks: {q}"[:200], task=tid, attempt=n, for_=["W0"])
-        else:
-            store.end_attempt(tid, n, "handoff", code)
-            self.rt.release(pid, store, task, att)
-            store.transition(tid, "review", actor="ADP", reason=f"handoff: {outcome}", handoff=h)
-            self.rt.emit(pid, "handoff.received", "info", f"{tid} handed off ({outcome})", task=tid, attempt=n)
-            pilot = " PILOT" if task.get("kind") == "pilot" else ""
-            self.rt.emit(pid, "review.requested", "action", f"{tid}{pilot} ready to review: {task.get('title', '')}"[:200],
-                         task=tid, attempt=n, for_=["W0"])
-        for fu in h.get("followUps") or []:
-            try:
-                store.create_task({"title": fu["title"], "summary": fu.get("summary", ""), "size": fu.get("size", "M"),
-                                   "followUpOf": tid}, by=att["worker"])
-            except Exception:  # noqa: BLE001 — a bad follow-up never loses the handoff
-                pass
+            card = store.card(tid) if hasattr(store, "card") else None
+            if not (card or {}).get("question"):
+                self.rt.emit(pid, "question.asked", "action", f"{tid} asks: {q}"[:200], task=tid, attempt=n, for_=["W0"])
+            return
+        store.end_attempt(tid, n, "handoff", code)
+        self.rt.release(pid, store, task, att)
+        store.transition(tid, "review", actor="ADP" if h is not None else "SUP",
+                         reason=f"handoff: {h.get('outcome')}" if h is not None else "no valid handoff")
+        if h is None and hasattr(store, "handoff"):
+            stored = store.handoff(tid, n)
+            synth = (stored or {}).get("data") if stored else None
+            if synth:
+                self._write_handoff_files(task, att, self._enrich(dict(synth), task, att, code, now))
 
     def _commit_handoff_md(self, task, h):
-        ws = task.get("workspace") or {}
+        ws = self.rt.workspace_of(task)
         if (task.get("isolation") or "worktree") != "worktree" or not ws.get("path") or not Path(ws["path"]).is_dir():
             return
         pcfg = self.rt.cfg.project(task.get("project") or "")
@@ -450,19 +458,21 @@ class Supervisor:
         tid, n = task["id"], att["n"]
         store.end_attempt(tid, n, "crashed")
         self.rt.release(pid, store, task, att)
-        store.transition(tid, "queued", actor="SUP", reason=f"start failed: {why}", resume_at=clock.now() + backoff(n, 1))
+        self._first_ok(store, tid, [("queued", dict(reason=f"start failed: {why}", resume_at=clock.now() + backoff(n, 1)))],
+                       [("failed", dict(reason=f"start failed: {why}; attempts exhausted"))])
         self.rt.replan = True
 
     def _crashed_no_exit(self, pid, store, task, att, now):
         tid, n = task["id"], att["n"]
         store.end_attempt(tid, n, "crashed")
         self.rt.release(pid, store, task, att)
-        more = n < int((task.get("retry") or {}).get("maxAttempts", 3)) + int(task.get("extraAttempts", 0))
-        if more:
-            store.transition(tid, "queued", actor="SUP", reason="process died without an exit record — retry",
-                             resume_at=now + backoff(n, 2))
+        if task["state"] == "starting":
+            self._first_ok(store, tid, [("queued", dict(reason="process died before starting"))],
+                           [("failed", dict(reason="process died; attempts exhausted"))])
         else:
-            store.transition(tid, "failed", actor="SUP", reason="process died; attempts exhausted")
+            self._first_ok(store, tid, [("queued", dict(reason="process died without an exit record — retry",
+                                                        outcome="crashed", resume_at=now + backoff(n, 2)))],
+                           [("failed", dict(reason="process died; attempts exhausted"))])
         self._done(pid, tid, n)
 
     def _done(self, pid, tid, n):

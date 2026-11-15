@@ -98,8 +98,9 @@ class MergeQueue:
     def merge(self, pid, store, task, now):
         pcfg = self.d.cfg.project(pid)
         tid = task["id"]
-        ws = (task.get("workspace") or {}).get("path")
-        branch = (task.get("workspace") or {}).get("branch") or f"task/{tid}"
+        wsd = self.d.workspace_of(task)
+        ws = wsd.get("path")
+        branch = wsd.get("branch") or f"task/{tid}"
         target = (task.get("merge") or {}).get("target") or pcfg.mainBranch
         repo = Path(os.path.expanduser(pcfg.repo))
         if not ws or not Path(ws).is_dir():
@@ -131,7 +132,7 @@ class MergeQueue:
         # 2. migrations renumbered on top of the target (under the merge lock)
         rule = pcfg.migrationRule or {}
         changed = changed_files(ws, target, branch)
-        h = store.handoff(tid) if hasattr(store, "handoff") else None
+        h = ((store.handoff(tid) or {}).get("data") if hasattr(store, "handoff") else None)
         mig = [f for f in changed if any(fnmatch.fnmatch(f, p) for p in rule.get("paths") or [])]
         if (mig or (h or {}).get("migrations")) and rule.get("regenerate"):
             ok = store.domains.try_acquire(["seq:db-migrations"], "merge-queue", now=now)[0]
@@ -176,8 +177,7 @@ class MergeQueue:
                     git(repo, "merge", "--abort")
                 return self._changes(pid, store, tid, "Merge into the main checkout failed:\n" + out[-1500:])
         # 6. done: remove the worktree we created and the merged task/ branch
-        store.transition(tid, "done", actor="MQ", reason=f"merged into {target}")
-        self.d.emit(pid, "merge.done", "info", f"{tid} merged into {target}", task=tid)
+        store.transition(tid, "done", actor="MQ", reason=f"merged into {target}")       # T24: store emits merge.done
         if branch.startswith("task/"):
             git(repo, "worktree", "remove", ws)
             git(repo, "branch", "-d", branch)
@@ -216,7 +216,8 @@ class MergeQueue:
                         task=tid, for_=["W0"], data={"ports": hits})
 
     def _changes(self, pid, store, tid, note):
-        store.transition(tid, "changes_requested", actor="MQ", reason="merge gate failed", note=note[:4000])
+        store.transition(tid, "changes_requested", actor="MQ", reason="merge gate failed", note=note[:4000],
+                         event_emitted=True)
         self.d.emit(pid, "merge.failed", "alert", f"{tid}: merge stopped — {note.splitlines()[0][:120]}", task=tid,
                     for_=["W0"])
         return "changes"

@@ -38,6 +38,17 @@ def _git(repo, *args, check=True):
                           stdin=subprocess.DEVNULL, timeout=120)
 
 
+def expected(project, task: dict) -> dict:
+    """Where `ensure` puts the task worktree (deterministic, so nothing depends on the store keeping the path)."""
+    iso = task.get("isolation") or "worktree"
+    repo = Path(os.path.expanduser(project.repo or "."))
+    base = (task.get("merge") or {}).get("target") or project.mainBranch
+    if iso != "worktree":
+        return {"path": str(repo), "branch": project.mainBranch, "base": base}
+    wdir = Path(os.path.expanduser(project.worktreesDir or f"{repo}-worktrees"))
+    return {"path": str(wdir / task["id"]), "branch": f"task/{task['id']}", "base": base}
+
+
 def ensure(project, task: dict) -> dict:
     """Create (or reuse) the task worktree on branch task/<id>. Returns task.workspace fields.
 

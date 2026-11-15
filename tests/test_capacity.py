@@ -114,7 +114,7 @@ class ParallelPlanner(DeckCase):
         # R5 = 92-5-80 = 7 ; S burn 8/30 × min(T5=200, 30) = 8 > 7 → none; at 75 % R5 = 12 → one (8), second 16 > 12
         self.setup_one(80, 200)
         self.assertEqual(self.d.plan(), [])
-        self.assertIn("5-hour quota", self.stores["shop"].get("t0")["stateReason"])
+        self.assertIn("5-hour quota", self.d.notes[("shop", "t0")])
         self.setup_one(75, 200)
         self.assertEqual(len(self.d.plan()), 1)
 
@@ -148,7 +148,7 @@ class ParallelPlanner(DeckCase):
         self.usage("cx", 10, 200)
         self.add("shop", "t", size="S", workerClass=["codex-exec"])
         self.assertEqual(self.d.plan(), [])
-        self.assertIn("free RAM", self.stores["shop"].get("t")["stateReason"])
+        self.assertIn("free RAM", self.d.notes[("shop", "t")])
 
     def test_f_unknown_reading_one_job(self):
         self.build([account("cx")], [worker("W1", "cx")], [project("shop")])

@@ -371,22 +371,15 @@ class Dispatcher:
             self._note(pid, task, f"{acct.label}: {why}", 2)
             return None
         names = list(task.get("domains") or [])
-        proj_names = [n for n in names if not n.startswith("ext:")]
-        ext_names = [n for n in names if n.startswith("ext:")]
         holder = tid
-        ok, blk = st.domains.try_acquire(proj_names, holder, now=now)
+        # one all-or-nothing call: the project store delegates ext: names to the machine-wide table (holder pid/tid)
+        ok, blk = st.domains.try_acquire(names, holder, now=now)
         if not ok:
-            self._note(pid, task, f"domain {blk['name']} held by {blk['holder']}", 3)
-            return None
-        ok, blk = self.gstore.ext_domains.try_acquire(ext_names, f"{pid}/{tid}", now=now)
-        if not ok:
-            st.domains.release_all(holder)
             self._note(pid, task, f"domain {blk['name']} held by {blk['holder']}", 3)
             return None
         slot = st.slots.take(holder)
         if slot is None:
             st.domains.release_all(holder)
-            self.gstore.ext_domains.release_all(f"{pid}/{tid}")
             self._note(pid, task, "no free slot (ports/DB)", 3)
             return None
         for w in workers:
@@ -400,7 +393,7 @@ class Dispatcher:
                 self._release_holds(pid, st, tid, keep_slot=False)
                 self._note(pid, task, f"policy denied in lease: {e.reason}", 4)
                 return None
-            except IllegalTransition as e:
+            except DeckError as e:          # IllegalTransition, DomainBusy, NotFound …
                 self.gstore.lanes.release(w.id, lane)
                 self._release_holds(pid, st, tid, keep_slot=False)
                 self._note(pid, task, f"lease refused: {e.reason}", 4)
@@ -414,8 +407,7 @@ class Dispatcher:
         return None
 
     def _release_holds(self, pid, st, tid, keep_slot=False):
-        st.domains.release_all(tid)
-        self.gstore.ext_domains.release_all(f"{pid}/{tid}")
+        st.domains.release_all(tid)          # includes this task's ext: holds (pid/tid) in the global table
         if not keep_slot:
             st.slots.release(tid)
 
@@ -436,13 +428,7 @@ class Dispatcher:
             if live is None or live.id != att["account"] or not ok:
                 raise PolicyDenied(why or "worker's account changed between lease and launch")
             ws = wsmod.ensure(pcfg, task) if pcfg.repo else {"path": os.getcwd()}
-            if hasattr(st, "edit") and ws != (task.get("workspace") or {}):
-                ws_full = {**(task.get("workspace") or {}), **ws, "slot": att.get("slot")}
-                try:
-                    st.edit(tid, {"workspace": ws_full}, by="DSP")
-                except DeckError:
-                    pass
-                task["workspace"] = ws_full
+            task["workspace"] = {**(task.get("workspace") or {}), **ws, "slot": att.get("slot")}
             senv = wsmod.slot_env(pcfg, att.get("slot"), tid)
             run_dir = self.state_dir / "runs" / pid / tid / str(n)
             run_dir.mkdir(parents=True, exist_ok=True)
@@ -486,13 +472,23 @@ class Dispatcher:
     def _launch_failed(self, pid, st, tid, att, now, why):
         st.end_attempt(tid, att["n"], "crashed")
         self.release(pid, st, st.get(tid), att)
-        st.transition(tid, "queued", actor="SUP", reason=f"launch failed: {why}", resume_at=now + backoff(att["n"], 1))
+        self.sup._first_ok(st, tid, [("queued", dict(reason=f"launch failed: {why}", resume_at=now + backoff(att["n"], 1)))],
+                           [("failed", dict(reason=f"launch failed: {why}; attempts exhausted"))])
         self.replan = True
+
+    def workspace_of(self, task):
+        """Task workspace; falls back to the deterministic worktree path/branch when the store has no path."""
+        ws = dict(task.get("workspace") or {})
+        pcfg = self.cfg.project(task.get("project") or "")
+        if not ws.get("path") and pcfg is not None:
+            ws.update(wsmod.expected(pcfg, task))
+        return ws
 
     def _last_handoff(self, st, task):
         if hasattr(st, "handoff"):
             try:
-                return st.handoff(task["id"])
+                h = st.handoff(task["id"])
+                return (h or {}).get("data")
             except Exception:  # noqa: BLE001
                 return None
         for a in reversed(task.get("attempts") or []):

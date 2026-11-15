@@ -46,7 +46,7 @@ class Planner(DeckCase):
         self.add("shop", "pinned", capability="code", pinWorker="W1")
         started = {t: w for _p, t, w, _l in self.d.plan()}
         self.assertEqual(started, {"data-job": "W2", "pinned": "W1"})
-        self.assertIn("no configured worker", self.stores["shop"].get("code-claude-only")["stateReason"])
+        self.assertIn("no configured worker", self.d.notes[("shop", "code-claude-only")])
 
     def test_one_job_per_account_per_round(self):
         self.build([account("a1"), account("a2")], [worker("W1", "a1"), worker("W2", "a2")], [project("shop")])
@@ -108,7 +108,7 @@ class Domains(DeckCase):
         self.add("shop", "web", domains=["area:apps/web/**"], createdAt=T0 + 2)
         started = sorted(t for _p, t, _w, _l in self.d.plan())
         self.assertEqual(started, ["api", "web"])
-        self.assertIn("area:apps/api/src/invoices/** held by api", self.stores["shop"].get("invoices")["stateReason"])
+        self.assertIn("area:apps/api/src/invoices/** held by api", self.d.notes[("shop", "invoices")])
 
     def test_no_area_blocks_every_code_task(self):
         self.add("shop", "everything", domains=["area:**"], createdAt=T0)
@@ -119,7 +119,7 @@ class Domains(DeckCase):
         self.add("shop", "pc-a", domains=["ext:pc-ssh"], createdAt=T0)
         self.add("portal", "pc-b", domains=["ext:pc-ssh"], createdAt=T0 + 1)
         self.assertEqual([t for _p, t, _w, _l in self.d.plan()], ["pc-a"])
-        self.assertIn("ext:pc-ssh held by shop/pc-a", self.stores["portal"].get("pc-b")["stateReason"])
+        self.assertIn("ext:pc-ssh held by shop/pc-a", self.d.notes[("portal", "pc-b")])
 
     def test_seq_parallel_by_default_res_counted(self):
         for i in range(2):
