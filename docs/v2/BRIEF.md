@@ -4,7 +4,7 @@ Owner request (2026-11-15): make the best orchestrator/task manager for running 
 (Claude Code headless, Codex CLI, interactive sessions) on one Mac. Study other solutions first, then design a
 completely new mechanism so today's mistakes stop happening, tasks are created properly, handoffs are clean, and
 the floating window + a phone deck always show tasks, subtasks and what matters. Project-agnostic (config-driven);
-Bhumi is the first user. Public MIT repo — no private/project data in git.
+The first user is a real multi-worker project. Public MIT repo — no private/project data in git.
 
 ## Mistakes observed in one real day (design must make each impossible or loud)
 1. Worker finished but orchestrator wasn't told (launched with `&`/detached) → workers idle 30 min.
@@ -33,7 +33,7 @@ Output `docs/v2/research.md`: comparison table, what to copy, what to avoid, map
 - **Dispatcher daemon**: leases ready tasks to idle workers by capability + remaining quota (reads real usage),
   launches via adapters (claude headless, codex exec, interactive notify), always attached & watched; heartbeat/hang
   detection; auto-resume after limit reset; one-at-a-time locks for shared resources (DB migrations numbering,
-  merge lock, external systems like a Tally/PC); kills orphan servers it started.
+  merge lock, external single-stream systems like an office PC); kills orphan servers it started.
 - **Handoff contract**: structured `handoff.json` + md (what changed, tests, risks, decisions needed); review inbox
   for the orchestrator with approve / request changes / merge; merge queue serialised.
 - **Card protocol v2** with schema validation and a tiny SDK (`deck card ...`), append-only history (no resets).
@@ -43,7 +43,18 @@ Output `docs/v2/research.md`: comparison table, what to copy, what to avoid, map
   step progress, ETA), Board (ready/running/review/blocked with deps), Review inbox, Timeline, Alerts (idle worker,
   hung, stale, limit), Repo health. Actions: approve review, pause/resume, reassign, bump priority.
 **P2 Build** core (store, dispatcher, adapters, validator, CLI) with tests. **P3 Build** UI (panel + PWA).
-**P4 Pilot** on Bhumi alongside the current scripts, then switch over.
+**P4 Pilot** on the first real project alongside the current scripts, then switch over.
 
 Rules: keep v1 working until v2 is proven; no network calls except to the local daemon (and optional Tailscale);
 no tokens spent by the monitor itself; never store secrets; tests for the dispatcher state machine.
+
+## Owner additions (2026-11-15 22:20)
+- **Multi-project:** an **Overview** page across ALL projects the owner works on (each project = its own config/task store), plus a **dedicated page per project** (workers, board, review inbox, alerts, repo/health for that project). Add/remove projects by config; the phone deck and the floating panel both get the overview + per-project navigation.
+- **All accounts, including the professional (office) Claude account**, appear in the accounts view with real usage/limits.
+- **Account policy — hard rule enforced by the dispatcher, not just shown:** each account is tagged `office` or `personal`; each project is tagged `office` or `personal`.
+  - Personal accounts MAY run office projects (if the owner allows per project).
+  - The **office account must NEVER run personal-project tasks** — the dispatcher refuses the lease, the CLI refuses manual assignment, and the UI greys it out with the reason. Violations are impossible by construction, and any attempt is logged as an alert.
+  - Account/project tags live in the user's private config (never in git).
+
+## Owner addition (22:35): maximise parallel use of every account
+The dispatcher must run **several jobs per account in parallel** when quota allows, not one-per-worker: capacity = f(remaining 5-h/7-d quota, time to reset, job size estimate), with conflict domains (files/areas, migration numbering, merge queue, external single-stream resources like an office PC) preventing unsafe overlap. Prefer spending quota that is about to reset. After every completion it re-plans immediately; a "spare capacity" alert fires when an account has quota and no running job while ready tasks exist. Keep a ready backlog so there is always something to run.
