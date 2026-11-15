@@ -238,11 +238,12 @@ class Dispatcher:
                                 float(s.get("minFreeRamGb", 2)))
 
     # ------------------------------------------------------------------ candidates (§6.2 step 3)
-    def candidates(self, now):
-        running = self._running()
-        per_project = {}
-        for pid, _t, _a in running:
-            per_project[pid] = per_project.get(pid, 0) + 1
+    def candidates(self, now, per_project=None):
+        """Queued tasks in §6.2 step-3 order: resumes, priority, project fair share, unblocks most, age, id."""
+        if per_project is None:
+            per_project = {}
+            for pid, _t, _a in self._running():
+                per_project[pid] = per_project.get(pid, 0) + 1
         cands = []
         for pid, st in self.stores.items():
             if not self._project_enabled(pid):
@@ -251,14 +252,17 @@ class Dispatcher:
             for t in all_tasks:
                 if t["state"] != "queued" or (t.get("resumeAt") and t["resumeAt"] > now):
                     continue
-                unblocks = sum(1 for o in all_tasks if t["id"] in (o.get("deps") or []))
-                resume = bool(t.get("attempts"))
-                weight = float(self.cfg.project(pid).weight or 1)
-                key = (0 if resume else 1, PRIO.get(t.get("priority"), 1), per_project.get(pid, 0) / weight,
-                       -unblocks, t.get("createdAt") or 0, t["id"])
-                cands.append((key, pid, t))
-        cands.sort(key=lambda c: c[0])
-        return [(pid, t) for _k, pid, t in cands]
+                t["_unblocks"] = sum(1 for o in all_tasks if t["id"] in (o.get("deps") or []))
+                cands.append((pid, t))
+        return self.order(cands, per_project)
+
+    def order(self, cands, per_project):
+        def key(c):
+            pid, t = c
+            weight = float(self.cfg.project(pid).weight or 1)
+            return (0 if t.get("attempts") else 1, PRIO.get(t.get("priority"), 1), per_project.get(pid, 0) / weight,
+                    -t.get("_unblocks", 0), t.get("createdAt") or 0, t["id"])
+        return sorted(cands, key=key)
 
     def workers_for(self, aid, pid, task, now):
         """Eligible worker identities on account `aid`, in affinity order (§6.2 tie-breaks)."""
@@ -288,7 +292,10 @@ class Dispatcher:
         inputs = {a.id: self.account_input(a.id, now, running) for a in accts}
         caps = {aid: capacity.account_capacity(ai, now) for aid, ai in inputs.items()}
         mach = self.machine(len(running))
-        cands = self.candidates(now)
+        per_project = {}
+        for pid, _t, _a in running:
+            per_project[pid] = per_project.get(pid, 0) + 1
+        cands = self.candidates(now, per_project)
         self.notes, self._note_strength = {}, {}
         started = []
         while True:
@@ -299,6 +306,8 @@ class Dispatcher:
                     res = self._try_place(a, pid, task, inputs[a.id], caps[a.id], mach, now)
                     if res:
                         cands.remove((pid, task))
+                        per_project[pid] = per_project.get(pid, 0) + 1
+                        cands = self.order(cands, per_project)
                         started.append(res)
                         admitted += 1
                         mach.running_total += 1

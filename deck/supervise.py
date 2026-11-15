@@ -328,6 +328,8 @@ class Supervisor:
             handoff.setdefault("schema", "deck.handoff/1")
             errors = hs.validate(handoff, self.handoff_schema)
         cur = store.get(tid)
+        if cur["state"] == "starting" and (final is not None or m["lines"] or att.get("sessionId")):
+            cur = store.transition(tid, "running", actor="ADP", reason="started")      # T6 before the end rows
         if cur["state"] not in ACTIVE:
             # paused / cancelled / reassigned while running: the actor already moved the task
             store.end_attempt(tid, n, "cancelled", code)
