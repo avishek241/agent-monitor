@@ -17,8 +17,8 @@ def _git_log(workspace, target, branch, limit=20):
         return []
 
 
-def continuation_reason(task: dict) -> Optional[str]:
-    atts = task.get("attempts") or []
+def continuation_reason(task: dict, attempt: Optional[int] = None) -> Optional[str]:
+    atts = [a for a in task.get("attempts") or [] if attempt is None or (a.get("n") or 0) < attempt]
     if not atts:
         return None
     last = atts[-1]
@@ -34,7 +34,10 @@ def build(project, task: dict, worker, workspace, slot_env: dict, attempt: int, 
     rules = ", ".join(getattr(project, "rulesFiles", None) or ["AGENTS.md"])
     brief = (task.get("brief") or {}).get("snapshot") or (task.get("brief") or {}).get("path") or "(missing brief)"
     branch = (task.get("workspace") or {}).get("branch") or f"task/{task['id']}"
-    env_names = ", ".join(f"${k}" for k in sorted(slot_env or {})) or "(none configured)"
+    names = [f"${k}" for k in sorted(slot_env or {}) if not k.startswith("DECK_PORT_")]
+    if any(k.startswith("DECK_PORT_") for k in slot_env or {}):
+        names.insert(0, "$DECK_PORT_0…$DECK_PORT_9")
+    env_names = ", ".join(names) or "(none configured)"
     lines = [
         f'You are {worker.id} working on project "{getattr(project, "title", "") or project.id}", task {task["id"]}: {task.get("title", "")}.',
         f"1. Read and follow {rules} (binding project rules).",
@@ -47,7 +50,7 @@ def build(project, task: dict, worker, workspace, slot_env: dict, attempt: int, 
         "If structured output is unavailable, run `deck handoff submit -` with it instead.",
     ]
     if attempt > 1:
-        reason = continuation_reason(task) or "retry"
+        reason = continuation_reason(task, attempt) or "retry"
         steps = [s.get("title", s.get("id")) for s in (card or {}).get("steps", []) if s.get("status") == "done"]
         note = (card or {}).get("note") or "-"
         nxt = (last_handoff or {}).get("nextStep") or "-"
