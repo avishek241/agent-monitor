@@ -18,6 +18,8 @@ from deck.adapters import schemas as hs
 from deck.errors import DomainBusy, IllegalTransition, NotFound, PolicyDenied, StaleRev, ValidationError
 
 HANDOFF_SCHEMA = json.loads((Path(__file__).resolve().parents[2] / "deck" / "schemas" / "handoff.schema.json").read_text())
+ATTEMPT_SCHEMA_KEYS = set(json.loads((Path(__file__).resolve().parents[2] / "deck" / "schemas" / "task.schema.json")
+                                     .read_text())["$defs"]["attempt"]["properties"])
 # B1 store.EDITABLE: the dispatcher may not write workspace/stateReason through edit()
 EDITABLE = {"title", "summary", "tags", "priority", "size", "kind", "pilotOf", "deps", "capability", "workerClass",
             "pinWorker", "domains", "estimate", "isolation", "timeouts", "retry", "merge", "waitingFor", "brief"}
@@ -243,14 +245,24 @@ class FakeProjectStore:
         self.events.emit("task.created", "info", f"{tid} created", task=tid)
         return copy.deepcopy(t)
 
+    def _public(self, t):
+        """Like B1: task dicts carry only the schema subset of each attempt (no outOffset/slot/cpuSecs)."""
+        out = copy.deepcopy(t)
+        out["attempts"] = [{k: v for k, v in a.items() if k in ATTEMPT_SCHEMA_KEYS} for a in out["attempts"]]
+        return out
+
     def get(self, id):
         if id not in self.tasks:
             raise NotFound(f"no task {id}")
-        return copy.deepcopy(self.tasks[id])
+        return self._public(self.tasks[id])
 
     def list(self, states=None):
         st = set(states) if states else None
-        return [copy.deepcopy(t) for t in self.tasks.values() if st is None or t["state"] in st]
+        return [self._public(t) for t in self.tasks.values() if st is None or t["state"] in st]
+
+    def current_attempt(self, task):
+        atts = self.tasks[task]["attempts"]
+        return dict(copy.deepcopy(atts[-1]), task=task) if atts else None
 
     def edit(self, id, fields, *, by="W0", rev=None):
         t = self.tasks[id]
@@ -266,7 +278,7 @@ class FakeProjectStore:
                 raise PolicyDenied(why)
         t.update(copy.deepcopy(fields))
         t["rev"] += 1
-        return copy.deepcopy(t)
+        return self._public(t)
 
     # ---- B1-equivalent guards / side effects (deck/store.py _guard/_apply), compressed
     def _review_rounds(self, tid):
@@ -405,7 +417,7 @@ class FakeProjectStore:
         for typ, sev, text, for_, data in ev:
             self.events.emit(typ, sev, text, task=id, attempt=(a or {}).get("n"), worker=(a or {}).get("worker"),
                              for_=for_, data=data)
-        return copy.deepcopy(t)
+        return self._public(t)
 
     def lease(self, id, worker, lane, account, *, slot=None, domains=(), now=None, adapter=None, continuation_of=None):
         now = clock.now() if now is None else now

@@ -320,7 +320,7 @@ class Reconcile(DeckCase):
         self.assertEqual(self.stores["shop"].get("t")["state"], "running")
         write_out(rd, [{"type": "item.started", "item": {"type": "command_execution", "command": "ls"}}])
         self.d.tick()                                     # keeps tailing from out_offset
-        self.assertEqual(self.stores["shop"].get("t")["attempts"][-1]["outOffset"], (rd / "out.jsonl").stat().st_size)
+        self.assertEqual(self.stores["shop"].current_attempt("t")["outOffset"], (rd / "out.jsonl").stat().st_size)
 
     def test_pid_reuse_is_crash_with_continuation(self):
         rd, pid = self.running_task()

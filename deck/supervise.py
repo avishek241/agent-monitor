@@ -101,7 +101,12 @@ class Supervisor:
                                                    "final": None, "limit": None, "lastCpu": None, "lines": 0})
 
     @staticmethod
-    def current_attempt(task):
+    def current_attempt(task, store=None):
+        """The live attempt. With a store, the FULL attempt row (outOffset, slot, cpuSecs…): task dicts carry only
+        the schema subset, and tailing from a missing offset would re-read old output (M4)."""
+        if store is not None and hasattr(store, "current_attempt"):
+            a = store.current_attempt(task["id"])
+            return a if a and a.get("outcome") == "running" else None
         atts = task.get("attempts") or []
         return atts[-1] if atts and atts[-1].get("outcome") == "running" else None
 
@@ -129,7 +134,7 @@ class Supervisor:
 
     # ------------------------------------------------------------------ per tick
     def supervise(self, pid, store, task, now):
-        att = self.current_attempt(task)
+        att = self.current_attempt(task, store)
         if not att:
             return
         tid, n = task["id"], att["n"]
@@ -289,7 +294,7 @@ class Supervisor:
 
     # ------------------------------------------------------------------ end of attempt
     def finish(self, pid, store, task, now):
-        att = self.current_attempt(task)
+        att = self.current_attempt(task, store)
         if not att:
             return
         tid, n = task["id"], att["n"]
@@ -483,7 +488,7 @@ class Supervisor:
     def reconcile(self, pid, store, now):
         counts = {"finished": 0, "adopted": 0, "crashed": 0}
         for task in store.list(ACTIVE):
-            att = self.current_attempt(task)
+            att = self.current_attempt(task, store)
             if not att or att.get("adapter") == "interactive":
                 continue
             rd = Path(att["runDir"]) if att.get("runDir") else None
