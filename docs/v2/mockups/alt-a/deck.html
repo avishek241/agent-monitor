@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0c0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Agent Deck · Mission Control (phone)</title>
+<!-- Alt A "Mission Control": dark, dense, data-first. Mockup only; fake neutral data shaped like design §12 view models.
+     The real PWA self-hosts its fonts (no CDN at runtime). -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<style>
+:root { --bg:#0a0c0f; --bg2:#0f1318; --bg3:#141a21; --rule:#1f2731; --rule2:#2c3744; --tx:#dbe4ee; --dim:#93a1b2; --faint:#6b7889;
+  --cy:#2ee6ff; --gr:#3dff9a; --am:#ffc53d; --rd:#ff5872; --mg:#ff7ad9; --or:#ff9a4a; --vi:#b9a2ff;
+  --mono:'IBM Plex Mono', ui-monospace, Menlo, monospace; --sans:'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif; color-scheme: dark; }
+* { box-sizing:border-box; }
+html, body { margin:0; }
+body { background:#050608; color:var(--tx); font:13px/1.35 var(--mono); -webkit-font-smoothing:antialiased;
+  background-image: linear-gradient(rgba(46,230,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(46,230,255,.035) 1px, transparent 1px); background-size: 24px 24px; }
+button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; padding:0; }
+button:focus-visible, [tabindex]:focus-visible { outline:2px solid var(--cy); outline-offset:1px; }
+.stage { display:flex; gap:40px; justify-content:center; align-items:flex-start; padding:28px 16px 48px; flex-wrap:wrap; }
+.about { max-width:340px; color:var(--dim); font-size:12px; }
+.about h1 { font:600 26px/1.05 var(--sans); color:var(--tx); letter-spacing:.02em; margin:0 0 6px; text-transform:uppercase; }
+.about h1 em { font-style:normal; color:var(--cy); }
+.about p { margin:0 0 10px; }
+.about a { color:var(--cy); }
+.about ul { margin:0; padding-left:16px; } .about li { margin-bottom:4px; }
+.about kbd, .k { font:600 10px/1 var(--mono); color:var(--cy); border:1px solid #1f5560; background:#0b1e23; border-radius:3px; padding:2px 4px; white-space:nowrap; }
+
+/* frames */
+.dev { width:390px; height:844px; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--rule2); border-radius:34px; overflow:hidden;
+  box-shadow: 0 0 0 6px #111418, 0 0 0 7px #2a323c, 0 30px 80px rgba(0,0,0,.6); }
+.win { width:380px; height:720px; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--rule2); border-radius:10px; overflow:hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,.65), 0 0 0 1px #000; }
+@media (max-width:430px) { .stage { padding:0; gap:0; } .about { display:none; } .dev { width:100vw; height:100vh; height:100dvh; border:0; border-radius:0; box-shadow:none; } }
+.osbar { display:flex; justify-content:space-between; padding:12px 26px 4px; font:600 12px var(--mono); color:var(--tx); }
+.titlebar { display:flex; align-items:center; gap:7px; padding:7px 10px; background:var(--bg2); border-bottom:1px solid var(--rule); font-size:10px; letter-spacing:.14em; color:var(--dim); }
+.titlebar .tl { width:10px; height:10px; border-radius:50%; background:#3a434e; } .titlebar .tl.r { background:#ff5f57; } .titlebar .tl.y { background:#febc2e; } .titlebar .tl.g { background:#28c840; }
+.titlebar .ttl { flex:1; text-align:center; } .titlebar button { color:var(--dim); font-size:12px; padding:0 4px; }
+
+/* header */
+.top { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--rule); }
+.brand { font:600 15px/1 var(--sans); letter-spacing:.16em; text-transform:uppercase; }
+.brand b { color:var(--cy); font-weight:700; }
+.top .clk { margin-left:auto; font:600 15px var(--mono); color:var(--tx); font-variant-numeric:tabular-nums; }
+.top .link { font-size:9.5px; letter-spacing:.14em; color:var(--gr); display:flex; align-items:center; gap:5px; }
+.led { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--c, var(--gr)); box-shadow:0 0 6px var(--c, var(--gr)); flex:none; }
+.led.gr{--c:var(--gr)} .led.cy{--c:var(--cy)} .led.am{--c:var(--am)} .led.rd{--c:var(--rd)} .led.mg{--c:var(--mg)} .led.or{--c:var(--or)} .led.vi{--c:var(--vi)} .led.off{--c:#47515d; box-shadow:none}
+.led.blink { animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity:.25; } }
+
+/* ticker */
+.ticker { position:relative; overflow:hidden; height:24px; border-bottom:1px solid var(--rule); background:var(--bg2); font-size:11px; color:var(--dim); }
+.ticker::before { content:'LIVE'; position:absolute; left:0; top:0; bottom:0; z-index:1; display:flex; align-items:center; padding:0 8px; background:var(--cy); color:#001318; font-weight:700; font-size:9.5px; letter-spacing:.16em; }
+.tk-in { position:absolute; left:54px; top:0; white-space:nowrap; line-height:24px; animation: tick 40s linear infinite; }
+.tk-in span { margin-right:28px; } .tk-in b { color:var(--tx); font-weight:600; margin-right:6px; }
+@keyframes tick { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+
+/* scope selector */
+.scope { display:grid; grid-template-columns:repeat(4, 1fr); border-bottom:1px solid var(--rule); }
+.scope button { padding:8px 4px 7px; border-right:1px solid var(--rule); text-align:left; padding-left:9px; display:flex; flex-direction:column; gap:3px; min-height:46px; }
+.scope button:last-child { border-right:0; }
+.scope .nm { font:600 13px/1 var(--sans); letter-spacing:.12em; display:flex; align-items:center; gap:5px; }
+.scope .sub { font-size:9.5px; color:var(--dim); }
+.scope button.on { background:var(--bg3); box-shadow: inset 0 -2px 0 var(--cy); }
+.scope button.on .nm { color:var(--cy); }
+
+/* tabs */
+.tabs { display:grid; grid-template-columns:repeat(5, 1fr); border-top:1px solid var(--rule); background:var(--bg2); }
+.tabs button { min-height:58px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border-right:1px solid var(--rule); font-size:10px; letter-spacing:.14em; color:var(--dim); position:relative; }
+.tabs button:last-child { border-right:0; }
+.tabs button .g { font:600 17px/1 var(--mono); color:var(--tx); }
+.tabs button.on { color:var(--cy); background:var(--bg3); } .tabs button.on .g { color:var(--cy); }
+.tabs button.on::before { content:''; position:absolute; top:-1px; left:20%; right:20%; height:2px; background:var(--cy); box-shadow:0 0 8px var(--cy); }
+.tabs .bd { position:absolute; top:7px; right:12px; min-width:15px; height:15px; border-radius:2px; background:var(--rd); color:#1a0006; font-size:9.5px; font-weight:700; line-height:15px; text-align:center; letter-spacing:0; }
+.tabs .bd.mg { background:var(--mg); }
+.dev .tabs { padding-bottom:14px; }
+.win .tabs { border-top:0; border-bottom:1px solid var(--rule); }
+.win .tabs button { min-height:36px; flex-direction:row; gap:6px; font-size:9.5px; }
+.win .tabs button .g { display:none; }
+.win .tabs .bd { position:static; }
+
+main { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 0 18px; scrollbar-width:thin; scrollbar-color:var(--rule2) transparent; }
+.keys { display:flex; flex-wrap:wrap; gap:6px 8px; padding:6px 10px; border-top:1px solid var(--rule); background:var(--bg2); font-size:9.5px; color:var(--dim); }
+
+/* section heads */
+.h { display:flex; align-items:center; gap:8px; padding:12px 12px 6px; font-size:10px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; }
+.h::after { content:''; flex:1; height:1px; background:var(--rule); order:2; }
+.h .n { color:var(--cy); order:1; } .h .x { order:3; letter-spacing:.06em; text-transform:none; }
+.sub2 { display:flex; border-bottom:1px solid var(--rule); }
+.sub2 button { flex:1; padding:10px 4px; font-size:10px; letter-spacing:.16em; color:var(--dim); border-right:1px solid var(--rule); min-height:42px; }
+.sub2 button:last-child { border-right:0; } .sub2 button.on { color:var(--cy); box-shadow: inset 0 -2px 0 var(--cy); }
+
+/* KPI grid */
+.kpis { display:grid; grid-template-columns:repeat(4, 1fr); border-bottom:1px solid var(--rule); }
+.kpi { padding:9px 9px 8px; border-right:1px solid var(--rule); border-bottom:1px solid var(--rule); min-width:0; }
+.kpi:nth-child(4n) { border-right:0; } .kpi:nth-last-child(-n+4) { border-bottom:0; }
+.kpi .v { font:600 24px/1 var(--mono); font-variant-numeric:tabular-nums; color:var(--c, var(--tx)); }
+.kpi .v small { font-size:12px; color:var(--dim); }
+.kpi .l { font-size:9px; letter-spacing:.16em; color:var(--dim); margin-top:4px; display:flex; align-items:center; gap:5px; }
+.win .kpi .v { font-size:19px; }
+
+/* rows */
+.row { display:grid; grid-template-columns: 10px minmax(0,1fr) auto; gap:4px 9px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--rule); }
+.row.btn { cursor:pointer; } .row.btn:hover { background:var(--bg2); }
+.row .tt { min-width:0; } .row .tt b { display:block; font:600 15px/1.15 var(--sans); letter-spacing:.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row .tt small { display:block; color:var(--dim); font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row .r { text-align:right; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.row .r b { display:block; color:var(--tx); font-size:13px; }
+.row .x { grid-column:2 / -1; display:flex; flex-wrap:wrap; gap:4px; }
+.id { color:var(--cy); font-weight:600; margin-right:4px; }
+.win .row { padding:6px 10px; } .win .row .tt b { font-size:14px; }
+.cnts { display:flex; gap:8px; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
+.cnts i { font-style:normal; color:var(--tx); }
+
+.tag { display:inline-block; font:600 9px/1 var(--mono); letter-spacing:.12em; padding:2px 4px; border:1px solid; border-radius:2px; vertical-align:middle; }
+.tag.personal { color:var(--cy); border-color:#1d6a76; } .tag.office { color:var(--vi); border-color:#5a4c8a; }
+.chip { display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 6px; border:1px solid var(--rule2); border-radius:2px; color:var(--dim); }
+.chip.ok { color:var(--gr); border-color:#1c6a45; } .chip.wait { color:var(--am); border-color:#6a531c; } .chip.bad { color:var(--rd); border-color:#6d2433; }
+.st { font-size:9.5px; letter-spacing:.12em; padding:2px 5px; border-radius:2px; background:color-mix(in srgb, var(--c) 16%, transparent); color:var(--c); border:1px solid color-mix(in srgb, var(--c) 45%, transparent); white-space:nowrap; }
+
+/* accounts */
+.acct { border-bottom:1px solid var(--rule); padding:10px 12px; position:relative; }
+.acct .ah { display:flex; align-items:center; gap:7px; }
+.acct .ah b { font:600 16px/1 var(--sans); letter-spacing:.06em; }
+.acct .ah .wid { color:var(--cy); font-weight:600; }
+.acct .ah .role { margin-left:auto; font-size:10px; color:var(--dim); letter-spacing:.1em; }
+.ag { display:grid; grid-template-columns: auto minmax(0,1fr) auto; gap:10px; align-items:end; margin:8px 0 6px; }
+.ag .pct { font:600 28px/1 var(--mono); font-variant-numeric:tabular-nums; }
+.ag .pct small { display:block; font-size:9px; letter-spacing:.16em; color:var(--dim); margin-top:3px; }
+.ag .rs { text-align:right; } .ag .rs b { display:block; font:600 15px var(--mono); font-variant-numeric:tabular-nums; color:var(--tx); }
+.ag .rs small { font-size:9px; letter-spacing:.14em; color:var(--dim); }
+.spark { width:100%; height:34px; display:block; }
+.win .ag .pct { font-size:22px; } .win .spark { height:26px; }
+.qbar { display:grid; grid-template-columns:repeat(20, 1fr); gap:2px; height:8px; }
+.qbar i { background:#1a222b; } .qbar i.on { background:var(--c); box-shadow:0 0 4px color-mix(in srgb, var(--c) 60%, transparent); }
+.q7 { display:flex; align-items:center; gap:8px; margin-top:5px; font-size:10px; color:var(--dim); }
+.q7 .tr { flex:1; height:2px; background:#1a222b; } .q7 .tr i { display:block; height:100%; background:var(--dim); }
+.lanes { margin-top:8px; border:1px solid var(--rule); }
+.lane { display:grid; grid-template-columns: 38px minmax(0,1fr) auto; gap:8px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--rule); font-size:11px; min-height:34px; }
+.lane:last-child { border-bottom:0; }
+.lane .lid { color:var(--dim); font-size:10px; }
+.lane .lt { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lane .lr { font-variant-numeric:tabular-nums; color:var(--dim); font-size:10.5px; }
+.lane.spare .lt { white-space:normal; }
+.lane.spare { background:repeating-linear-gradient(135deg, rgba(255,197,61,.08) 0 6px, transparent 6px 12px); color:var(--am); }
+.lane.hung { background:rgba(255,88,114,.08); } .lane.hung .lr { color:var(--rd); }
+.lane.cooling { color:var(--am); } .lane.locked { color:var(--faint); }
+.lane.oos { opacity:.38; }
+.acct.usage .ag, .acct.usage .qbar, .acct.usage .q7, .acct.usage .lanes { filter:grayscale(1); opacity:.55; }
+.why { margin-top:8px; display:flex; gap:7px; padding:7px 8px; border:1px dashed #4b5562; color:var(--dim); font-size:10.5px; }
+.why b { color:var(--tx); font-weight:600; }
+.why.bad { border-color:#6d2433; color:#ffb3bf; }
+.elig { margin-top:6px; font-size:10.5px; color:var(--dim); }
+.elig.ok { color:var(--gr); } .elig.no { color:#ffb3bf; }
+
+/* board */
+.cols { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--rule); }
+.cols button { padding:8px 9px; border-right:1px solid var(--rule); text-align:left; min-height:52px; }
+.cols button:last-child { border-right:0; }
+.cols .v { font:600 20px/1 var(--mono); color:var(--c); display:block; }
+.cols .l { font-size:9px; letter-spacing:.16em; color:var(--dim); }
+.deps { padding:4px 12px 8px; display:grid; gap:4px; }
+.edge { display:flex; align-items:center; gap:7px; font-size:11px; }
+.edge .ln { flex:1; height:1px; background:linear-gradient(90deg, var(--rule2), var(--cy)); position:relative; }
+.edge .ln::after { content:''; position:absolute; right:-1px; top:-3px; border:3.5px solid transparent; border-left:5px solid var(--cy); }
+.edge span { white-space:nowrap; }
+
+/* review */
+.rv { border-bottom:1px solid var(--rule); padding:10px 12px 12px; }
+.rv .hd { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.rv .hd b { font:600 17px/1.1 var(--sans); }
+.rv p { margin:8px 0; color:var(--tx); font:400 14px/1.4 var(--sans); }
+.dw { display:grid; grid-template-columns:22px minmax(0,1fr); gap:1px 6px; font-size:11.5px; margin:6px 0; }
+.dw .y { color:var(--gr); } .dw .n { color:var(--rd); } .dw small { grid-column:2; color:var(--dim); font-size:10px; margin-bottom:4px; }
+.gitg { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--rule); margin:8px 0; }
+.gitg div { padding:6px 7px; border-right:1px solid var(--rule); } .gitg div:last-child { border-right:0; }
+.gitg b { display:block; font-size:15px; } .gitg small { font-size:9px; letter-spacing:.12em; color:var(--dim); }
+.opts { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.opt { padding:7px 10px; border:1px solid var(--rule2); font-size:11px; border-radius:2px; min-height:34px; }
+.opt.on { border-color:var(--cy); color:var(--cy); background:#0b1e23; }
+.acts { display:flex; gap:8px; margin-top:10px; }
+.act { flex:1; min-height:46px; display:flex; align-items:center; justify-content:center; gap:7px; font-size:11px; letter-spacing:.14em; border:1px solid var(--rule2); border-radius:3px; background:var(--bg2); }
+.act.go { border-color:#1c7a4f; color:var(--gr); background:#08190f; } .act.ch { border-color:#7a5a1c; color:var(--am); }
+.act.sm { flex:0 0 auto; min-height:32px; padding:0 10px; font-size:10px; }
+.win .act { min-height:34px; }
+textarea { width:100%; margin-top:8px; min-height:64px; background:var(--bg2); color:var(--tx); border:1px solid var(--am); border-radius:3px; padding:8px; font:12px var(--mono); resize:vertical; }
+.stamp { margin-top:10px; padding:8px; border:1px solid #1c7a4f; color:var(--gr); font-size:11px; letter-spacing:.06em; }
+.stamp.ch { border-color:#7a5a1c; color:var(--am); }
+
+/* alerts / timeline */
+.al { display:grid; grid-template-columns: 54px minmax(0,1fr); gap:6px 10px; padding:10px 12px; border-bottom:1px solid var(--rule); }
+.al .cd { font-size:9.5px; letter-spacing:.12em; font-weight:600; color:var(--c); border:1px solid color-mix(in srgb, var(--c) 50%, transparent); text-align:center; padding:4px 0; align-self:start; }
+.al .tt b { font:600 15px/1.15 var(--sans); display:block; }
+.al .tt p { margin:3px 0 0; font-size:11px; color:var(--dim); }
+.al .tt .m { font-size:10px; color:var(--faint); margin-top:4px; }
+.al .acts { grid-column:2; margin-top:2px; }
+.log { padding:4px 0; }
+.log div { display:grid; grid-template-columns: 62px 48px minmax(0,1fr); gap:6px; padding:5px 12px; font-size:11px; border-bottom:1px dashed #161d25; }
+.log .t { color:var(--dim); font-variant-numeric:tabular-nums; } .log .k { color:var(--c, var(--cy)); letter-spacing:.08em; font-size:10px; }
+.log .new { animation: flash 1.6s ease-out; }
+@keyframes flash { from { background:rgba(46,230,255,.18); } to { background:transparent; } }
+
+/* repo */
+.rp { border-bottom:1px solid var(--rule); padding:10px 12px; }
+.rp .hd { display:flex; align-items:center; gap:7px; } .rp .hd b { font:600 16px var(--sans); letter-spacing:.04em; }
+.rpg { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--rule); margin-top:8px; }
+.rpg div { padding:6px 8px; border-right:1px solid var(--rule); border-bottom:1px solid var(--rule); min-width:0; }
+.rpg div:nth-child(3n) { border-right:0; } .rpg div:nth-last-child(-n+3) { border-bottom:0; }
+.rpg small { display:block; font-size:9px; letter-spacing:.14em; color:var(--dim); } .rpg b { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+.svc { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; font-size:11px; }
+.svc span { display:flex; align-items:center; gap:5px; }
+.dom { display:grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap:2px 8px; font-size:10.5px; margin-top:8px; }
+.dom .dk { grid-column:1; color:var(--cy); } .dom span:not(.dk) { grid-column:2; } .dom .w { grid-column:2; color:var(--am); }
+.note { color:var(--dim); font-size:10.5px; margin-top:6px; }
+.empty { padding:16px 12px; color:var(--dim); font-size:11px; }
+.collapsed { width:380px; margin-top:16px; display:flex; flex-wrap:wrap; gap:4px 12px; align-items:center; padding:9px 12px; background:var(--bg); border:1px solid var(--rule2); border-radius:8px; font-size:11px; }
+.collapsed .cap, .cap { font-size:9.5px; letter-spacing:.2em; color:var(--dim); margin:0 0 8px; }
+
+</style>
+</head>
+<body data-mode="deck">
+<div class="stage">
+  <aside class="about">
+    <h1>Agent Deck · <em>Mission Control</em></h1>
+    <p>Version A, phone deck at 390 px. A dark, dense command-centre look: monospace numerals, neon on charcoal, thin rules, status LEDs, sparklines for quota burn and a live event ticker.</p>
+    <ul>
+      <li>The scope strip on top switches between <b>ALL</b> (the overview) and one project. On a project, <b>OVR</b> becomes the project page, and every other tab filters to that project.</li>
+      <li><b>WORKERS</b> shows each account's 5-hour quota as a sparkline and a 20-cell bar, the time to reset, and its parallel lanes. The office account keeps its usage visible but is greyed out, with the reason.</li>
+      <li><b>BOARD</b> shows column counts, open dependency edges and the Ready, Running, Review and Blocked lists.</li>
+      <li><b>REVIEW</b> lets you approve or request changes. <b>OPS</b> holds Alerts, Timeline and Repo health.</li>
+      <li>The page fakes live updates: the clock, countdowns, row counts and new ticker events every 6 s.</li>
+    </ul>
+    <p style="margin-top:12px"><a href="../index.html">← all versions</a> · <a href="panel.html">panel version →</a></p>
+  </aside>
+  <div class="dev">
+    <div class="osbar"><span>21:42</span><span>●●●● 5G ▮▮▮</span></div>
+    <header class="top"><span class="led blink"></span><span class="brand">Agent<b>/</b>Deck</span><span class="link">● SSE LIVE</span><span class="clk" id="clk">21:42:07</span></header>
+    <div class="ticker" aria-label="Live events"><div class="tk-in" id="tick"></div></div>
+    <nav class="scope" id="scope" aria-label="Project scope"></nav>
+    <main id="main"></main>
+    <nav class="tabs" id="tabs" aria-label="Views"></nav>
+  </div>
+</div>
+<script>
+/* Fake, neutral sample data shaped like OverviewVM / ProjectVM / ReviewVM (design §12). Same data in every alt mockup. */
+const DECK = (() => {
+  const T0 = 21 * 3600 + 42 * 60 + 7;              // the mock clock starts at 21:42:07
+  const started = Date.now();
+  const now = () => T0 + Math.floor((Date.now() - started) / 1000);
+  const p2 = n => String(n).padStart(2, '0');
+  const hm = s => { s = ((s % 86400) + 86400) % 86400; return p2(Math.floor(s / 3600)) + ':' + p2(Math.floor(s % 3600 / 60)); };
+  const hms = s => hm(s) + ':' + p2(((s % 60) + 60) % 60);
+  const left = t => { let d = Math.max(0, t - now()); const h = Math.floor(d / 3600), m = Math.floor(d % 3600 / 60), s = d % 60;
+    return h ? h + 'h ' + p2(m) + 'm' : m + 'm ' + p2(s) + 's'; };
+  const at = (h, m) => h * 3600 + m * 60;
+
+  const projects = [
+    { id: 'shop-ops', title: 'Shop ops', short: 'SHOP', scope: 'personal', icon: '🛠', allowPersonal: true,
+      headline: 'Supplier-list pilot waits for review · 104 resumes after the 21:51 reset',
+      story: 'Four tasks merged today. The supplier-list pilot is finished and waiting for you, and stock costs has gone quiet on the shop PC.',
+      repo: { branch: 'main', commit: 'a1b2c3d', msg: '103: stock view', age: '2h ago', tree: 'clean', worktrees: 3, tests: [312, 312], lint: 'ok',
+        services: [['App', 3000, 'up'], ['API', 4000, 'up'], ['Demo', 3700, 'down']], orphans: 0,
+        merge: { active: '105 Payment reminders · gates 2/3', queue: ['107 after approval'] },
+        domains: [['ext:pc-ssh', '109 since 21:10', '110 waiting 22m'], ['area:receipts/**', '106', ''], ['seq:db-migrations', 'free · next 0047', '']],
+        health: 'warn', note: 'Demo server :3700 is down (not started by the deck)' } },
+    { id: 'client-portal', title: 'Client portal', short: 'CLNT', scope: 'office', icon: '🏢', allowPersonal: true,
+      headline: 'Two tasks running on personal Codex lanes · password-reset email in review',
+      story: 'Login wording is almost done. The password-reset email waits for your eye on the subject line.',
+      repo: { branch: 'main', commit: '9f8e7d6', msg: '10: session timeout banner', age: '5h ago', tree: 'clean', worktrees: 2, tests: [148, 148], lint: 'ok',
+        services: [['Web', 5173, 'up'], ['Mock API', 5050, 'up']], orphans: 0,
+        merge: { active: null, queue: [] },
+        domains: [['area:emails/**', '11 (review)', ''], ['merge', 'free', '']],
+        health: 'ok', note: 'All gates green' } },
+    { id: 'home-automation', title: 'Home automation', short: 'HOME', scope: 'personal', icon: '🏡', allowPersonal: true,
+      headline: 'Sensor dashboard card is stale · thermostat waits for an API key',
+      story: 'The sensor dashboard is building, but its card has not updated in a while. The thermostat task needs a key from you.',
+      repo: { branch: 'main', commit: 'e5f6a7b', msg: '30: battery alerts', age: '3h ago', tree: '2 uncommitted', worktrees: 1, tests: [87, 88], lint: '1 warning',
+        services: [['Hub', 8123, 'up']], orphans: 1,
+        merge: { active: null, queue: [] },
+        domains: [['ext:hub-api', '31 since 20:55', '']],
+        health: 'bad', note: '1 failing test (scenes.spec) · 1 orphan server on :8124' } }
+  ];
+
+  const accounts = [
+    { id: 'w0', worker: 'W0', label: 'Claude · main', tool: 'claude', scope: 'personal', role: 'orchestrator', state: 'ok', dispatch: false,
+      pct5: 41, pct7: 62, reset: at(22, 47), readAge: 35, spark: [12, 15, 18, 20, 24, 27, 29, 31, 34, 36, 39, 41], lanesMax: 0, lanes: [],
+      note: 'Interactive orchestrator · reviews and writes briefs · never leased' },
+    { id: 'w1', worker: 'W1', label: 'Codex · a', tool: 'codex', scope: 'personal', state: 'ok', dispatch: true,
+      pct5: 52, pct7: 40, reset: at(22, 42), readAge: 35, spark: [8, 12, 17, 21, 26, 30, 34, 38, 42, 45, 49, 52], lanesMax: 3,
+      lanes: [{ n: 1, state: 'running', task: 106 }, { n: 2, state: 'running', task: 12 },
+        { n: 3, state: 'spare', why: 'free 5 min · 36% to spend before 22:42 · M fits (112 ready)' }] },
+    { id: 'w2', worker: 'W2', label: 'Codex · b', tool: 'codex', scope: 'personal', state: 'ok', dispatch: true,
+      pct5: 55, pct7: 48, reset: at(23, 52), readAge: 50, spark: [5, 9, 14, 18, 22, 27, 33, 38, 43, 47, 51, 55], lanesMax: 3,
+      lanes: [{ n: 1, state: 'hung', task: 109 }, { n: 2, state: 'running', task: 31 }, { n: 3, state: 'running', task: 13 }] },
+    { id: 'w3', worker: 'W3', label: 'Claude · worker', tool: 'claude', scope: 'personal', state: 'limit', dispatch: true,
+      pct5: 100, pct7: 71, reset: at(21, 51), readAge: 20, spark: [40, 48, 55, 63, 70, 77, 84, 90, 95, 98, 100, 100], lanesMax: 3,
+      lanes: [{ n: 1, state: 'cooling', task: 104 }, { n: 2, state: 'cooling', why: 'paused until reset' }, { n: 3, state: 'cooling', why: 'paused until reset' }] },
+    { id: 'office', worker: 'OF', label: 'Claude · office', tool: 'claude', scope: 'office', state: 'usage', dispatch: false,
+      pct5: 18, pct7: 30, reset: at(25, 2), readAge: 240, spark: [10, 11, 11, 12, 13, 14, 15, 15, 16, 17, 17, 18], lanesMax: 2,
+      lanes: [{ n: 1, state: 'locked' }, { n: 2, state: 'locked' }],
+      reason: 'Usage only. The office account never runs personal-project tasks (account policy), and office leasing is off in config.' }
+  ];
+
+  // state: ready | running | hung | paused | review | blocked | done
+  const tasks = [
+    { id: 106, p: 'shop-ops', title: 'Match receipts to bills', state: 'running', worker: 'W1·1', acct: 'w1', step: 'Map columns', si: 3, sc: 5, eta: 22,
+      prio: 'P1', size: 'M', deps: [], metric: { label: 'Rows matched', done: 412, total: 1050 }, steps: ['Read sources', 'Profile exports', 'Map columns', 'Pilot 20 rows', 'Handoff'] },
+    { id: 109, p: 'shop-ops', title: 'Stock costs from purchase bills', state: 'hung', worker: 'W2·1', acct: 'w2', step: 'Profile exports', si: 2, sc: 4, quiet: 16,
+      prio: 'P2', size: 'M', deps: [], why: 'quiet 16 min · ssh pc "python profile.py"' },
+    { id: 104, p: 'shop-ops', title: 'Vendor model', state: 'paused', worker: 'W3·1', acct: 'w3', step: 'Write migrations', si: 4, sc: 6,
+      prio: 'P1', size: 'L', deps: [], why: 'limit · resumes 21:51 in the same session' },
+    { id: 107, p: 'shop-ops', title: 'Import the supplier list (pilot)', state: 'review', worker: 'W2', prio: 'P1', size: 'S', deps: [], why: 'pilot · waiting 12 min', wait: 12 },
+    { id: 105, p: 'shop-ops', title: 'Payment reminders', state: 'review', worker: 'W1', prio: 'P2', size: 'M', deps: [], why: 'approved · merging · gates 2/3', wait: 0, merging: true },
+    { id: 108, p: 'shop-ops', title: 'Import suppliers (full)', state: 'ready', prio: 'P1', size: 'M', deps: [{ id: 107, state: 'review' }], why: 'waits for pilot 107' },
+    { id: 110, p: 'shop-ops', title: 'Attendance history', state: 'ready', prio: 'P2', size: 'M', deps: [], why: 'waits for lock ext:pc-ssh (held by 109)' },
+    { id: 112, p: 'shop-ops', title: 'Payment ageing view', state: 'ready', prio: 'P2', size: 'M', deps: [{ id: 103, state: 'done' }], why: 'ready · fits Codex·a lane 3' },
+    { id: 111, p: 'shop-ops', title: 'Rows without tax number?', state: 'blocked', worker: 'W2', prio: 'P1', size: 'S', deps: [], why: 'question for you · inactive / active / skip', question: true },
+    { id: 12, p: 'client-portal', title: 'Login page wording', state: 'running', worker: 'W1·2', acct: 'w1', step: 'Tests', si: 2, sc: 3, eta: 9, prio: 'P2', size: 'S', deps: [] },
+    { id: 13, p: 'client-portal', title: 'Export orders as CSV', state: 'running', worker: 'W2·3', acct: 'w2', step: 'Write exporter', si: 1, sc: 4, eta: 40, prio: 'P1', size: 'M', deps: [],
+      metric: { label: 'Columns mapped', done: 7, total: 18 } },
+    { id: 11, p: 'client-portal', title: 'Password reset email', state: 'review', worker: 'W1', prio: 'P1', size: 'S', deps: [], why: 'waiting 34 min · 2/3 done-when', wait: 34 },
+    { id: 14, p: 'client-portal', title: 'Invoice PDF footer', state: 'ready', prio: 'P3', size: 'S', deps: [], why: 'ready · S fits anywhere personal' },
+    { id: 15, p: 'client-portal', title: 'Scheduled bulk export', state: 'ready', prio: 'P2', size: 'M', deps: [{ id: 13, state: 'running' }], why: 'waits for 13' },
+    { id: 16, p: 'client-portal', title: 'Single sign-on', state: 'blocked', prio: 'P2', size: 'L', deps: [], why: 'needs a test identity tenant from you' },
+    { id: 31, p: 'home-automation', title: 'Sensor dashboard', state: 'running', worker: 'W2·2', acct: 'w2', step: 'Charts', si: 1, sc: 3, eta: 30, prio: 'P2', size: 'M', deps: [], stale: 14 },
+    { id: 32, p: 'home-automation', title: 'Night-mode scenes', state: 'ready', prio: 'P3', size: 'S', deps: [{ id: 31, state: 'running' }], why: 'waits for 31' },
+    { id: 33, p: 'home-automation', title: 'Thermostat schedule', state: 'blocked', prio: 'P2', size: 'M', deps: [], why: 'needs the thermostat API key from you' },
+    { id: 100, p: 'shop-ops', title: 'Bill numbering fix', state: 'done', why: 'merged 14:10' },
+    { id: 101, p: 'shop-ops', title: 'Customer search', state: 'done', why: 'merged 15:02' },
+    { id: 102, p: 'shop-ops', title: 'Low-stock list', state: 'done', why: 'merged 17:45' },
+    { id: 103, p: 'shop-ops', title: 'Stock view', state: 'done', why: 'merged 19:30' },
+    { id: 10, p: 'client-portal', title: 'Session timeout banner', state: 'done', why: 'merged 16:20' },
+    { id: 30, p: 'home-automation', title: 'Battery alerts', state: 'done', why: 'merged 18:40' }
+  ];
+
+  const inbox = [
+    { id: 107, p: 'shop-ops', title: 'Import the supplier list', pilot: true, by: 'W2 · Codex·b', wait: 12,
+      summary: 'Imported 20 of 53 suppliers as a dry run. Names, tax numbers and phones were checked against the export. Two rows had the city in the address field and were fixed. Nothing was written to live data.',
+      doneWhen: [[true, '20-row pilot file written', 'pilot/suppliers-20.json · 20 rows'], [true, 'Tax numbers in valid format', '20/20 pass checksum'], [true, 'Tests pass', 'unit 48/48 · e2e 12/12']],
+      risks: ['3 suppliers share one phone number (kept, flagged)'],
+      decision: { q: 'Suppliers with no tax number import as…', opts: ['inactive', 'active', 'skip'], def: 0 },
+      git: { commits: 4, files: 9, uncommitted: 0, conflicts: 0 }, unlocks: [108] },
+    { id: 11, p: 'client-portal', title: 'Password reset email', pilot: false, by: 'W1 · Codex·a', wait: 34,
+      summary: 'New reset email with an expiry notice and a plain-text fallback. The link now expires after 30 minutes.',
+      doneWhen: [[true, 'Template renders in 3 mail clients', 'snapshots 3/3'], [true, 'Link expires after 30 min', 'e2e reset.spec 4/4'], [false, 'Subject line approved', 'needs your eye: "Reset your password"']],
+      risks: ['Touches the shared email layout used by 2 other templates'], decision: null,
+      git: { commits: 2, files: 5, uncommitted: 0, conflicts: 0 }, unlocks: [] }
+  ];
+
+  // type: spare | hung | stale | limit | policy
+  const alerts = [
+    { id: 'a1', type: 'spare', sev: 'warn', t: '21:37', p: 'shop-ops', title: 'Idle with spare capacity',
+      text: 'Codex·a lane 3 has been free for 5 min with 36% of its 5-hour quota left before 22:42. 112 (M) is ready and fits.', actions: ['Dispatch 112', 'Snooze 15m'] },
+    { id: 'a2', type: 'hung', sev: 'bad', t: '21:26', p: 'shop-ops', title: '109 looks hung',
+      text: 'No output for 16 min. Deepest child: ssh pc "python profile.py", CPU idle. Lock ext:pc-ssh is held, so 110 waits.', actions: ['Kill & retry', 'Open'] },
+    { id: 'a3', type: 'stale', sev: 'warn', t: '21:28', p: 'home-automation', title: '31 card is stale',
+      text: 'The card has not changed for 14 min while the process is active (last log line 2 min ago).', actions: ['Nudge worker', 'Open'] },
+    { id: 'a4', type: 'limit', sev: 'info', t: '21:31', p: 'shop-ops', title: 'Claude·worker hit its 5-hour limit',
+      text: '104 paused at step 4/6. It resumes by itself at 21:51 in the same session; nothing to do.', actions: ['Reassign 104'] },
+    { id: 'a5', type: 'policy', sev: 'bad', t: '21:18', p: 'shop-ops', title: 'Policy violation refused',
+      text: '"deck reassign 110 --worker office" was refused: the office account never runs personal-project tasks. Logged.', actions: ['Acknowledge'] }
+  ];
+
+  const timeline = [
+    { t: '21:41:58', p: null, k: 'plan', text: 'Planner re-planned · 5 of 11 lanes busy · 1 spare' },
+    { t: '21:40:12', p: 'shop-ops', k: 'step', text: '106 started step 3/5 "Map columns"' },
+    { t: '21:37:02', p: 'shop-ops', k: 'alert', text: 'Spare capacity: Codex·a lane 3 free' },
+    { t: '21:31:40', p: 'shop-ops', k: 'limit', text: 'Claude·worker at limit · 104 paused at 4/6' },
+    { t: '21:30:05', p: 'shop-ops', k: 'review', text: '107 handed off · pilot ready for review' },
+    { t: '21:28:30', p: 'home-automation', k: 'alert', text: '31 card stale (no update 10 min)' },
+    { t: '21:26:11', p: 'shop-ops', k: 'alert', text: '109 quiet 10 min · watching child process' },
+    { t: '21:18:44', p: 'shop-ops', k: 'policy', text: 'Refused: 110 → office account (account policy)' },
+    { t: '21:10:03', p: 'shop-ops', k: 'lock', text: '109 took lock ext:pc-ssh' },
+    { t: '21:08:15', p: 'client-portal', k: 'review', text: '11 handed off · 2 of 3 done-when met' },
+    { t: '20:58:20', p: 'shop-ops', k: 'merge', text: '105 approved · joined merge queue' },
+    { t: '20:44:51', p: 'client-portal', k: 'start', text: '12 leased to Codex·a lane 2' },
+    { t: '20:55:00', p: 'home-automation', k: 'start', text: '31 leased to Codex·b lane 2' },
+    { t: '19:30:12', p: 'shop-ops', k: 'merge', text: '103 merged to main · tests 312/312' },
+    { t: '18:40:33', p: 'home-automation', k: 'merge', text: '30 merged to main' }
+  ];
+
+  // pool used for fake live updates
+  const live = [
+    { p: 'shop-ops', k: 'step', text: '106 · rows matched {m106}' },
+    { p: null, k: 'plan', text: 'Planner re-plan · no changes' },
+    { p: 'client-portal', k: 'step', text: '12 · tests 18/18 pass' },
+    { p: 'client-portal', k: 'step', text: '13 · columns mapped {m13}' },
+    { p: null, k: 'quota', text: 'Codex·a reading refreshed · 5h {w1}%' },
+    { p: 'home-automation', k: 'step', text: '31 · log: rendering chart 2 of 4' },
+    { p: 'shop-ops', k: 'alert', text: '109 still quiet · hang check in progress' },
+    { p: null, k: 'quota', text: 'Claude·worker reset in {w3}' }
+  ];
+
+  return { T0, now, hm, hms, left, projects, accounts, tasks, inbox, alerts, timeline, live,
+    P: id => projects.find(p => p.id === id), T: id => tasks.find(t => t.id === id), A: id => accounts.find(a => a.id === id) };
+})();
+
+</script>
+<script>
+(function () {
+  const D = DECK, MODE = document.body.dataset.mode, $ = s => document.querySelector(s);
+  const S = { scope: 'all', view: 'ovr', ops: 'alerts', pick: {}, done: {}, changes: {} };
+  const COL = { running: 'running', hung: 'running', paused: 'running', ready: 'ready', review: 'review', blocked: 'blocked', done: 'done' };
+  const ST = { running: ['gr', 'RUN'], hung: ['rd', 'HUNG'], paused: ['am', 'LIMIT'], ready: ['cy', 'READY'], review: ['mg', 'REVIEW'], blocked: ['or', 'BLOCKED'], done: ['off', 'DONE'] };
+  const CV = { gr: '--gr', rd: '--rd', am: '--am', cy: '--cy', mg: '--mg', or: '--or', vi: '--vi', off: '--dim' };
+  const inS = x => S.scope === 'all' || x.p === S.scope;
+  const tasks = () => D.tasks.filter(inS);
+  const cnt = (list, c) => list.filter(t => COL[t.state] === c).length;
+  const tag = s => `<span class="tag ${s}">${s === 'office' ? 'OFFC' : 'PERS'}</span>`;
+  const st = s => `<span class="st" style="--c:var(${CV[ST[s][0]]})">${ST[s][1]}</span>`;
+  const led = (c, blink) => `<span class="led ${c}${blink ? ' blink' : ''}"></span>`;
+  const k = key => MODE === 'panel' ? `<span class="k">${key}</span>` : '';
+  const pct = a => a.state === 'limit' ? 'rd' : a.pct5 >= 75 ? 'am' : a.pct5 >= 50 ? 'am' : 'gr';
+
+  function spark(arr, c) {
+    const w = 120, h = 30, max = 100, step = w / (arr.length - 1);
+    const pts = arr.map((v, i) => `${(i * step).toFixed(1)},${(h - 2 - v / max * (h - 4)).toFixed(1)}`);
+    const last = pts[pts.length - 1].split(',');
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="5-hour usage trend">
+      <polygon points="0,${h} ${pts.join(' ')} ${w},${h}" fill="var(${c})" opacity=".12"/>
+      <polyline points="${pts.join(' ')}" fill="none" stroke="var(${c})" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+      <circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="var(${c})"/></svg>`;
+  }
+  const qbar = (v, c) => `<div class="qbar" style="--c:var(${c})" role="img" aria-label="${v}% used">${Array.from({ length: 20 }, (_, i) => `<i class="${i < Math.round(v / 5) ? 'on' : ''}"></i>`).join('')}</div>`;
+
+  function meta(t) {
+    switch (t.state) {
+      case 'running': return `${t.worker} · ${t.si}/${t.sc} ${t.step}` + (t.stale ? ` · card stale ${t.stale}m` : '');
+      case 'hung': return `${t.worker} · ${t.why}`;
+      case 'paused': return `${t.worker} · ${t.why}`;
+      default: return t.why || '';
+    }
+  }
+  function right(t) {
+    if (t.state === 'running') return `<b>~${t.eta}m</b>${t.size}·${t.prio}`;
+    if (t.state === 'hung') return `<b style="color:var(--rd)">${t.quiet}m</b>quiet`;
+    if (t.state === 'paused') return `<b style="color:var(--am)" data-left="${D.A('w3').reset}"></b>to reset`;
+    if (t.state === 'review') return `<b>${t.merging ? 'MERGE' : t.wait + 'm'}</b>${t.merging ? 'gates 2/3' : 'waiting'}`;
+    return `<b>${t.size || ''}</b>${t.prio || ''}`;
+  }
+  function deps(t) {
+    return (t.deps || []).map(d => `<span class="chip ${d.state === 'done' ? 'ok' : 'wait'}">⟵ ${d.id} ${d.state}</span>`).join('');
+  }
+  function trow(t) {
+    const s = ST[t.state], pr = D.P(t.p);
+    const x = deps(t) + (S.scope === 'all' ? `<span class="chip">${pr.short}</span>` : '') + (t.metric ? `<span class="chip" data-metric="${t.id}">${t.metric.label} ${t.metric.done}/${t.metric.total}</span>` : '');
+    return `<div class="row">${led(s[0], t.state === 'hung')}<div class="tt"><b><span class="id">${t.id}</span>${t.title}</b><small>${meta(t)}</small></div><div class="r">${right(t)}</div>${x ? `<div class="x">${x}</div>` : ''}</div>`;
+  }
+
+  /* ---------- views ---------- */
+  function kpis(list) {
+    const lanes = D.accounts.flatMap(a => a.lanes), busy = lanes.filter(l => ['running', 'hung'].includes(l.state) && (S.scope === 'all' || inS(D.T(l.task)))).length;
+    const al = D.alerts.filter(inS).length, rv = D.inbox.filter(inS).length;
+    const cells = [
+      [cnt(list, 'running'), 'RUNNING', 'gr'], [cnt(list, 'ready'), 'READY', 'cy'], [cnt(list, 'review'), 'REVIEW', 'mg'], [cnt(list, 'blocked'), 'BLOCKED', 'or'],
+      [al, 'ALERTS', 'rd'], [S.scope === 'all' ? `${busy}<small>/11</small>` : busy, 'LANES', 'cy'], [cnt(list, 'done'), 'DONE TODAY', 'gr'], [rv, 'INBOX', 'mg']];
+    return `<div class="kpis">${cells.map(c => `<div class="kpi" style="--c:var(${CV[c[2]]})"><div class="v">${c[0]}</div><div class="l">${led(c[2])}${c[1]}</div></div>`).join('')}</div>`;
+  }
+  function needs(limit) {
+    const items = [];
+    D.inbox.filter(inS).forEach(r => items.push(`<div class="row btn" data-go="rev">${led('mg')}<div class="tt"><b><span class="id">${r.id}</span>${r.title}${r.pilot ? ' · PILOT' : ''}</b><small>${D.P(r.p).short} · ${r.by} · ${r.doneWhen.filter(d => d[0]).length}/${r.doneWhen.length} done-when · waiting ${r.wait}m</small></div><div class="r"><b>REVIEW</b>${k('R')}</div></div>`));
+    D.tasks.filter(t => inS(t) && t.state === 'blocked').forEach(t => items.push(`<div class="row">${led('or')}<div class="tt"><b><span class="id">${t.id}</span>${t.title}</b><small>${t.why}</small></div><div class="r"><b>${t.question ? 'ANSWER' : 'INPUT'}</b></div></div>`));
+    D.alerts.filter(a => inS(a) && a.sev === 'bad').forEach(a => items.push(`<div class="row btn" data-go="ops">${led('rd', true)}<div class="tt"><b>${a.title}</b><small>${a.text}</small></div><div class="r"><b>${a.type.toUpperCase()}</b>${a.t}</div></div>`));
+    return items.slice(0, limit).join('');
+  }
+  const needCount = () => D.inbox.filter(inS).length + D.tasks.filter(t => inS(t) && t.state === 'blocked').length + D.alerts.filter(a => inS(a) && a.sev === 'bad').length;
+  function acctMini(a) {
+    const c = CV[pct(a)];
+    return `<div class="row" style="grid-template-columns:10px 92px minmax(0,1fr) 40px 62px">${led(a.state === 'usage' ? 'off' : pct(a), a.state === 'limit')}
+      <div class="tt"><b style="font-size:13px">${a.worker} ${a.scope === 'office' ? tag('office') : ''}</b><small>${a.label}</small></div>
+      <div style="${a.state === 'usage' ? 'filter:grayscale(1);opacity:.6' : ''}">${spark(a.spark, c)}</div>
+      <div class="r"><b>${a.pct5}%</b>5h</div><div class="r"><b data-left="${a.reset}"></b>reset</div></div>`;
+  }
+  function overview() {
+    const list = tasks();
+    const projRows = D.projects.map(p => {
+      const pt = D.tasks.filter(t => t.p === p.id), h = { ok: 'gr', warn: 'am', bad: 'rd' }[p.repo.health];
+      return `<div class="row btn" data-scope="${p.id}">${led(h)}<div class="tt"><b>${p.icon} ${p.title} ${tag(p.scope)}</b><small>${p.headline}</small></div>
+        <div class="r cnts" style="flex-direction:column;gap:1px"><span>R<i>${cnt(pt, 'running')}</i> Q<i>${cnt(pt, 'ready')}</i></span><span>V<i>${cnt(pt, 'review')}</i> B<i>${cnt(pt, 'blocked')}</i></span></div></div>`;
+    }).join('');
+    return kpis(list) +
+      `<div class="h"><span class="n">${D.projects.length}</span>Projects<span class="x">${k('1')}${k('2')}${k('3')}</span></div>${projRows}` +
+      `<div class="h"><span class="n">5</span>Accounts · 5h burn<span class="x">${k('W')}</span></div>${D.accounts.map(acctMini).join('')}
+       <div class="row">${led('off')}<div class="tt"><small style="white-space:normal">OF is greyed: ${D.A('office').reason}</small></div><div></div></div>` +
+      `<div class="h"><span class="n">${needCount()}</span>Needs you</div>${needs(8)}`;
+  }
+  function projectPage() {
+    const p = D.P(S.scope), list = tasks(), h = { ok: 'gr', warn: 'am', bad: 'rd' }[p.repo.health];
+    const lanes = D.accounts.flatMap(a => a.lanes.filter(l => l.task && D.T(l.task).p === p.id).map(l => ({ a, l })));
+    return `<div style="padding:12px 12px 10px;border-bottom:1px solid var(--rule)">
+        <div style="display:flex;align-items:center;gap:8px">${tag(p.scope)}<span style="font-size:10px;color:var(--dim);letter-spacing:.12em">${p.allowPersonal ? 'PERSONAL ACCOUNTS ALLOWED' : 'OFFICE ACCOUNTS ONLY'}</span></div>
+        <div style="font:600 30px/1.05 var(--sans);letter-spacing:.04em;text-transform:uppercase;margin:6px 0 4px">${p.icon} ${p.title}</div>
+        <div style="font-size:11px;color:var(--dim)">${led(h)} ${p.repo.branch}@${p.repo.commit} · ${p.repo.msg} · ${p.repo.note}</div></div>` +
+      kpis(list) +
+      `<div class="h"><span class="n">${lanes.length}</span>Lanes on this project<span class="x">${k('W')}</span></div>
+       <div style="padding:0 12px"><div class="lanes" style="margin:0">${lanes.map(x => laneRow(x.a, x.l)).join('') || '<div class="empty">No lanes running here.</div>'}</div></div>` +
+      `<div class="h"><span class="n">${cnt(list, 'running') + cnt(list, 'ready')}</span>Board · now and next<span class="x">${k('B')}</span></div>
+       ${list.filter(t => ['running', 'hung', 'paused', 'ready'].includes(t.state)).map(trow).join('')}` +
+      `<div class="h"><span class="n">${needCount()}</span>Needs you</div>${needs(6) || '<div class="empty">Nothing waits for you.</div>'}` +
+      `<div class="h">Accounts allowed here</div>${D.accounts.map(a => { const e = elig(a, p); return `<div class="row">${led(e[0] ? 'gr' : 'off')}<div class="tt"><b style="font-size:13px">${a.worker} · ${a.label}</b><small style="white-space:normal;color:${e[0] ? 'var(--dim)' : '#ffb3bf'}">${e[1]}</small></div><div class="r">${a.pct5}%</div></div>`; }).join('')}`;
+  }
+  function elig(a, p) {
+    if (a.role === 'orchestrator') return [false, 'Orchestrator · interactive, offered only'];
+    if (a.scope === 'office' && p.scope === 'personal') return [false, '🔒 Office account never runs personal-project tasks (account policy)'];
+    if (a.scope === 'office') return [false, '🔒 Usage only · office leasing is off in config'];
+    if (a.state === 'limit') return [true, 'Allowed · cooling until the 21:51 reset'];
+    return [true, `Allowed · ${a.lanes.filter(l => l.state === 'spare').length ? '1 spare lane' : 'lanes full'}`];
+  }
+  function laneRow(a, l) {
+    const t = l.task ? D.T(l.task) : null, oos = t && !inS(t) ? ' oos' : '', id = `${a.worker}·${l.n}`;
+    if (l.state === 'running') return `<div class="lane${oos}"><span class="lid">${id}</span><span class="lt">▶ <span class="id">${t.id}</span>${t.title} · ${t.si}/${t.sc}</span><span class="lr">~${t.eta}m</span></div>`;
+    if (l.state === 'hung') return `<div class="lane hung${oos}"><span class="lid">${id}</span><span class="lt">■ <span class="id">${t.id}</span>${t.title}</span><span class="lr">HUNG ${t.quiet}m</span></div>`;
+    if (l.state === 'cooling') return `<div class="lane cooling${oos}"><span class="lid">${id}</span><span class="lt">⏸ ${t ? `<span class="id">${t.id}</span>${t.title} · resumes at reset` : l.why}</span><span class="lr" data-left="${a.reset}"></span></div>`;
+    if (l.state === 'spare') return `<div class="lane spare"><span class="lid">${id}</span><span class="lt">○ SPARE · ${l.why}</span><span class="lr">⚠ ${k('D')}</span></div>`;
+    return `<div class="lane locked"><span class="lid">${id}</span><span class="lt">🔒 locked · usage only</span><span class="lr">—</span></div>`;
+  }
+  function workers() {
+    const p = S.scope === 'all' ? null : D.P(S.scope);
+    const used = D.accounts.reduce((n, a) => n + a.lanes.filter(l => ['running', 'hung'].includes(l.state)).length, 0);
+    return `<div class="kpis">${[[used + '<small>/11</small>', 'LANES BUSY', 'gr'], [1, 'SPARE', 'am'], [3, 'COOLING', 'am'], ['6', 'MACHINE CAP', 'cy']].map(c => `<div class="kpi" style="--c:var(${CV[c[2]]})"><div class="v">${c[0]}</div><div class="l">${c[1]}</div></div>`).join('')}</div>` +
+      `<div class="h">Backlog<span class="x" style="color:var(--am)">3 ready / target 5 · brief 2 more (S/M fit)</span></div>` +
+      D.accounts.map(a => {
+        const c = CV[pct(a)], e = p ? elig(a, p) : null;
+        return `<div class="acct ${a.state}"><div class="ah">${led(a.state === 'usage' ? 'off' : pct(a), a.state === 'limit')}<span class="wid">${a.worker}</span><b>${a.label}</b>${tag(a.scope)}<span class="role">${a.role ? 'ORCHESTRATOR' : a.state === 'usage' ? 'USAGE ONLY' : a.state === 'limit' ? 'AT LIMIT' : `${a.lanes.filter(l => l.state !== 'spare').length}/${a.lanesMax} LANES`}</span></div>
+          <div class="ag"><div class="pct" style="color:var(${c})">${a.pct5}%<small>5H USED</small></div>${spark(a.spark, c)}<div class="rs"><b data-left="${a.reset}"></b><small>RESETS ${D.hm(a.reset)}</small></div></div>
+          ${qbar(a.pct5, c)}<div class="q7">7D<span class="tr"><i style="width:${a.pct7}%"></i></span>${a.pct7}% · read ${a.readAge}s ago</div>
+          ${a.lanes.length ? `<div class="lanes">${a.lanes.map(l => laneRow(a, l)).join('')}</div>` : `<div class="elig">${a.note}</div>`}
+          ${a.reason ? `<div class="why">🔒 <span><b>Greyed out.</b> ${a.reason}</span></div>` : ''}
+          ${e ? `<div class="elig ${e[0] ? 'ok' : 'no'}">${p.short}: ${e[1]}</div>` : ''}</div>`;
+      }).join('');
+  }
+  function board() {
+    const list = tasks(), cols = [['ready', 'READY', 'cy'], ['running', 'RUNNING', 'gr'], ['review', 'REVIEW', 'mg'], ['blocked', 'BLOCKED', 'or']];
+    const edges = list.flatMap(t => (t.deps || []).filter(d => d.state !== 'done').map(d => [d.id, t]));
+    return `<div class="cols">${cols.map(c => `<button data-jump="col-${c[0]}" style="--c:var(${CV[c[2]]})"><span class="v">${cnt(list, c[0])}</span><span class="l">${c[1]}</span></button>`).join('')}</div>
+      <div class="h"><span class="n">${edges.length}</span>Open dependencies</div>
+      <div class="deps">${edges.map(e => { const from = D.T(e[0]); return `<div class="edge">${led(ST[from.state][0])}<span><span class="id">${from.id}</span>${ST[from.state][1]}</span><span class="ln"></span><span><span class="id">${e[1].id}</span>${e[1].title}</span></div>`; }).join('') || '<div class="empty">None.</div>'}</div>` +
+      cols.map(c => `<div class="h" id="col-${c[0]}"><span class="n">${cnt(list, c[0])}</span>${c[1]}</div>${list.filter(t => COL[t.state] === c[0]).map(trow).join('') || '<div class="empty">Empty.</div>'}`).join('');
+  }
+  function review() {
+    const items = D.inbox.filter(inS);
+    if (!items.length) return '<div class="empty">Review inbox is empty for this project.</div>';
+    return `<div class="h"><span class="n">${items.length}</span>Review inbox · oldest first<span class="x">${k('A')} approve ${k('C')} changes</span></div>` +
+      items.slice().sort((a, b) => b.wait - a.wait).map(r => {
+        const ok = r.doneWhen.filter(d => d[0]).length, pick = S.pick[r.id] ?? (r.decision ? r.decision.def : null);
+        let foot;
+        if (S.done[r.id] === 'ok') foot = `<div class="stamp">✓ APPROVED ${D.hm(D.now())} · joined merge queue (slot 2)${r.unlocks.length ? ` · unlocked ${r.unlocks.join(', ')}` : ''}</div>`;
+        else if (S.done[r.id] === 'ch') foot = `<div class="stamp ch">↺ CHANGES REQUESTED · back to ${r.by.split(' ')[0]} with your note</div>`;
+        else foot = `${S.changes[r.id] ? `<textarea id="note-${r.id}" placeholder="What should change? (sent to the worker as the next attempt's brief note)"></textarea>` : ''}
+          <div class="acts"><button class="act ch" data-chg="${r.id}">${S.changes[r.id] ? 'SEND CHANGES' : 'REQUEST CHANGES'} ${k('C')}</button><button class="act go" data-ok="${r.id}">APPROVE ✓ ${k('A')}</button></div>`;
+        return `<div class="rv"><div class="hd">${led('mg')}<span class="id">${r.id}</span><b>${r.title}</b>${r.pilot ? '<span class="st" style="--c:var(--am)">PILOT</span>' : ''}${tag(D.P(r.p).scope)}</div>
+          <div style="font-size:10.5px;color:var(--dim);margin-top:4px">${D.P(r.p).title} · ${r.by} · waiting ${r.wait}m${r.unlocks.length ? ` · approving unlocks ${r.unlocks.join(', ')}` : ''}</div>
+          <p>${r.summary}</p>
+          <div class="h" style="padding:6px 0 2px"><span class="n">${ok}/${r.doneWhen.length}</span>Done when</div>
+          <div class="dw">${r.doneWhen.map(d => `<span class="${d[0] ? 'y' : 'n'}">[${d[0] ? '✓' : '✗'}]</span><span>${d[1]}</span><small>${d[2]}</small>`).join('')}</div>
+          <div class="gitg"><div><b>${r.git.commits}</b><small>COMMITS</small></div><div><b>${r.git.files}</b><small>FILES</small></div><div><b>${r.git.uncommitted}</b><small>UNCOMMIT</small></div><div><b style="color:var(--gr)">${r.git.conflicts}</b><small>CONFLICTS</small></div></div>
+          ${r.risks.map(x => `<div style="font-size:11px;color:var(--am)">▲ RISK · ${x}</div>`).join('')}
+          ${r.decision ? `<div style="font-size:11px;margin-top:8px">◆ ${r.decision.q}</div><div class="opts">${r.decision.opts.map((o, i) => `<button class="opt ${pick === i ? 'on' : ''}" data-pick="${r.id}:${i}">${o}${i === r.decision.def ? ' (default)' : ''}</button>`).join('')}</div>` : ''}
+          ${foot}</div>`;
+      }).join('');
+  }
+  const ALC = { spare: ['am', 'SPARE'], hung: ['rd', 'HUNG'], stale: ['am', 'STALE'], limit: ['cy', 'LIMIT'], policy: ['rd', 'POLICY'] };
+  function alerts() {
+    const list = D.alerts.filter(inS);
+    return list.map(a => `<div class="al"><span class="cd" style="--c:var(${CV[ALC[a.type][0]]})">${ALC[a.type][1]}</span>
+      <div class="tt"><b>${a.title}</b><p>${a.text}</p><div class="m">${a.t} · ${D.P(a.p).short} · severity ${a.sev}</div></div>
+      <div class="acts">${a.actions.map((x, i) => `<button class="act sm ${i === 0 && a.sev !== 'info' ? 'ch' : ''}" data-ack="${a.id}">${x}</button>`).join('')}</div></div>`).join('') || '<div class="empty">No alerts for this project.</div>';
+  }
+  const KC = { plan: 'cy', step: 'gr', alert: 'am', limit: 'am', review: 'mg', policy: 'rd', lock: 'vi', merge: 'gr', start: 'cy', quota: 'vi' };
+  function timeline() {
+    return `<div class="log" id="log">${D.timeline.filter(e => !e.p || inS(e)).map((e, i) => `<div class="${e.fresh ? 'new' : ''}"><span class="t">${e.t}</span><span class="k" style="--c:var(${CV[KC[e.k]]})">${e.k.toUpperCase()}</span><span>${e.text}</span></div>`).join('')}</div>`;
+  }
+  function repo() {
+    return D.projects.filter(p => S.scope === 'all' || p.id === S.scope).map(p => {
+      const r = p.repo, h = { ok: 'gr', warn: 'am', bad: 'rd' }[r.health];
+      return `<div class="rp"><div class="hd">${led(h, r.health === 'bad')}<b>${p.title}</b>${tag(p.scope)}<span style="margin-left:auto;font-size:10px;color:var(--dim)">${r.age}</span></div>
+        <div class="rpg"><div><small>HEAD</small><b>${r.branch}@${r.commit}</b></div><div><small>TREE</small><b style="color:${r.tree === 'clean' ? 'var(--gr)' : 'var(--am)'}">${r.tree}</b></div><div><small>TESTS</small><b style="color:${r.tests[0] === r.tests[1] ? 'var(--gr)' : 'var(--rd)'}">${r.tests[0]}/${r.tests[1]}</b></div>
+          <div><small>WORKTREES</small><b>${r.worktrees}</b></div><div><small>ORPHANS</small><b style="color:${r.orphans ? 'var(--rd)' : 'var(--gr)'}">${r.orphans}</b></div><div><small>LINT</small><b>${r.lint}</b></div></div>
+        <div class="svc">${r.services.map(s => `<span>${led(s[2] === 'up' ? 'gr' : 'rd')}${s[0]} :${s[1]}</span>`).join('')}</div>
+        <div class="dom"><span class="dk">merge</span><span>${r.merge.active || 'idle'}</span>${r.merge.queue.map(q => `<span class="w">queue: ${q}</span>`).join('')}
+          ${r.domains.map(d => `<span class="dk">${d[0]}</span><span>${d[1]}</span>${d[2] ? `<span class="w">${d[2]}</span>` : ''}`).join('')}</div>
+        <div class="note">${r.note}</div></div>`;
+    }).join('');
+  }
+  function ops() {
+    const sub = [['alerts', 'ALERTS', 'A'], ['timeline', 'TIMELINE', 'T'], ['repo', 'REPO', 'H']];
+    return `<div class="sub2">${sub.map(s => `<button class="${S.ops === s[0] ? 'on' : ''}" data-ops="${s[0]}">${s[1]} ${k(s[2])}</button>`).join('')}</div>` +
+      ({ alerts, timeline, repo })[S.ops]();
+  }
+
+  /* ---------- chrome ---------- */
+  const TABS = MODE === 'panel' ? [['ovr', 'OVR', '◎', 'O'], ['wrk', 'WRK', '▤', 'W'], ['brd', 'BRD', '▦', 'B'], ['rev', 'REV', '✓', 'R'], ['ops', 'OPS', '!', 'A']]
+    : [['ovr', 'OVR', '◎', 'O'], ['wrk', 'WORKERS', '▤', 'W'], ['brd', 'BOARD', '▦', 'B'], ['rev', 'REVIEW', '✓', 'R'], ['ops', 'OPS', '!', 'A']];
+  function chrome() {
+    $('#scope').innerHTML = [{ id: 'all', short: 'ALL', sub: '3 projects' }].concat(D.projects).map((p, i) => {
+      const al = p.id === 'all' ? D.alerts.length : D.alerts.filter(a => a.p === p.id).length;
+      return `<button class="${S.scope === p.id ? 'on' : ''}" data-scope="${p.id}"><span class="nm">${p.id === 'all' ? '' : led({ ok: 'gr', warn: 'am', bad: 'rd' }[p.repo.health])}${p.short} ${k(i)}</span><span class="sub">${p.sub || `${D.tasks.filter(t => t.p === p.id && COL[t.state] === 'running').length} run · ${al} alert${al === 1 ? '' : 's'}`}</span></button>`;
+    }).join('');
+    const rv = D.inbox.filter(inS).filter(r => !S.done[r.id]).length, al = D.alerts.filter(inS).length;
+    $('#tabs').innerHTML = TABS.map(t => `<button class="${S.view === t[0] ? 'on' : ''}" data-view="${t[0]}"><span class="g">${t[2]}</span>${t[0] === 'ovr' && S.scope !== 'all' ? (MODE === 'panel' ? 'PRJ' : 'PROJECT') : t[1]}${k(t[3])}${t[0] === 'rev' && rv ? `<span class="bd mg">${rv}</span>` : ''}${t[0] === 'ops' && al ? `<span class="bd">${al}</span>` : ''}</button>`).join('');
+  }
+  function render() {
+    chrome();
+    const v = { ovr: () => S.scope === 'all' ? overview() : projectPage(), wrk: workers, brd: board, rev: review, ops }[S.view];
+    $('#main').innerHTML = v();
+    tickCountdowns();
+  }
+  function tickCountdowns() {
+    document.querySelectorAll('[data-left]').forEach(e => { e.textContent = D.left(+e.dataset.left); });
+    $('#clk').textContent = D.hms(D.now());
+  }
+  function ticker() {
+    const items = D.timeline.slice(0, 8).map(e => `<span><b>${e.t.slice(0, 5)}</b>${e.text}</span>`).join('');
+    $('#tick').innerHTML = items + items;
+  }
+
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button, [data-go], [data-scope]'); if (!b) return;
+    const d = b.dataset;
+    if (d.scope) { S.scope = d.scope; if (S.view === 'ovr' || b.closest('main')) S.view = 'ovr'; }
+    else if (d.view) S.view = d.view;
+    else if (d.go) S.view = d.go;
+    else if (d.ops) S.ops = d.ops;
+    else if (d.jump) { document.getElementById(d.jump)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    else if (d.pick) { const [id, i] = d.pick.split(':'); S.pick[id] = +i; }
+    else if (d.ok) { S.done[d.ok] = 'ok'; push({ p: D.inbox.find(r => r.id == d.ok).p, k: 'merge', text: `${d.ok} approved from the ${MODE} · queued for merge` }); }
+    else if (d.chg) { if (S.changes[d.chg]) { S.done[d.chg] = 'ch'; push({ p: D.inbox.find(r => r.id == d.chg).p, k: 'review', text: `${d.chg} changes requested` }); } else S.changes[d.chg] = true; }
+    else if (d.ack) { b.textContent = '✓ ' + b.textContent; b.disabled = true; return; }
+    else return;
+    render();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'TEXTAREA') return;
+    const key = e.key.toLowerCase(), first = D.inbox.find(r => inS(r) && !S.done[r.id]);
+    const map = { o: () => S.view = 'ovr', w: () => S.view = 'wrk', b: () => S.view = 'brd', r: () => S.view = 'rev', a: () => { if (S.view === 'rev' && first) { S.done[first.id] = 'ok'; } else { S.view = 'ops'; S.ops = 'alerts'; } },
+      t: () => { S.view = 'ops'; S.ops = 'timeline'; }, h: () => { S.view = 'ops'; S.ops = 'repo'; }, c: () => { if (S.view === 'rev' && first) S.changes[first.id] = true; },
+      0: () => S.scope = 'all', 1: () => S.scope = 'shop-ops', 2: () => S.scope = 'client-portal', 3: () => S.scope = 'home-automation', escape: () => { S.scope = 'all'; S.view = 'ovr'; } };
+    if (map[key]) { map[key](); render(); }
+  });
+
+  /* fake live feed */
+  let li = 0;
+  function push(ev) {
+    D.timeline.unshift(Object.assign({ t: D.hms(D.now()), fresh: true }, ev));
+    D.timeline.slice(1).forEach(x => x.fresh = false);
+    ticker();
+    if (S.view === 'ops' && S.ops === 'timeline') $('#main').innerHTML = ops();
+  }
+  setInterval(tickCountdowns, 1000);
+  setInterval(() => {
+    const m106 = D.T(106).metric, m13 = D.T(13).metric;
+    m106.done = Math.min(m106.total, m106.done + 3 + Math.floor(Math.random() * 4));
+    if (Math.random() < .3) m13.done = Math.min(m13.total, m13.done + 1);
+    if (Math.random() < .25) { const w = D.A('w1'); w.pct5 = Math.min(99, w.pct5 + 1); w.spark.push(w.pct5); w.spark.shift(); }
+    document.querySelectorAll('[data-metric]').forEach(el => { const t = D.T(+el.dataset.metric); el.textContent = `${t.metric.label} ${t.metric.done}/${t.metric.total}`; });
+    const tpl = D.live[li++ % D.live.length];
+    push({ p: tpl.p, k: tpl.k, text: tpl.text.replace('{m106}', `${m106.done}/${m106.total}`).replace('{m13}', `${m13.done}/${m13.total}`).replace('{w1}', D.A('w1').pct5).replace('{w3}', D.left(D.A('w3').reset)) });
+  }, 6000);
+
+  const hp = new URLSearchParams(location.hash.slice(1));
+  ['scope', 'view', 'ops'].forEach(x => { if (hp.get(x)) S[x] = hp.get(x); });
+  ticker(); render();
+})();
+
+</script>
+</body>
+</html>
