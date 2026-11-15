@@ -47,3 +47,11 @@ Output `docs/v2/research.md`: comparison table, what to copy, what to avoid, map
 
 Rules: keep v1 working until v2 is proven; no network calls except to the local daemon (and optional Tailscale);
 no tokens spent by the monitor itself; never store secrets; tests for the dispatcher state machine.
+
+## Owner additions (2026-11-15 22:20)
+- **Multi-project:** an **Overview** page across ALL projects the owner works on (each project = its own config/task store), plus a **dedicated page per project** (workers, board, review inbox, alerts, repo/health for that project). Add/remove projects by config; the phone deck and the floating panel both get the overview + per-project navigation.
+- **All accounts, including the professional (office) Claude account**, appear in the accounts view with real usage/limits.
+- **Account policy — hard rule enforced by the dispatcher, not just shown:** each account is tagged `office` or `personal`; each project is tagged `office` or `personal`.
+  - Personal accounts MAY run office projects (if the owner allows per project).
+  - The **office account must NEVER run personal-project tasks** — the dispatcher refuses the lease, the CLI refuses manual assignment, and the UI greys it out with the reason. Violations are impossible by construction, and any attempt is logged as an alert.
+  - Account/project tags live in the user's private config (never in git).
