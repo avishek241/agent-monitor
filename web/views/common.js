@@ -12,7 +12,7 @@ export function lcd({ left, mid, right, big, bigClass = "big", stats = [], stats
     : conn === "fixtures" ? html`<span class="fx-badge">FIXTURES</span>` : html`<span class="led" aria-label="live"></span>`;
   const row = (s) => (s.length ? html`<div class="stats">${s.map((x) => html`<span class="${x.hot ? "hot" : ""}">${x.b != null ? html`<b>${x.b}</b> ` : ""}${x.t}</span>`)}</div>` : "");
   return html`<header class="lcd">
-    <div class="l1">${led}${left}<span>${mid}</span><span>${right}</span><button class="themebtn" data-theme-cycle aria-label="Switch theme" title="Switch theme">◐</button><a href="#/settings" aria-label="Settings" title="Settings">⚙</a></div>
+    <div class="l1">${led}${left}<span>${mid}</span><span>${right}</span><button class="themebtn" data-layout-cycle aria-label="Next layout" title="Next layout">▦</button><button class="themebtn" data-mode-cycle aria-label="Light or dark" title="Light / dark / auto">◐</button><a href="#/settings" aria-label="Settings" title="Settings">⚙</a></div>
     <div class="${bigClass}">${big}</div>${row(stats)}${row(stats2)}</header>`;
 }
 

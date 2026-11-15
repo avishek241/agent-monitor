@@ -1,11 +1,11 @@
-/* Agent Deck themes = design tokens only. One component structure (styles.css) reads these variables.
-   Colour tokens are plain hex so tests/web/themes.test.mjs can check WCAG AA contrast for every theme.
-   deck    = the original v2 Studio mockups (default)
-   mission = docs/v2/mockups/alt-a "Mission Control"
-   paper   = docs/v2/mockups/alt-b "Paper"; data-mode="dark" gives Paper dark. The picker offers four themes
-             (Deck, Mission Control, Paper light, Paper dark) plus Auto, which theme.js resolves to Paper light/dark. */
+/* Agent Deck themes = design tokens. Three layouts (data-layout) × light/dark (data-mode) = six token sets.
+   Colour tokens are plain hex so tests/web/themes.test.mjs can check WCAG AA contrast for every set.
+   studio  = docs/v2/mockups/deck.html (PhoneDeck Studio)   light = original, dark = added
+   mission = docs/v2/mockups/alt-a "Mission Control"        dark = original, light = added
+   paper   = docs/v2/mockups/alt-b "Paper"                  light and dark from the mockup
+   theme.js resolves "auto" to light/dark from prefers-color-scheme. Layout-specific structure lives in layouts/*.css. */
 
-:root, :root[data-theme="deck"] {
+:root, :root[data-layout="studio"] {
   /* type & density (phone) */
   --font-body: "JetBrains Mono", ui-monospace, Menlo, monospace;
   --font-title: "Space Grotesk", -apple-system, system-ui, sans-serif;
@@ -33,7 +33,7 @@
   --tile-mix: 78%;
 }
 
-:root[data-theme="mission"] {
+:root[data-layout="mission"] {
   --font-body: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   --font-title: "Barlow Semi Condensed", "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-big: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -55,7 +55,7 @@
   --tile-mix: 55%;
 }
 
-:root[data-theme="paper"] {
+:root[data-layout="paper"] {
   --font-body: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
   --font-title: "Fraunces", "Iowan Old Style", "New York", Georgia, serif;
   --font-big: "Fraunces", "Iowan Old Style", "New York", Georgia, serif;
@@ -77,7 +77,7 @@
   --tile-mix: 70%;
 }
 
-:root[data-theme="paper"][data-mode="dark"] {
+:root[data-layout="paper"][data-mode="dark"] {
   --key-shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); --card-shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
   --page: #121110; --bg: #1b1a17; --bg2: #1b1a17; --screw: #1b1a17;
   --card: #25231f; --tx: #efe9df; --muted: #b0a89c; --line: #38352f; --border: #38352f;
@@ -90,4 +90,34 @@
   --tint-cool: #40232a; --tint-cool-tx: #f4a6ac; --tint-off: #2f2d29; --tint-off-tx: #b0a89c;
   --chip-on: #cbbcf2; --on-chip-on: #1b1a17; --focus: #a8caef;
   --tile-mix: 45%;
+}
+
+:root[data-layout="studio"][data-mode="dark"] {
+  --key-shadow: 0 4px 0 #000000; --scan: 0.03;
+  --page: #121212; --bg: #232220; --bg2: #1b1a18; --screw: #3a3833;
+  --card: #2e2c29; --tx: #f2f0ea; --muted: #b5b0a6; --line: #4a4740; --border: #0a0a0a;
+  --accent: #ff5a1f; --on-accent: #141414; --accent-tx: #ff8a5c;
+  --ok: #12b76a; --on-ok: #141414; --ok-tx: #4ade80;
+  --warn: #e3a13a; --warn-tx: #f0b95a; --bad: #d4382c; --bad-tx: #ff8a80; --on-bad: #ffffff;
+  --office: #3a5fd6; --personal: #c2410c; --on-scope: #ffffff;
+  --lcd-bg: #0a0a0b; --lcd-tx: #f4f4f4; --lcd-muted: #a3a3a3; --lcd-hot: #ff7a45; --lcd-line: #2a2a2a; --lcd-track: #2a2a2a;
+  --tint-review: #3a2a1e; --tint-q: #38321c; --tint-alert: #3d2220; --tint-free: #3a2a1e; --tint-free-tx: #ffb38a;
+  --tint-cool: #3d2220; --tint-cool-tx: #ff9a90; --tint-off: #2a2826; --tint-off-tx: #b5b0a6;
+  --chip-on: #f2f0ea; --on-chip-on: #141414; --focus: #7d9bff;
+  --tile-mix: 70%;
+}
+
+:root[data-layout="mission"][data-mode="light"] {
+  --glow: none; --proj-glow: none;
+  --page: #dfe5ec; --bg: #eef2f6; --bg2: #eef2f6; --screw: #eef2f6;
+  --card: #ffffff; --tx: #0f1720; --muted: #4a5868; --line: #cfd8e2; --border: #b9c4d0;
+  --accent: #006b80; --on-accent: #ffffff; --accent-tx: #006b80;
+  --ok: #0a7a45; --on-ok: #ffffff; --ok-tx: #0a7a45;
+  --warn: #8a5a00; --warn-tx: #8a5a00; --bad: #b4233c; --bad-tx: #b4233c; --on-bad: #ffffff;
+  --office: #5b3fb8; --personal: #006b80; --on-scope: #ffffff;
+  --lcd-bg: #ffffff; --lcd-tx: #0f1720; --lcd-muted: #4a5868; --lcd-hot: #006b80; --lcd-line: #cfd8e2; --lcd-track: #e3e9ef;
+  --tint-review: #f3eefc; --tint-q: #fbf6e6; --tint-alert: #fcebee; --tint-free: #e6f6f9; --tint-free-tx: #00566a;
+  --tint-cool: #fcebee; --tint-cool-tx: #9b1c33; --tint-off: #edf1f5; --tint-off-tx: #4a5868;
+  --chip-on: #006b80; --on-chip-on: #ffffff; --focus: #006b80;
+  --tile-mix: 62%;
 }

@@ -41,6 +41,7 @@ test("routes round-trip", () => {
     { view: "project", project: "shop-ops", tab: "workers" },
     { view: "task", project: "shop-ops", task: "107-supplier-import", sheet: null },
     { view: "task", project: "shop-ops", task: "110-attendance-history", sheet: "reassign" },
+    { view: "page", page: "inbox" }, { view: "page", page: "board", project: "shop-ops" },
   ];
   for (const r of cases) assert.deepEqual(parseRoute(routeHash(r)), r);
   assert.deepEqual(parseRoute("#/p/x/bogus"), { view: "project", project: "x", tab: "board" });

@@ -1,54 +1,66 @@
-// Theme choice: tokens live in themes.css; this module only picks which token set is active and remembers it.
-// Four themes plus Auto. Auto follows prefers-color-scheme: Paper light by day, Paper dark by night
-// (Paper is the only theme designed in both; reversible decision, see docs/v2/B3-handoff.md).
-export const THEMES = [
-  { id: "deck", name: "Deck", note: "Studio hardware look (default)" },
-  { id: "mission", name: "Mission Control", note: "Dense, dark, neon on charcoal" },
-  { id: "paper-light", name: "Paper light", note: "Calm editorial, light" },
-  { id: "paper-dark", name: "Paper dark", note: "Calm editorial, dark" },
-  { id: "auto", name: "Auto", note: "Follows the system: Paper light or Paper dark" },
+// Appearance = layout × mode. Three layouts, each with light and dark token sets (themes.css) and its own
+// structure (layouts/*.js + *.css); mode "auto" follows prefers-color-scheme. Both choices are persisted.
+export const LAYOUTS = [
+  { id: "studio", name: "Studio", note: "PhoneDeck hardware look: LCD, chunky keys", defaultMode: "light" },
+  { id: "mission", name: "Mission Control", note: "Dense command centre: KPIs, rules, LEDs, ticker", defaultMode: "dark" },
+  { id: "paper", name: "Paper", note: "Calm editorial: serif headlines, soft cards, rings", defaultMode: "light" },
 ];
-export const DEFAULT_PREF = { theme: "deck" };
-const KEY = "deck.theme";
-const LEGACY = { paper: "paper-light" };
+export const MODES = [
+  { id: "auto", name: "Auto" }, { id: "light", name: "Light" }, { id: "dark", name: "Dark" },
+];
+export const DEFAULT_PREF = { layout: "studio", mode: "auto" };
+const KEY = "deck.appearance";
+const OLD_KEY = "deck.theme";
+// earlier single-theme ids (kept so a saved choice survives the upgrade)
+const LEGACY = { deck: ["studio", "auto"], mission: ["mission", "dark"], "paper-light": ["paper", "light"], "paper-dark": ["paper", "dark"], auto: ["paper", "auto"], paper: ["paper", "auto"] };
 
-/** Validate a stored preference; anything unknown falls back to the default. */
 export function normalise(p) {
-  let theme = p?.theme;
-  if (theme === "paper" && p?.mode === "dark") theme = "paper-dark";
-  theme = LEGACY[theme] || theme;
-  return { theme: THEMES.some((t) => t.id === theme) ? theme : DEFAULT_PREF.theme };
+  let layout = p?.layout, mode = p?.mode;
+  if (!layout && p?.theme && LEGACY[p.theme]) [layout, mode] = LEGACY[p.theme];
+  return {
+    layout: LAYOUTS.some((l) => l.id === layout) ? layout : DEFAULT_PREF.layout,
+    mode: MODES.some((m) => m.id === mode) ? mode : DEFAULT_PREF.mode,
+  };
 }
 
-/** Quick toggle order: Deck → Mission Control → Paper light → Paper dark → Auto → Deck. */
-export function nextPref(p) {
-  const ids = THEMES.map((t) => t.id);
-  return { theme: ids[(ids.indexOf(normalise(p).theme) + 1) % ids.length] };
+/** Quick toggles: ▦ cycles the layout, ◐ cycles the mode (Auto → Light → Dark). */
+export function nextLayout(p) {
+  const q = normalise(p), ids = LAYOUTS.map((l) => l.id);
+  return { ...q, layout: ids[(ids.indexOf(q.layout) + 1) % ids.length] };
+}
+export function nextMode(p) {
+  const q = normalise(p), ids = MODES.map((m) => m.id);
+  return { ...q, mode: ids[(ids.indexOf(q.mode) + 1) % ids.length] };
 }
 
-/** The attributes to put on <html>: data-theme is the token set, data-mode picks Paper's dark variant. */
+/** Attributes for <html>: data-layout picks the structure + token set, data-mode the light/dark variant. */
 export function resolve(p, prefersDark = false) {
-  const { theme } = normalise(p);
-  if (theme === "paper-light") return { "data-theme": "paper", "data-mode": "light" };
-  if (theme === "paper-dark") return { "data-theme": "paper", "data-mode": "dark" };
-  if (theme === "auto") return { "data-theme": "paper", "data-mode": prefersDark ? "dark" : "light" };
-  return { "data-theme": theme, "data-mode": "light" };
+  const { layout, mode } = normalise(p);
+  const dark = mode === "dark" || (mode === "auto" && prefersDark);
+  return { "data-layout": layout, "data-mode": dark ? "dark" : "light" };
 }
 
-export const label = (p) => THEMES.find((x) => x.id === normalise(p).theme).name;
+export const label = (p) => {
+  const { layout, mode } = normalise(p);
+  return `${LAYOUTS.find((l) => l.id === layout).name} · ${MODES.find((m) => m.id === mode).name}`;
+};
 
 export function loadPref(storage) {
-  try { return normalise(JSON.parse(storage?.getItem(KEY) || "null")); } catch { return { ...DEFAULT_PREF }; }
+  try {
+    const raw = storage?.getItem(KEY) ?? storage?.getItem(OLD_KEY);
+    return normalise(JSON.parse(raw || "null"));
+  } catch { return { ...DEFAULT_PREF }; }
 }
 export function savePref(storage, p) {
-  try { storage?.setItem(KEY, JSON.stringify(normalise(p))); } catch { /* private mode: choice lasts this session */ }
+  try { storage?.setItem(KEY, JSON.stringify(normalise(p))); } catch { /* private mode: lasts this session */ }
 }
 
 /** Apply to the document (browser only). */
 export function apply(doc, p, prefersDark) {
   const attrs = resolve(p, prefersDark);
   for (const [k, v] of Object.entries(attrs)) doc.documentElement.setAttribute(k, v);
+  doc.documentElement.removeAttribute("data-theme");
   const meta = doc.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", getComputedStyle(doc.documentElement).getPropertyValue("--lcd-bg").trim() || "#0f0f10");
+  if (meta) meta.setAttribute("content", getComputedStyle(doc.documentElement).getPropertyValue("--bg").trim() || "#0f0f10");
   return attrs;
 }

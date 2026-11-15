@@ -7,6 +7,7 @@ import { projectView } from "./views/project.js";
 import { taskView, reviewSheet, reassignSheet, answerSheet } from "./views/task.js";
 import { settingsView } from "./views/settings.js";
 import * as theme from "./theme.js";
+import { RENDERERS } from "./layouts/index.js";
 
 const qs = new URLSearchParams(location.search);
 const store = {
@@ -26,8 +27,8 @@ function setTheme(p) {
   theme.apply(document, themePref, !!darkQuery?.matches);
   if (parseRoute(location.hash).view === "settings") render();
 }
-// ?theme=paper-dark previews a theme (screenshots, sharing a link) and remembers it.
-if (qs.get("theme")) { themePref = theme.normalise({ theme: qs.get("theme"), mode: qs.get("mode") }); theme.savePref(window.localStorage, themePref); }
+// ?layout=paper&mode=dark previews a theme (screenshots, sharing a link) and remembers it.
+if (qs.get("layout") || qs.get("theme")) { themePref = theme.normalise({ layout: qs.get("layout"), mode: qs.get("mode"), theme: qs.get("theme") }); theme.savePref(window.localStorage, themePref); }
 theme.apply(document, themePref, !!darkQuery?.matches);
 darkQuery?.addEventListener?.("change", () => theme.apply(document, themePref, darkQuery.matches));
 
@@ -49,6 +50,10 @@ async function load(route, force = false) {
   if (force || !S.overview) jobs.push(api.overview().then((o) => { S.overview = o; S.ovAt = nowLocal(); }));
   const p = route.project;
   if (p && (force || !S.projects[p])) jobs.push(api.project(p).then((vm) => { S.projects[p] = vm; }));
+  // Mission and Paper show cross-project lists (needs you, inbox, board): load every enabled project.
+  if (themePref.layout !== "studio" && S.overview) {
+    for (const t of S.overview.projects || []) if (t.enabled !== false && t.id !== p && (force || !S.projects[t.id])) jobs.push(api.project(t.id).then((vm) => { S.projects[t.id] = vm; }).catch(() => {}));
+  }
   if (route.view === "task") {
     const k = `${p}/${route.task}`;
     if (force || !S.details[k]) jobs.push(api.task(p, route.task).then((d) => { S.details[k] = d; }));
@@ -60,6 +65,12 @@ async function load(route, force = false) {
 function view(route) {
   const t = now();
   const o = S.overview;
+  const r = RENDERERS[themePref.layout];
+  if (r && o && route.view !== "settings") {
+    const out = r(route, { o, projects: S.projects, details: S.details, eligible: S.eligible, now: t, conn: S.conn, pref: themePref, token: store.get("deck.token") || "", fixtures: FIXTURES });
+    if (out != null) return out;
+  }
+  if (route.view === "page" && o) return route.project && S.projects[route.project] ? projectView(S.projects[route.project], o, { inbox: "review", ops: "alerts", workers: "workers" }[route.page] || "board", t, S.conn) : route.page === "workers" ? accountsView(o, t, S.conn) : overviewView(o, t, S.conn);
   if (route.view === "settings") return settingsView(themePref, { token: store.get("deck.token") || "", fixtures: FIXTURES, conn: S.conn });
   if (!o) return html`<div class="empty">Loading…</div>`;
   if (route.view === "accounts") return accountsView(o, t, S.conn);
@@ -134,10 +145,12 @@ async function runAction(el, act) {
 document.addEventListener("click", (ev) => {
   const swipe = ev.target.closest("[data-swipe]");
   if (swipe) { ev.preventDefault(); goProject(+1); return; }
-  const th = ev.target.closest("[data-theme-cycle],[data-theme-set]");
+  const th = ev.target.closest("[data-layout-cycle],[data-mode-cycle],[data-layout-set],[data-mode-set]");
   if (th) {
     const d = th.dataset;
-    const next = d.themeSet ? { theme: d.themeSet } : theme.nextPref(themePref);
+    const next = d.layoutSet ? { ...themePref, layout: d.layoutSet } : d.modeSet ? { ...themePref, mode: d.modeSet }
+      : "layoutCycle" in d ? theme.nextLayout(themePref) : theme.nextMode(themePref);
+    th.blur?.();
     setTheme(next);
     toast(`Theme: ${theme.label(next)}`);
     return;
