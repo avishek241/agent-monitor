@@ -115,6 +115,8 @@ class Domains:
         col, val = self.extra
         for name in names:
             t = ttl if ttl is not None else self.ttl_default(name)
+            if val is None and "/" in holder:     # machine-wide table: holder is "<project>/<task>"
+                val = holder.split("/", 1)[0]
             self.conn.execute(
                 f"INSERT OR REPLACE INTO {self.table}(name, holder, {col}, acquired_at, expires_at) VALUES(?,?,?,?,?)",
                 (name, holder, val, now, now + int(t) * 60 if t else None))

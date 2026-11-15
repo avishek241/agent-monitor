@@ -266,7 +266,6 @@ class ProjectStore(ProjectStoreAPI):
                                ttl_default=lambda name: doms.get(name, {}).get("ttlMin", 240),
                                external=self.g.ext_domains)
         self.domains.ext_holder = lambda holder: f"{pid}/{holder}"
-        self.g.ext_domains.extra = ("project", pid)
         self.slots = _Slots(self)
 
     # ---------------- reading
