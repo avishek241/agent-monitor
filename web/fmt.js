@@ -64,6 +64,13 @@ export const STATE = {
 export const stateIcon = (s) => STATE[s]?.[0] ?? "·";
 export const stateWord = (s) => STATE[s]?.[1] ?? s;
 
+/** Metric rate (per minute) and time left (minutes) are numbers from deckd; old string fixtures still render. */
+export function rateText(m) {
+  const r = typeof m.rate === "number" ? `≈${num(Math.round(m.rate * 10) / 10)}/min` : m.rate || "";
+  const l = typeof m.left === "number" ? `~${dur(m.left * 60)} left` : m.left || "";
+  return [r, l].filter(Boolean).map((x) => ` · ${x}`).join("");
+}
+
 /** Next priority up/down: P0 is highest. */
 export function bumpPriority(p, dir) {
   const n = Math.min(3, Math.max(0, Number(String(p || "P2").slice(1)) + (dir > 0 ? -1 : 1)));

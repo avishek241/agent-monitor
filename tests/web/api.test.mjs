@@ -39,7 +39,8 @@ test("actionBody builds exactly the §12 bodies and refuses incomplete ones", ()
   assert.throws(() => actionBody("reassign", 3), /worker/);
   assert.throws(() => actionBody("priority", 3, { priority: "P9" }), /P0\.\.P3/);
   assert.throws(() => actionBody("answer", 3), /note/);
-  assert.throws(() => actionBody("approve"), /rev/);
+  assert.deepEqual(actionBody("approve"), { action: "approve" }, "rev is optional (B1 contract)");
+  assert.throws(() => actionBody("approve", "7"), /rev/);
   assert.throws(() => actionBody("delete", 1), /unknown/);
 });
 
@@ -105,6 +106,21 @@ test("fixture mode reads web/fixtures, never mixes projects, and simulates POSTs
     assert.equal(r.simulated, true);
     assert.equal(seen.length, n, "no request sent in fixture mode");
   } finally { srv.close(); }
+});
+
+test("pairing posts the 6-digit code and returns the device token", async () => {
+  const { srv, seen, base } = await stub((req, res) => json(res, 200, { ok: true, token: "dev-abc" }));
+  try {
+    const api = createApi({ base });
+    assert.deepEqual(await api.pair("123456", "phone"), { ok: true, token: "dev-abc" });
+    assert.equal(seen[0].url, "/api/pair");
+    assert.deepEqual(seen[0].body, { code: "123456", name: "phone" });
+    assert.equal(seen[0].headers.authorization, undefined);
+    assert.equal((await api.pair("12ab", "x")).code, "invalid");
+    assert.equal(seen.length, 1, "a malformed code is never sent");
+  } finally { srv.close(); }
+  const { srv: s2, base: b2 } = await stub((req, res) => json(res, 403, { ok: false, code: "invalid", reason: "code expired" }));
+  try { assert.equal((await createApi({ base: b2 }).pair("123456")).reason, "code expired"); } finally { s2.close(); }
 });
 
 test("sseParser handles chunks split mid-line, comments, multi-line data and ids", () => {

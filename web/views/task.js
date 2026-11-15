@@ -1,6 +1,6 @@
 // Task detail and its sheets: Review, Reassign, Answer (design §13.2 screens 3–5).
 // Action keys carry data-act; app.js turns them into api.actionBody(...) POSTs with the task's rev.
-import { html, hhmm, dur, until, num, bumpPriority, stateWord, stateIcon, tnum } from "../fmt.js";
+import { html, hhmm, dur, until, num, bumpPriority, stateWord, stateIcon, tnum, rateText } from "../fmt.js";
 import { lcd, label, eventRow, empty } from "./common.js";
 
 const backTo = (p, title) => html`<a href="#/p/${encodeURIComponent(p)}/board">◀ ${String(title).toUpperCase()}</a>`;
@@ -42,6 +42,7 @@ function taskInfo(detail, tvm) {
 }
 
 export function taskView(detail, tvm, vm, now, conn) {
+  tvm = tvm || detail?.view; // B1 sends the TaskVM inside the detail as `view`
   const t = taskInfo(detail, tvm);
   if (!t.id) return html`${lcd({ left: "", mid: "TASK", right: "", big: "NOT FOUND", bigClass: "proj", conn })}${empty("This task is not in the deck any more.")}`;
   const p = vm?.project || { id: t.project, title: t.project };
@@ -79,7 +80,7 @@ export function taskView(detail, tvm, vm, now, conn) {
     ${metrics.length ? html`${label("NUMBERS")}${metrics.map((m) => {
       const x = { ...vmMetric(m.label), ...m };
       const bad = x.kind === "bad" && x.done > 0;
-      return html`<div class="acct"><span class="n">${x.label}</span><span class="v${bad ? " hot" : ""}">${num(x.done)}${x.total ? ` / ${num(x.total)}` : ""}${x.rate ? ` · ${x.rate}` : ""}${x.left ? ` · ${x.left}` : ""}</span>
+      return html`<div class="acct"><span class="n">${x.label}</span><span class="v${bad ? " hot" : ""}">${num(x.done)}${x.total ? ` / ${num(x.total)}` : ""}${rateText(x)}</span>
         ${x.total ? html`<span class="bar"><i style="width:${Math.min(100, Math.round((x.done / x.total) * 100))}%"></i></span>` : ""}</div>`;
     })}` : ""}
     ${card?.note ? html`<div class="note">“${card.note}”</div>` : ""}

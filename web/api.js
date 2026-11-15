@@ -9,8 +9,9 @@ export const ACTIONS = ["approve", "changes", "reject", "pause", "resume", "canc
  */
 export function actionBody(action, rev, extra = {}) {
   if (!ACTIONS.includes(action)) throw new Error(`unknown action ${action}`);
-  if (!Number.isInteger(rev)) throw new Error("rev is required");
-  const body = { action, rev };
+  // rev is optional in B1's contract; when we know it, send it so a stale view gets 409 "stale" instead of acting.
+  if (rev != null && !Number.isInteger(rev)) throw new Error("rev must be an integer");
+  const body = rev == null ? { action } : { action, rev };
   const need = (k) => {
     if (extra[k] == null || extra[k] === "") throw new Error(`${action} needs ${k}`);
     body[k] = extra[k];
@@ -66,6 +67,17 @@ export function createApi({ base = "", fixtures = false, token = null, fetchImpl
     },
     eligible: (p, id) => (fixtures ? getJson(fx("eligible")) : getJson(`${base}api/projects/${enc(p)}/tasks/${enc(id)}/eligible-workers`)),
     accounts: () => (fixtures ? getJson(fx("overview")).then((o) => o.accounts) : getJson(`${base}api/accounts`)),
+
+    /** Exchange the 6-digit code from `deck pair` for a device token: POST /api/pair {code, name} → {ok, token}. */
+    async pair(code, name) {
+      if (!/^\d{6}$/.test(String(code || ""))) return { ok: false, code: "invalid", reason: "Enter the 6-digit code shown by `deck pair`." };
+      if (fixtures) return { ok: true, simulated: true, token: "fixture-token" };
+      try {
+        const r = await fetchImpl(`${base}api/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: String(code), name: name || "phone" }) });
+        const d = await r.json().catch(() => ({}));
+        return d.ok && d.token ? { ok: true, token: d.token } : { ok: false, code: d.code || "http", reason: d.reason || `Pairing refused (HTTP ${r.status})` };
+      } catch { return { ok: false, code: "offline", reason: "Deck is offline — can't pair." }; }
+    },
 
     /** POST an action. Resolves {ok, task} or {ok:false, code, reason}; never throws for server refusals. */
     async action(p, id, body) {

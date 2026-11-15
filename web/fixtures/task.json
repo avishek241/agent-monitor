@@ -173,5 +173,54 @@
    "task": "106-match-receipts",
    "text": "limit reset · Codex · a"
   }
- ]
+ ],
+ "view": {
+  "id": "106-match-receipts",
+  "num": 106,
+  "title": "Match receipts to bills",
+  "summary": "Link every receipt in the export to its bill so money owed is real.",
+  "tags": [
+   "data"
+  ],
+  "priority": "P1",
+  "size": "M",
+  "state": "running",
+  "stateReason": "W1·1 · step 3/5",
+  "worker": "W1",
+  "progress": 0.55,
+  "step": {
+   "title": "Map columns",
+   "index": 3,
+   "count": 5,
+   "etaMin": 22
+  },
+  "etaFinish": 1794760440,
+  "metrics": [
+   {
+    "label": "Rows matched",
+    "done": 412,
+    "total": 1050,
+    "kind": "count",
+    "rate": 18.0,
+    "left": 35.0
+   },
+   {
+    "label": "Errors",
+    "done": 3,
+    "total": null,
+    "kind": "bad",
+    "rate": null,
+    "left": null
+   }
+  ],
+  "lastActiveSec": 20,
+  "warnings": [],
+  "deps": [],
+  "resumeAt": null,
+  "kind": "task",
+  "rev": 14,
+  "lane": 1,
+  "account": "codex-a",
+  "attempt": 2
+ }
 }

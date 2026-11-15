@@ -148,12 +148,18 @@ document.addEventListener("click", (ev) => {
   if (el && !el.closest("[aria-disabled=true]")) { ev.preventDefault(); runAction(el, el.dataset.act); }
 });
 
-function pairAction(what) {
+async function pairAction(what) {
+  if (what === "code") {
+    const res = await api.pair(document.getElementById("paircode").value.trim(), document.getElementById("pairname").value.trim());
+    if (!res.ok) { toast(res.reason, "err"); return; }
+    store.set("deck.token", res.token);
+    toast(res.simulated ? "Fixtures: pairing simulated" : "Paired ✓");
+  }
   if (what === "save") { store.set("deck.token", document.getElementById("tok").value.trim() || null); toast("Saved"); }
   if (what === "clear") { store.set("deck.token", null); toast("Forgotten"); }
   if (what === "notify" && "Notification" in window) Notification.requestPermission().then((p) => toast(`Notifications: ${p}`));
   api = createApi({ base, fixtures: FIXTURES, token: store.get("deck.token") });
-  if (what === "save" || what === "clear") location.hash = "#/";
+  if (what === "save" || what === "clear" || what === "code") location.hash = "#/";
 }
 
 // Hold-to-confirm for destructive keys (cancel, reject): 1.2 s press, released early = nothing.

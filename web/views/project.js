@@ -21,11 +21,20 @@ export function projectView(vm, overview, tab, now, conn) {
   const seg = html`<nav class="seg" role="tablist">${TABS.map((t) => html`<a role="tab" aria-selected="${String(t === tab)}" class="${t === tab ? "on" : ""}" href="#/p/${encodeURIComponent(p.id)}/${t}">${TAB_LABEL[t]}${
     t === "review" && (vm.inbox || []).length ? ` ${vm.inbox.length}` : t === "alerts" && (vm.alerts || []).length ? ` ${vm.alerts.length}` : ""}</a>`)}</nav>`;
   const body = { workers: workersTab, board: boardTab, review: reviewTab, alerts: alertsTab, timeline: timelineTab, repo: repoTab }[tab] || boardTab;
-  return html`${head}${seg}<div class="tabbody">${body(vm, now, pid)}</div>`;
+  return html`${head}${seg}<div class="tabbody">${body(vm, now, pid, overview)}</div>`;
 }
 
-function workersTab(vm, now, pid) {
-  const ws = vm.workers || [];
+/** B1's WorkerVM has no usage; join it with the Overview's AccountVM so every worker shows its quota bar. */
+export function workersWithUsage(vm, overview) {
+  const acc = Object.fromEntries((overview?.accounts || []).map((a) => [a.id, a]));
+  return (vm.workers || []).map((w) => {
+    const a = acc[w.account] || {};
+    return { ...a, ...Object.fromEntries(Object.entries(w).filter(([, v]) => v != null)), label: w.label || a.label, lanes: w.lanes?.length ? w.lanes : a.lanes || [] };
+  });
+}
+
+function workersTab(vm, now, pid, overview) {
+  const ws = workersWithUsage(vm, overview);
   if (!ws.length) return empty("No worker is busy on, or eligible for, this project.");
   const ok = ws.filter((w) => w.allowed !== false), off = ws.filter((w) => w.allowed === false);
   return html`${label("ELIGIBLE · PARALLEL LANES", ok.length)}
@@ -83,7 +92,7 @@ function repoTab(vm, now) {
     <div class="panel-box"><div class="mono">${repo.commit || "—"}</div>
       ${(repo.changes || []).length ? repo.changes.map((c) => html`<div class="kv"><span>${c.area}</span><span class="hot">${c.files} files changed</span></div>`) : html`<div class="muted">working tree clean</div>`}</div>
     ${label("HEALTH")}
-    <div class="panel-box">${Object.values(groups).map((hs) => html`<div class="health">${hs.map((h) => html`<span class="${h.up ? "up" : "down"}">${h.up ? "●" : "✗"} ${h.label}</span>`)}</div>`)}${(p.health || []).length ? "" : html`<span class="muted">no checks configured</span>`}</div>
+    <div class="panel-box">${Object.values(groups).map((hs) => html`<div class="health">${hs.map((h) => { const up = h.ok ?? h.up; return html`<span class="${up ? "up" : up === false ? "down" : "muted"}">${up ? "●" : up === false ? "✗" : "?"} ${h.label}${up == null ? " (not checked)" : ""}</span>`; })}</div>`)}${(p.health || []).length ? "" : html`<span class="muted">no checks configured</span>`}</div>
     ${label("DOMAINS & MERGE")}
     <div class="panel-box">${(vm.domains || []).map((d) => html`<div class="kv"><span class="mono">${d.name}</span><span>${d.holder ? `${tnum({ id: d.holder })} since ${hhmm(d.since)}` : d.note || "free"}${
       (d.waiting || []).length ? ` · ${d.waiting.map((w) => tnum({ id: w })).join(", ")} waiting` : ""}${d.reserved ? " · reserved" : ""}</span></div>`)}

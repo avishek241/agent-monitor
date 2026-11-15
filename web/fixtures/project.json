@@ -15,46 +15,32 @@
   "health": [
    {
     "label": "App :3000",
-    "up": true,
-    "group": "local"
+    "group": "local",
+    "ok": true
    },
    {
     "label": "API :4000",
-    "up": true,
-    "group": "local"
+    "group": "local",
+    "ok": true
    },
    {
     "label": "Demo :3700",
-    "up": false,
-    "group": "demo"
+    "group": "demo",
+    "ok": false
    }
-  ]
+  ],
+  "enabled": true
  },
  "workers": [
   {
-   "label": "Codex · a",
-   "tool": "codex",
-   "scope": "personal",
-   "pct5": 52,
-   "pct7": 40,
-   "resets5": 1794762720,
-   "state": "ok",
-   "dispatch": true,
-   "capacity": {
-    "lanesUsed": 2,
-    "lanesMax": 3,
-    "spendable5": 36,
-    "committed5": 18,
-    "minutesToReset": 60,
-    "urgency": 0.3,
-    "fitsSize": "M",
-    "spare": true,
-    "spareSinceSec": 300,
-    "why": null,
-    "whyKind": null
-   },
-   "account": "codex-a",
    "worker": "W1",
+   "account": "codex-a",
+   "label": "Codex · a",
+   "scope": "personal",
+   "adapter": "codex-exec",
+   "state": "active",
+   "allowed": true,
+   "reason": null,
    "lanes": [
     {
      "worker": "W1",
@@ -87,34 +73,17 @@
      "lane": 3,
      "state": "free"
     }
-   ],
-   "allowed": true,
-   "reason": null
+   ]
   },
   {
-   "label": "Codex · b",
-   "tool": "codex",
-   "scope": "personal",
-   "pct5": 55,
-   "pct7": 48,
-   "resets5": 1794766920,
-   "state": "ok",
-   "dispatch": true,
-   "capacity": {
-    "lanesUsed": 2,
-    "lanesMax": 3,
-    "spendable5": 30,
-    "committed5": 22,
-    "minutesToReset": 130,
-    "urgency": 0.12,
-    "fitsSize": "S",
-    "spare": false,
-    "spareSinceSec": null,
-    "why": "waits on ext:pc-ssh (held by 109)",
-    "whyKind": "domain"
-   },
-   "account": "codex-b",
    "worker": "W2",
+   "account": "codex-b",
+   "label": "Codex · b",
+   "scope": "personal",
+   "adapter": "codex-exec",
+   "state": "active",
+   "allowed": true,
+   "reason": null,
    "lanes": [
     {
      "worker": "W2",
@@ -147,34 +116,17 @@
      "lane": 3,
      "state": "free"
     }
-   ],
-   "allowed": true,
-   "reason": null
+   ]
   },
   {
-   "label": "Claude · worker",
-   "tool": "claude",
-   "scope": "personal",
-   "pct5": 100,
-   "pct7": 71,
-   "resets5": 1794759660,
-   "state": "cooling",
-   "dispatch": true,
-   "capacity": {
-    "lanesUsed": 0,
-    "lanesMax": 3,
-    "spendable5": 0,
-    "committed5": 0,
-    "minutesToReset": 9,
-    "urgency": 0,
-    "fitsSize": null,
-    "spare": false,
-    "spareSinceSec": null,
-    "why": "limit — resumes 104 at 21:51",
-    "whyKind": "cooling"
-   },
-   "account": "claude-worker",
    "worker": "W3",
+   "account": "claude-worker",
+   "label": "Claude · worker",
+   "scope": "personal",
+   "adapter": "claude-headless",
+   "state": "cooling",
+   "allowed": true,
+   "reason": null,
    "lanes": [
     {
      "worker": "W3",
@@ -185,34 +137,17 @@
      "title": "Vendor model",
      "resumeAt": 1794759750
     }
-   ],
-   "allowed": true,
-   "reason": null
+   ]
   },
   {
-   "label": "Claude · office",
-   "tool": "claude",
-   "scope": "office",
-   "pct5": 18,
-   "pct7": 30,
-   "resets5": 1794771120,
-   "state": "ok",
-   "dispatch": true,
-   "capacity": {
-    "lanesUsed": 1,
-    "lanesMax": 2,
-    "spendable5": 64,
-    "committed5": 12,
-    "minutesToReset": 200,
-    "urgency": 0.26,
-    "fitsSize": "L",
-    "spare": true,
-    "spareSinceSec": null,
-    "why": "no eligible task: 3 queued tasks are personal projects (account policy)",
-    "whyKind": "policy"
-   },
-   "account": "claude-office",
    "worker": "W4",
+   "account": "claude-office",
+   "label": "Claude · office",
+   "scope": "office",
+   "adapter": "claude-headless",
+   "state": "active",
+   "allowed": false,
+   "reason": "Office account: never runs personal projects (account policy)",
    "lanes": [
     {
      "worker": "W4",
@@ -232,31 +167,18 @@
      "lane": 2,
      "state": "free"
     }
-   ],
-   "allowed": false,
-   "reason": "Office account: never runs personal projects (account policy)"
+   ]
   },
   {
-   "label": "Claude · main (W0)",
-   "tool": "claude",
-   "scope": "personal",
-   "pct5": 41,
-   "pct7": 62,
-   "resets5": 1794768120,
-   "state": "ok",
-   "dispatch": false,
-   "capacity": {
-    "lanesUsed": 0,
-    "lanesMax": 0,
-    "spare": false,
-    "why": "orchestrator · usage only, never dispatched",
-    "whyKind": "dispatch_off"
-   },
-   "account": "claude-main",
    "worker": "W0",
-   "lanes": [],
+   "account": "claude-main",
+   "label": "Claude · main (W0)",
+   "scope": "personal",
+   "adapter": "interactive",
+   "state": "idle",
    "allowed": false,
-   "reason": "Orchestrator: interactive, offer only"
+   "reason": "Orchestrator: interactive, offer only",
+   "lanes": []
   }
  ],
  "board": {
@@ -385,16 +307,16 @@
       "done": 412,
       "total": 1050,
       "kind": "count",
-      "rate": "≈18/min",
-      "left": "~35 min left"
+      "rate": 18.0,
+      "left": 35.0
      },
      {
       "label": "Errors",
       "done": 3,
       "total": null,
       "kind": "bad",
-      "rate": "",
-      "left": ""
+      "rate": null,
+      "left": null
      }
     ],
     "lastActiveSec": 20,
