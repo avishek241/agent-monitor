@@ -153,7 +153,12 @@ def kill_group(pgid: int, int_wait: float = 20, term_wait: float = 10) -> str:
 def find_marked(run_id: str, exclude=()) -> list:
     """Processes whose environment carries DECK_RUN_ID=<run_id> (ps eww shows env after the command on macOS)."""
     try:
-        out = subprocess.run(["ps", "eww", "-A", "-o", "pid=,command="], capture_output=True, text=True, timeout=10).stdout
+        # Popen, not run: deck-run itself carries the marker, so the `ps` child does too and lists itself.
+        # Its pid is excluded, or every attempt would report one "leftover" (found in the W0 smoke run).
+        ps = subprocess.Popen(["ps", "eww", "-A", "-o", "pid=,command="], stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True)
+        out, _ = ps.communicate(timeout=10)
+        exclude = set(exclude) | {ps.pid}
     except (OSError, subprocess.SubprocessError):
         return []
     pat = re.compile(rf"(?:^|\s){MARK}={re.escape(run_id)}(?:\s|$)")

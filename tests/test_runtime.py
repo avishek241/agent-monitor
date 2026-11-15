@@ -264,6 +264,14 @@ print('parent exits')
             p.kill()
             p.wait()
 
+    def test_marked_caller_does_not_find_its_own_ps(self):
+        """W0 smoke regression: deck-run carries the marker, so its `ps` child did too and was reported killed."""
+        code = ("import json, os, sys; sys.path.insert(0, %r); from deck import run; "
+                "print(json.dumps(run.find_marked('shop:t:7', exclude={os.getpid()})))") % str(Path(deckrun.__file__).parent.parent)
+        out = subprocess.run([sys.executable, "-c", code], env={**os.environ, "DECK_RUN_ID": "shop:t:7"},
+                             capture_output=True, text=True, timeout=30)
+        self.assertEqual(json.loads(out.stdout), [], out.stderr)
+
     def test_kill_group_escalates_past_sigint(self):
         p = subprocess.Popen([sys.executable, "-c",
                               "import signal,time; signal.signal(signal.SIGINT, signal.SIG_IGN); time.sleep(60)"],
