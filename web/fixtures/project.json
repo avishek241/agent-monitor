@@ -1,0 +1,984 @@
+{
+ "time": 1794759120,
+ "project": {
+  "id": "shop-ops",
+  "title": "Shop operations",
+  "short": "Shop ops",
+  "scope": "personal",
+  "allowPersonalAccounts": true,
+  "color": "#ff5a1f",
+  "icon": "🛠",
+  "repo": {
+   "commit": "a1b2c3d · 103: stock view · 2h ago",
+   "changes": []
+  },
+  "health": [
+   {
+    "label": "App :3000",
+    "up": true,
+    "group": "local"
+   },
+   {
+    "label": "API :4000",
+    "up": true,
+    "group": "local"
+   },
+   {
+    "label": "Demo :3700",
+    "up": false,
+    "group": "demo"
+   }
+  ]
+ },
+ "workers": [
+  {
+   "label": "Codex · a",
+   "tool": "codex",
+   "scope": "personal",
+   "pct5": 52,
+   "pct7": 40,
+   "resets5": 1794762720,
+   "state": "ok",
+   "dispatch": true,
+   "capacity": {
+    "lanesUsed": 2,
+    "lanesMax": 3,
+    "spendable5": 36,
+    "committed5": 18,
+    "minutesToReset": 60,
+    "urgency": 0.3,
+    "fitsSize": "M",
+    "spare": true,
+    "spareSinceSec": 300,
+    "why": null,
+    "whyKind": null
+   },
+   "account": "codex-a",
+   "worker": "W1",
+   "lanes": [
+    {
+     "worker": "W1",
+     "lane": 1,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "106-match-receipts",
+     "title": "Match receipts to bills",
+     "step": "Map columns",
+     "stepIndex": 3,
+     "stepCount": 5,
+     "etaMin": 22,
+     "lastActiveSec": 20
+    },
+    {
+     "worker": "W1",
+     "lane": 2,
+     "state": "running",
+     "project": "client-portal",
+     "task": "12-login-copy",
+     "title": "Login page wording",
+     "step": "Tests",
+     "stepIndex": 2,
+     "stepCount": 3,
+     "etaMin": 9,
+     "lastActiveSec": 4
+    },
+    {
+     "worker": "W1",
+     "lane": 3,
+     "state": "free"
+    }
+   ],
+   "allowed": true,
+   "reason": null
+  },
+  {
+   "label": "Codex · b",
+   "tool": "codex",
+   "scope": "personal",
+   "pct5": 55,
+   "pct7": 48,
+   "resets5": 1794766920,
+   "state": "ok",
+   "dispatch": true,
+   "capacity": {
+    "lanesUsed": 2,
+    "lanesMax": 3,
+    "spendable5": 30,
+    "committed5": 22,
+    "minutesToReset": 130,
+    "urgency": 0.12,
+    "fitsSize": "S",
+    "spare": false,
+    "spareSinceSec": null,
+    "why": "waits on ext:pc-ssh (held by 109)",
+    "whyKind": "domain"
+   },
+   "account": "codex-b",
+   "worker": "W2",
+   "lanes": [
+    {
+     "worker": "W2",
+     "lane": 1,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "107-supplier-import",
+     "title": "Supplier list",
+     "step": "Review",
+     "stepIndex": 5,
+     "stepCount": 5,
+     "etaMin": null,
+     "lastActiveSec": 720
+    },
+    {
+     "worker": "W2",
+     "lane": 2,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "109-stock-costs",
+     "title": "Stock costs",
+     "step": "Profile bills",
+     "stepIndex": 2,
+     "stepCount": 4,
+     "etaMin": 30,
+     "lastActiveSec": 960
+    },
+    {
+     "worker": "W2",
+     "lane": 3,
+     "state": "free"
+    }
+   ],
+   "allowed": true,
+   "reason": null
+  },
+  {
+   "label": "Claude · worker",
+   "tool": "claude",
+   "scope": "personal",
+   "pct5": 100,
+   "pct7": 71,
+   "resets5": 1794759660,
+   "state": "cooling",
+   "dispatch": true,
+   "capacity": {
+    "lanesUsed": 0,
+    "lanesMax": 3,
+    "spendable5": 0,
+    "committed5": 0,
+    "minutesToReset": 9,
+    "urgency": 0,
+    "fitsSize": null,
+    "spare": false,
+    "spareSinceSec": null,
+    "why": "limit — resumes 104 at 21:51",
+    "whyKind": "cooling"
+   },
+   "account": "claude-worker",
+   "worker": "W3",
+   "lanes": [
+    {
+     "worker": "W3",
+     "lane": 1,
+     "state": "cooling",
+     "project": "shop-ops",
+     "task": "104-vendor-model",
+     "title": "Vendor model",
+     "resumeAt": 1794759750
+    }
+   ],
+   "allowed": true,
+   "reason": null
+  },
+  {
+   "label": "Claude · office",
+   "tool": "claude",
+   "scope": "office",
+   "pct5": 18,
+   "pct7": 30,
+   "resets5": 1794771120,
+   "state": "ok",
+   "dispatch": true,
+   "capacity": {
+    "lanesUsed": 1,
+    "lanesMax": 2,
+    "spendable5": 64,
+    "committed5": 12,
+    "minutesToReset": 200,
+    "urgency": 0.26,
+    "fitsSize": "L",
+    "spare": true,
+    "spareSinceSec": null,
+    "why": "no eligible task: 3 queued tasks are personal projects (account policy)",
+    "whyKind": "policy"
+   },
+   "account": "claude-office",
+   "worker": "W4",
+   "lanes": [
+    {
+     "worker": "W4",
+     "lane": 1,
+     "state": "running",
+     "project": "client-portal",
+     "task": "13-export-csv",
+     "title": "Export CSV",
+     "step": "Write exporter",
+     "stepIndex": 1,
+     "stepCount": 4,
+     "etaMin": 40,
+     "lastActiveSec": 12
+    },
+    {
+     "worker": "W4",
+     "lane": 2,
+     "state": "free"
+    }
+   ],
+   "allowed": false,
+   "reason": "Office account: never runs personal projects (account policy)"
+  },
+  {
+   "label": "Claude · main (W0)",
+   "tool": "claude",
+   "scope": "personal",
+   "pct5": 41,
+   "pct7": 62,
+   "resets5": 1794768120,
+   "state": "ok",
+   "dispatch": false,
+   "capacity": {
+    "lanesUsed": 0,
+    "lanesMax": 0,
+    "spare": false,
+    "why": "orchestrator · usage only, never dispatched",
+    "whyKind": "dispatch_off"
+   },
+   "account": "claude-main",
+   "worker": "W0",
+   "lanes": [],
+   "allowed": false,
+   "reason": "Orchestrator: interactive, offer only"
+  }
+ ],
+ "board": {
+  "backlog": [
+   {
+    "id": "113-brief-draft",
+    "num": 113,
+    "title": "Customer statement PDF",
+    "summary": "Monthly statement per customer.",
+    "tags": [],
+    "priority": "P3",
+    "size": "S",
+    "state": "draft",
+    "stateReason": "draft · brief missing Done-when",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 1
+   }
+  ],
+  "upNext": [
+   {
+    "id": "108-supplier-import-full",
+    "num": 108,
+    "title": "Import suppliers (full)",
+    "summary": "Import all 53 suppliers after the pilot is approved.",
+    "tags": [],
+    "priority": "P1",
+    "size": "M",
+    "state": "ready",
+    "stateReason": "waits for pilot 107",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [
+     {
+      "id": "107-supplier-import",
+      "state": "review"
+     }
+    ],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 2
+   },
+   {
+    "id": "110-attendance-history",
+    "num": 110,
+    "title": "Attendance history",
+    "summary": "Bring two years of attendance into the app.",
+    "tags": [],
+    "priority": "P2",
+    "size": "M",
+    "state": "queued",
+    "stateReason": "waiting for lock ext:pc-ssh (held by 109)",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 4
+   },
+   {
+    "id": "112-payment-ageing",
+    "num": 112,
+    "title": "Payment ageing view",
+    "summary": "Show what is owed by age bucket.",
+    "tags": [],
+    "priority": "P3",
+    "size": "L",
+    "state": "queued",
+    "stateReason": "ready · L · fits Codex·b after 109",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 2
+   }
+  ],
+  "running": [
+   {
+    "id": "106-match-receipts",
+    "num": 106,
+    "title": "Match receipts to bills",
+    "summary": "Link every receipt in the export to its bill so money owed is real.",
+    "tags": [
+     "data"
+    ],
+    "priority": "P1",
+    "size": "M",
+    "state": "running",
+    "stateReason": "W1·1 · step 3/5",
+    "worker": "W1",
+    "progress": 0.55,
+    "step": {
+     "title": "Map columns",
+     "index": 3,
+     "count": 5,
+     "etaMin": 22
+    },
+    "etaFinish": 1794760440,
+    "metrics": [
+     {
+      "label": "Rows matched",
+      "done": 412,
+      "total": 1050,
+      "kind": "count",
+      "rate": "≈18/min",
+      "left": "~35 min left"
+     },
+     {
+      "label": "Errors",
+      "done": 3,
+      "total": null,
+      "kind": "bad",
+      "rate": "",
+      "left": ""
+     }
+    ],
+    "lastActiveSec": 20,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 14,
+    "lane": 1,
+    "account": "codex-a",
+    "attempt": 2
+   },
+   {
+    "id": "109-stock-costs",
+    "num": 109,
+    "title": "Stock costs from purchase bills",
+    "summary": "Work out the landed cost of each stock item from purchase bills.",
+    "tags": [
+     "data"
+    ],
+    "priority": "P2",
+    "size": "L",
+    "state": "running",
+    "stateReason": "quiet 16 min · deepest child ssh pc profile.py",
+    "worker": "W2",
+    "progress": 0.4,
+    "step": {
+     "title": "Profile bills",
+     "index": 2,
+     "count": 4,
+     "etaMin": 30
+    },
+    "etaFinish": 1794762600,
+    "metrics": [],
+    "lastActiveSec": 960,
+    "warnings": [
+     "quiet 16 min — no card update"
+    ],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 6,
+    "lane": 2,
+    "account": "codex-b",
+    "attempt": 1
+   },
+   {
+    "id": "104-vendor-model",
+    "num": 104,
+    "title": "Vendor model",
+    "summary": "Add the vendor table and link it to purchase bills.",
+    "tags": [],
+    "priority": "P1",
+    "size": "M",
+    "state": "limit_paused",
+    "stateReason": "limit · resumes 21:51 in the same session",
+    "worker": "W3",
+    "progress": 0.66,
+    "step": {
+     "title": "Tests",
+     "index": 4,
+     "count": 6,
+     "etaMin": 15
+    },
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": 1794759750,
+    "kind": "task",
+    "rev": 9,
+    "lane": 1,
+    "account": "claude-worker",
+    "attempt": 1
+   }
+  ],
+  "review": [
+   {
+    "id": "107-supplier-import",
+    "num": 107,
+    "title": "Import the supplier list",
+    "summary": "Load 53 suppliers from the accounts export so purchase bills can link to them.",
+    "tags": [
+     "data",
+     "owner-visible"
+    ],
+    "priority": "P1",
+    "size": "M",
+    "state": "review",
+    "stateReason": "handoff received · waiting 12 min",
+    "worker": "W2",
+    "progress": 1.0,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [
+     {
+      "id": "104-vendor-model",
+      "state": "limit_paused"
+     }
+    ],
+    "resumeAt": null,
+    "kind": "pilot",
+    "rev": 21
+   },
+   {
+    "id": "105-payment-reminders",
+    "num": 105,
+    "title": "Payment reminders",
+    "summary": "Remind customers of overdue invoices.",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "merging",
+    "stateReason": "merging · gates 2/3 (slot 4)",
+    "worker": "W1",
+    "progress": 1.0,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 12
+   }
+  ],
+  "needsYou": [
+   {
+    "id": "111-tax-number-rows",
+    "num": 111,
+    "title": "Rows without tax number?",
+    "summary": "Decide what to do with suppliers that have no tax number.",
+    "tags": [],
+    "priority": "P1",
+    "size": "S",
+    "state": "blocked",
+    "stateReason": "question from W2",
+    "worker": "W2",
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 5,
+    "question": {
+     "text": "Import rows without a tax number as inactive, active, or skip them?",
+     "options": [
+      "inactive",
+      "active",
+      "skip"
+     ],
+     "default": "inactive"
+    }
+   }
+  ],
+  "doneToday": [
+   {
+    "id": "100-done",
+    "num": 100,
+    "title": "Bill numbering",
+    "summary": "",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "done",
+    "stateReason": "merged 14:10",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 8
+   },
+   {
+    "id": "101-done",
+    "num": 101,
+    "title": "Customer search",
+    "summary": "",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "done",
+    "stateReason": "merged 16:02",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 8
+   },
+   {
+    "id": "102-done",
+    "num": 102,
+    "title": "Login wording",
+    "summary": "",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "done",
+    "stateReason": "merged 18:45",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 8
+   },
+   {
+    "id": "103-done",
+    "num": 103,
+    "title": "Stock view",
+    "summary": "",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "done",
+    "stateReason": "merged 19:30",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 8
+   }
+  ]
+ },
+ "inbox": [
+  {
+   "task": {
+    "id": "107-supplier-import",
+    "num": 107,
+    "title": "Import the supplier list",
+    "summary": "Load 53 suppliers from the accounts export so purchase bills can link to them.",
+    "tags": [
+     "data",
+     "owner-visible"
+    ],
+    "priority": "P1",
+    "size": "M",
+    "state": "review",
+    "stateReason": "handoff received · waiting 12 min",
+    "worker": "W2",
+    "progress": 1.0,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [
+     {
+      "id": "104-vendor-model",
+      "state": "limit_paused"
+     }
+    ],
+    "resumeAt": null,
+    "kind": "pilot",
+    "rev": 21
+   },
+   "attempt": 1,
+   "summary": "Imported 20 of 53 suppliers as a dry run. Names, tax numbers and phones were checked against the export. Two rows had the city in the address field and were fixed. Nothing was written to the live data.",
+   "outcome": "done",
+   "doneWhen": [
+    {
+     "item": "20-row pilot file written",
+     "met": true,
+     "evidence": "pilot/suppliers-20.json · 20 rows"
+    },
+    {
+     "item": "Tax numbers valid format",
+     "met": true,
+     "evidence": "20/20 pass checksum"
+    },
+    {
+     "item": "Tests pass",
+     "met": true,
+     "evidence": "unit 48/48 · e2e 12/12"
+    }
+   ],
+   "tests": [
+    {
+     "command": "npm test",
+     "result": "pass",
+     "passed": 48,
+     "failed": 0
+    },
+    {
+     "command": "npm run e2e",
+     "result": "pass",
+     "passed": 12,
+     "failed": 0
+    }
+   ],
+   "risks": [
+    "3 suppliers share one phone number (kept, flagged)"
+   ],
+   "decisionsNeeded": [
+    {
+     "question": "Import suppliers with no tax number as…",
+     "options": [
+      "inactive",
+      "active",
+      "skip"
+     ],
+     "default": "inactive"
+    }
+   ],
+   "git": {
+    "commits": 4,
+    "filesChanged": 9,
+    "uncommitted": 0,
+    "conflictsWithMain": false
+   },
+   "waitingSec": 720,
+   "pilot": true,
+   "unlocks": [
+    "108-supplier-import-full"
+   ],
+   "worker": "W2",
+   "account": "Codex · b"
+  },
+  {
+   "task": {
+    "id": "105-payment-reminders",
+    "num": 105,
+    "title": "Payment reminders",
+    "summary": "Remind customers of overdue invoices.",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "merging",
+    "stateReason": "merging · gates 2/3 (slot 4)",
+    "worker": "W1",
+    "progress": 1.0,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 12
+   },
+   "attempt": 1,
+   "summary": "Daily job lists overdue invoices and drafts a reminder per customer. Sending stays manual.",
+   "outcome": "done",
+   "doneWhen": [
+    {
+     "item": "Reminder list matches overdue report",
+     "met": true,
+     "evidence": "14/14 customers"
+    },
+    {
+     "item": "No message is sent automatically",
+     "met": true,
+     "evidence": "grep send( → 0 hits in job"
+    }
+   ],
+   "tests": [
+    {
+     "command": "npm test",
+     "result": "pass",
+     "passed": 60,
+     "failed": 0
+    }
+   ],
+   "risks": [],
+   "decisionsNeeded": [],
+   "git": {
+    "commits": 2,
+    "filesChanged": 5,
+    "uncommitted": 1,
+    "conflictsWithMain": false
+   },
+   "waitingSec": 2400,
+   "pilot": false,
+   "unlocks": [],
+   "worker": "W1",
+   "account": "Codex · a",
+   "merging": {
+    "gatesDone": 2,
+    "gatesTotal": 3
+   }
+  }
+ ],
+ "alerts": [
+  {
+   "id": 991,
+   "ts": 1794759000,
+   "type": "attempt.suspect",
+   "severity": "warn",
+   "project": "shop-ops",
+   "task": "109-stock-costs",
+   "worker": "W2",
+   "text": "109 quiet 16 min — deepest child: ssh pc 'python profile.py' for 15 min"
+  },
+  {
+   "id": 988,
+   "ts": 1794758520,
+   "type": "policy.denied",
+   "severity": "alert",
+   "project": "shop-ops",
+   "task": "110-attendance-history",
+   "worker": "W4",
+   "text": "Refused: W4 (office account) may never run personal project task 110"
+  }
+ ],
+ "timeline": [
+  {
+   "id": 1001,
+   "ts": 1794759000,
+   "type": "card.updated",
+   "severity": "info",
+   "project": "shop-ops",
+   "task": "106-match-receipts",
+   "worker": "W1",
+   "text": "106 step \"Map columns\" started"
+  },
+  {
+   "id": 995,
+   "ts": 1794758460,
+   "type": "attempt.started",
+   "severity": "info",
+   "project": "shop-ops",
+   "task": "106-match-receipts",
+   "worker": "W1",
+   "text": "106 attempt 2 started · resumed session"
+  },
+  {
+   "id": 991,
+   "ts": 1794759000,
+   "type": "attempt.suspect",
+   "severity": "warn",
+   "project": "shop-ops",
+   "task": "109-stock-costs",
+   "worker": "W2",
+   "text": "109 quiet 16 min — deepest child: ssh pc 'python profile.py' for 15 min"
+  },
+  {
+   "id": 980,
+   "ts": 1794758400,
+   "type": "review.requested",
+   "severity": "action",
+   "project": "shop-ops",
+   "task": "107-supplier-import",
+   "worker": "W2",
+   "text": "107 pilot handed off · 3/3 done-when met"
+  },
+  {
+   "id": 970,
+   "ts": 1794756060,
+   "type": "limit.hit",
+   "severity": "warn",
+   "project": "shop-ops",
+   "task": "104-vendor-model",
+   "worker": "W3",
+   "text": "Claude · worker hit its 5-hour limit · 104 resumes 21:51"
+  },
+  {
+   "id": 960,
+   "ts": 1794751120,
+   "type": "merge.done",
+   "severity": "info",
+   "project": "shop-ops",
+   "task": "103-done",
+   "worker": "W1",
+   "text": "103 merged into main"
+  }
+ ],
+ "domains": [
+  {
+   "name": "ext:pc-ssh",
+   "kind": "ext",
+   "holder": "109-stock-costs",
+   "since": 1794757200,
+   "waiting": [
+    "110-attendance-history"
+   ],
+   "reserved": false
+  },
+  {
+   "name": "area:apps/api/receipts/**",
+   "kind": "area",
+   "holder": "106-match-receipts",
+   "since": 1794755040,
+   "waiting": [],
+   "reserved": false
+  },
+  {
+   "name": "seq:db-migrations",
+   "kind": "seq",
+   "holder": null,
+   "since": null,
+   "waiting": [],
+   "reserved": false,
+   "note": "parallel · renumber at merge"
+  }
+ ],
+ "merge": {
+  "active": {
+   "task": "105-payment-reminders",
+   "gatesDone": 2,
+   "gatesTotal": 3,
+   "slot": 4
+  },
+  "queue": []
+ },
+ "lanes": [
+  {
+   "worker": "W1",
+   "lane": 1,
+   "state": "running",
+   "project": "shop-ops",
+   "task": "106-match-receipts",
+   "title": "Match receipts to bills",
+   "step": "Map columns",
+   "stepIndex": 3,
+   "stepCount": 5,
+   "etaMin": 22,
+   "lastActiveSec": 20
+  },
+  {
+   "worker": "W2",
+   "lane": 1,
+   "state": "running",
+   "project": "shop-ops",
+   "task": "107-supplier-import",
+   "title": "Supplier list",
+   "step": "Review",
+   "stepIndex": 5,
+   "stepCount": 5,
+   "etaMin": null,
+   "lastActiveSec": 720
+  },
+  {
+   "worker": "W2",
+   "lane": 2,
+   "state": "running",
+   "project": "shop-ops",
+   "task": "109-stock-costs",
+   "title": "Stock costs",
+   "step": "Profile bills",
+   "stepIndex": 2,
+   "stepCount": 4,
+   "etaMin": 30,
+   "lastActiveSec": 960
+  },
+  {
+   "worker": "W3",
+   "lane": 1,
+   "state": "cooling",
+   "project": "shop-ops",
+   "task": "104-vendor-model",
+   "title": "Vendor model",
+   "resumeAt": 1794759750
+  }
+ ]
+}

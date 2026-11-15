@@ -1,0 +1,48 @@
+[
+ {
+  "worker": "W1",
+  "account": "codex-a",
+  "label": "Codex · a · lane 3",
+  "scope": "personal",
+  "allowed": true,
+  "reason": null,
+  "detail": "52% · resets in 60m · best use of expiring quota",
+  "best": true
+ },
+ {
+  "worker": "W2",
+  "account": "codex-b",
+  "label": "Codex · b",
+  "scope": "personal",
+  "allowed": true,
+  "reason": null,
+  "detail": "55% · lanes 2/3 · L fits"
+ },
+ {
+  "worker": "W3",
+  "account": "claude-worker",
+  "label": "Claude · worker",
+  "scope": "personal",
+  "allowed": false,
+  "reason": "Cooling: limit resets 21:51",
+  "kind": "cooling"
+ },
+ {
+  "worker": "W4",
+  "account": "claude-office",
+  "label": "Claude · office",
+  "scope": "office",
+  "allowed": false,
+  "reason": "Office account: never runs personal projects (account policy)",
+  "kind": "policy"
+ },
+ {
+  "worker": "W0",
+  "account": "claude-main",
+  "label": "Claude · main",
+  "scope": "personal",
+  "allowed": false,
+  "reason": "Orchestrator: interactive, offer only",
+  "kind": "role"
+ }
+]
