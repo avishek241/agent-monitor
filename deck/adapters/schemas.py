@@ -91,3 +91,53 @@ def strip_nulls(handoff):
 
 def dump(schema: dict) -> str:
     return json.dumps(schema, separators=(",", ":"))
+
+
+_TYPES = {"object": dict, "array": list, "string": str, "boolean": bool, "null": type(None)}
+
+
+def _is(v, t):
+    if t == "integer":
+        return isinstance(v, int) and not isinstance(v, bool)
+    if t == "number":
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+    return isinstance(v, _TYPES[t])
+
+
+def validate(inst, schema, path="$") -> list:
+    """Subset validator (type, enum, const, required, properties, additionalProperties, items, min/maxLength,
+    minimum/maximum). Returns a list of error strings; empty = valid. readOnly fields are accepted."""
+    errs = []
+    t = schema.get("type")
+    if t is not None:
+        ts = t if isinstance(t, list) else [t]
+        if not any(_is(inst, x) for x in ts):
+            return [f"{path}: expected {'/'.join(ts)}"]
+    if "const" in schema and inst != schema["const"]:
+        errs.append(f"{path}: must be {schema['const']!r}")
+    if "enum" in schema and inst not in schema["enum"]:
+        errs.append(f"{path}: {inst!r} not in {schema['enum']}")
+    if isinstance(inst, str):
+        if "minLength" in schema and len(inst) < schema["minLength"]:
+            errs.append(f"{path}: shorter than {schema['minLength']}")
+        if "maxLength" in schema and len(inst) > schema["maxLength"]:
+            errs.append(f"{path}: longer than {schema['maxLength']}")
+    if isinstance(inst, (int, float)) and not isinstance(inst, bool):
+        if "minimum" in schema and inst < schema["minimum"]:
+            errs.append(f"{path}: < {schema['minimum']}")
+        if "maximum" in schema and inst > schema["maximum"]:
+            errs.append(f"{path}: > {schema['maximum']}")
+    if isinstance(inst, dict):
+        props = schema.get("properties", {})
+        for r in schema.get("required", []):
+            if r not in inst:
+                errs.append(f"{path}: missing {r}")
+        for k, v in inst.items():
+            if k in props:
+                errs += validate(v, props[k], f"{path}.{k}")
+            elif schema.get("additionalProperties") is False:
+                errs.append(f"{path}: unknown key {k}")
+    if isinstance(inst, list) and isinstance(schema.get("items"), dict):
+        for i, v in enumerate(inst):
+            errs += validate(v, schema["items"], f"{path}[{i}]")
+    return errs
