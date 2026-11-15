@@ -645,6 +645,8 @@ class Dispatcher:
             fits = capacity.fits_size(cap, ai, a.tool, self._history())
             spare = cap.lanes_used < cap.lanes_max and not cap.hard_stop and fits is not None
             why = cap.hard_stop
+            if not why and fits is None:
+                why = f"{max(0.0, cap.R5 - cap.committed5):.0f}% left before the reset — no job size fits"
             if not why and spare:
                 mine = [r for (pid, _t), r in self.notes.items() if a.label in r or "policy" in r]
                 why = mine[0] if mine else None

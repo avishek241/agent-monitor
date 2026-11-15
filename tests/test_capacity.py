@@ -3,7 +3,7 @@ import random
 import unittest
 
 from deck import capacity, quota
-from tests.helpers import T0, DeckCase, account, project, worker
+from tests.b2_helpers import T0, DeckCase, account, project, worker
 
 
 def ai(eff5, resets_min, jobs=(), pct7=10.0, **kw):

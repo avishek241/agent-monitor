@@ -5,7 +5,7 @@ import unittest
 
 from deck import clock
 from deck.dispatcher import Dispatcher
-from tests.helpers import T0, DeckCase, FakeLauncher, FakeProbe, account, make_cfg, project, worker, write_exit, write_out
+from tests.b2_helpers import T0, DeckCase, FakeLauncher, FakeProbe, account, make_cfg, project, worker, write_exit, write_out
 
 HAVE_STORE = importlib.util.find_spec("deck.store") is not None
 

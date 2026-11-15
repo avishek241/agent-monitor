@@ -11,7 +11,7 @@ from deck import clock
 from deck.deckd import Daemon
 from deck.import_v1 import import_project
 from deck.notify import Notifier
-from tests.helpers import T0, DeckCase, account, project, worker, write_exit, write_out
+from tests.b2_helpers import T0, DeckCase, account, project, worker, write_exit, write_out
 
 DONE = {"outcome": "done", "summary": "Pilot of 20 suppliers imported and checked.", "doneWhen": [], "tests": [],
         "risks": [], "decisionsNeeded": []}

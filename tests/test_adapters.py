@@ -12,7 +12,7 @@ from deck.adapters import base as ab
 from deck.adapters import schemas
 from deck.adapters.interactive import install_claude_hooks, install_codex_notify
 from deck.config import AccountCfg, ProjectCfg, WorkerCfg
-from tests.helpers import T0
+from tests.b2_helpers import T0
 
 FIX = Path(__file__).parent / "fixtures"
 SCHEMA = Path(__file__).resolve().parent.parent / "deck" / "schemas" / "handoff.schema.json"

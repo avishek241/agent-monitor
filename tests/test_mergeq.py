@@ -6,7 +6,7 @@ import textwrap
 from pathlib import Path
 
 from deck.mergeq import MergeQueue, git_dir
-from tests.helpers import DeckCase, account, project, worker
+from tests.b2_helpers import DeckCase, account, project, worker
 
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid", "GIT_COMMITTER_NAME": "t",
        "GIT_COMMITTER_EMAIL": "t@example.invalid", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}

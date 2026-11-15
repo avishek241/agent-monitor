@@ -3,7 +3,7 @@ import random
 import unittest
 
 from deck import clock, policy
-from tests.helpers import T0, DeckCase, account, project, worker, write_exit, write_out
+from tests.b2_helpers import T0, DeckCase, account, project, worker, write_exit, write_out
 
 
 class Planner(DeckCase):

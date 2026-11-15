@@ -12,7 +12,7 @@ from pathlib import Path
 from deck import clock
 from deck import run as deckrun
 from deck.dispatcher import Dispatcher
-from tests.helpers import T0, DeckCase, account, project, worker, write_exit, write_out
+from tests.b2_helpers import T0, DeckCase, account, project, worker, write_exit, write_out
 
 ROOT = Path(__file__).resolve().parent.parent
 INIT = {"type": "system", "subtype": "init", "session_id": "sess-1"}
