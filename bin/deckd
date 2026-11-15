@@ -1,0 +1,4 @@
+#!/bin/sh
+# Agent Deck daemon (dispatcher, supervisor, merge queue, HTTP API). See docs/v2/design.md §1.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m deck.deckd "$@"

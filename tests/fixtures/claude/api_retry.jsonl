@@ -1,0 +1,4 @@
+{"type": "system", "subtype": "init", "cwd": "/tmp/ws", "session_id": "11111111-2222-4333-8444-555555555555", "model": "claude-opus-5-5", "permissionMode": "acceptEdits", "claude_code_version": "2.1.325"}
+{"type": "system", "subtype": "api_retry", "attempt": 1, "max_retries": 3, "error": "rate_limit", "retry_delay_ms": 1000}
+{"type": "system", "subtype": "api_retry", "attempt": 2, "max_retries": 3, "error": "rate_limit", "retry_delay_ms": 1000}
+{"type": "system", "subtype": "api_retry", "attempt": 3, "max_retries": 3, "error": "rate_limit", "retry_delay_ms": 1000}

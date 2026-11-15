@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Agent Deck daemon. Copy to ~/Library/LaunchAgents/, replace /PATH/TO/agent-monitor, then:
+     launchctl load ~/Library/LaunchAgents/agent-deck.plist -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>local.agent-deck.deckd</string>
+  <key>ProgramArguments</key>
+  <array><string>/PATH/TO/agent-monitor/bin/deckd</string><string>--foreground</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>/tmp/agent-deck-deckd.log</string>
+  <key>StandardErrorPath</key><string>/tmp/agent-deck-deckd.log</string>
+  <key>EnvironmentVariables</key>
+  <!-- add the folder that holds `claude` (e.g. ~/.local/bin, written out in full) -->
+  <dict><key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+</dict>
+</plist>
