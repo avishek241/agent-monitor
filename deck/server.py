@@ -200,7 +200,8 @@ def make_handler(app: DeckApp, bound_host: str):
                 self._json(403, {"ok": False, "code": "forbidden", "reason": "host not allowed"})
                 return "deny"
             kind = app.token_kind(self._bearer())
-            if not self._local() and kind != "device":
+            pairing = write and urlparse(self.path).path.rstrip("/") == "/api/pair"
+            if not self._local() and kind != "device" and not pairing:
                 self._json(401, {"ok": False, "code": "unauthorized", "reason": "device token required"})
                 return "deny"
             return kind

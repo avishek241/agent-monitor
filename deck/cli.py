@@ -134,7 +134,7 @@ def c_project(ctx, a):
 
 def _usage_rows(ctx):
     from .views import Views
-    return Views(ctx.cfg, ctx.g).accounts()
+    return Views(ctx.cfg, ctx.g, ctx._stores).accounts()
 
 
 def c_account(ctx, a):
@@ -555,7 +555,7 @@ def c_events(ctx, a):
 
 
 def c_watch(ctx, a):
-    since = ctx.g.max_event_id() if not a.since else a.since
+    since = ctx.g.max_event_id() if a.since is None else a.since
     try:
         while True:
             for e in ctx.g.events_since(since, a.project, a.min, limit=500, for_=a.for_):
@@ -572,7 +572,7 @@ def c_watch(ctx, a):
 def c_snapshot(ctx, a):
     from .views import Views
     from .views_types import check_vm
-    v = Views(ctx.cfg, ctx.g)
+    v = Views(ctx.cfg, ctx.g, ctx._stores)
     if a.project_vm:
         vm, name = v.project(a.project_vm), "ProjectVM"
     else:
