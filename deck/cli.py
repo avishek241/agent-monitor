@@ -53,6 +53,12 @@ class Ctx:
             self._stores[pid] = ProjectStore(pid, self.cfg, self.g)
         return self._stores[pid]
 
+    def close(self):
+        for st in self._stores.values():
+            st.close()
+        if self._g is not None:
+            self._g.close()
+
     def actor(self):
         return getattr(self.args, "as_", None) or os.environ.get("DECK_WORKER") or "W0"
 
@@ -508,11 +514,24 @@ def c_domain(ctx, a):
         print(f"released {n} holder(s) of {a.name}")
         return
     if a.dcmd == "run":
-        cmd = [x for x in a.cmd if x != "--"]
+        cmd = list(a.cmd)
+        opts = cmd[: cmd.index("--")] if "--" in cmd else []
+        cmd = cmd[len(opts) + 1:] if "--" in a.cmd else cmd
+        while opts:
+            o = opts.pop(0)
+            if o == "--no-wait":
+                a.no_wait = True
+            elif o == "--ttl" and opts:
+                a.ttl = int(opts.pop(0))
+            else:
+                raise ValidationError(f"unknown option {o}")
+        if not cmd:
+            raise ValidationError("usage: deck domain run <name> [--ttl N] [--no-wait] -- <command…>")
         holder = f"manual-{os.getpid()}"
         ok, b = s.domains.try_acquire([a.name], holder, ttl=a.ttl)
         if not ok:
             if a.no_wait:
+                s.domains.clear_waits(holder)
                 raise DomainBusy(b["reason"])
             print(f"waiting: {b['reason']}", file=sys.stderr)
             while not ok:
@@ -808,6 +827,7 @@ def main(argv=None) -> int:
         if i + 1 < len(argv) and argv.index("snapshot") < i:
             argv[i] = "--project-vm"
     args = build_parser().parse_args(argv)
+    ctx = None
     try:
         ctx = Ctx(args)
         args.fn(ctx, args)
@@ -817,6 +837,9 @@ def main(argv=None) -> int:
         return e.exit_code
     except BrokenPipeError:
         return 0
+    finally:
+        if ctx is not None:
+            ctx.close()
 
 
 if __name__ == "__main__":
