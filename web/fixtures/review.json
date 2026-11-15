@@ -1,0 +1,93 @@
+{
+ "task": {
+  "id": "107-supplier-import",
+  "num": 107,
+  "title": "Import the supplier list",
+  "summary": "Load 53 suppliers from the accounts export so purchase bills can link to them.",
+  "tags": [
+   "data",
+   "owner-visible"
+  ],
+  "priority": "P1",
+  "size": "M",
+  "state": "review",
+  "stateReason": "handoff received · waiting 12 min",
+  "worker": "W2",
+  "progress": 1.0,
+  "step": null,
+  "etaFinish": null,
+  "metrics": [],
+  "lastActiveSec": null,
+  "warnings": [],
+  "deps": [
+   {
+    "id": "104-vendor-model",
+    "state": "limit_paused"
+   }
+  ],
+  "resumeAt": null,
+  "kind": "pilot",
+  "rev": 21
+ },
+ "attempt": 1,
+ "summary": "Imported 20 of 53 suppliers as a dry run. Names, tax numbers and phones were checked against the export. Two rows had the city in the address field and were fixed. Nothing was written to the live data.",
+ "outcome": "done",
+ "doneWhen": [
+  {
+   "item": "20-row pilot file written",
+   "met": true,
+   "evidence": "pilot/suppliers-20.json · 20 rows"
+  },
+  {
+   "item": "Tax numbers valid format",
+   "met": true,
+   "evidence": "20/20 pass checksum"
+  },
+  {
+   "item": "Tests pass",
+   "met": true,
+   "evidence": "unit 48/48 · e2e 12/12"
+  }
+ ],
+ "tests": [
+  {
+   "command": "npm test",
+   "result": "pass",
+   "passed": 48,
+   "failed": 0
+  },
+  {
+   "command": "npm run e2e",
+   "result": "pass",
+   "passed": 12,
+   "failed": 0
+  }
+ ],
+ "risks": [
+  "3 suppliers share one phone number (kept, flagged)"
+ ],
+ "decisionsNeeded": [
+  {
+   "question": "Import suppliers with no tax number as…",
+   "options": [
+    "inactive",
+    "active",
+    "skip"
+   ],
+   "default": "inactive"
+  }
+ ],
+ "git": {
+  "commits": 4,
+  "filesChanged": 9,
+  "uncommitted": 0,
+  "conflictsWithMain": false
+ },
+ "waitingSec": 720,
+ "pilot": true,
+ "unlocks": [
+  "108-supplier-import-full"
+ ],
+ "worker": "W2",
+ "account": "Codex · b"
+}

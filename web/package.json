@@ -1,0 +1,1 @@
+{ "private": true, "type": "module", "description": "Agent Deck PWA (no build step). Tests: node --test tests/web" }

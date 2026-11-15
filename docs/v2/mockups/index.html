@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Deck mockups</title>
+<!-- Gallery of the three Agent Deck v2 UI versions. Every version shows the same fake, neutral data and the same features. -->
+<style>
+  :root { --bg:#f4f2ee; --card:#fff; --ink:#1f1e1c; --muted:#5f5b55; --line:#dedad3; --accent:#2a5a88; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --card:#1e1d1b; --ink:#ece8e1; --muted:#a8a29a; --line:#34322e; --accent:#a8caef; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding:32px 16px 56px; }
+  header { max-width:1280px; margin:0 auto 24px; }
+  h1 { font-size:28px; margin:0 0 6px; letter-spacing:-.01em; }
+  header p { margin:0; color:var(--muted); max-width:760px; }
+  .grid { max-width:1280px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; }
+  .v { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .v h2 { margin:0; font-size:19px; } .v h2 span { color:var(--muted); font-weight:500; font-size:14px; }
+  .v p { margin:0; color:var(--muted); font-size:14px; min-height:42px; }
+  .links { display:flex; gap:8px; flex-wrap:wrap; }
+  .links a { color:var(--accent); text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:14px; font-weight:600; }
+  .links a:hover { border-color:var(--accent); }
+  .shot { width:100%; height:633px; overflow:hidden; border-radius:10px; border:1px solid var(--line); background:#000; position:relative; }
+  .shot iframe { width:390px; height:844px; border:0; transform:scale(.75); transform-origin:0 0; position:absolute; left:calc(50% - 146px); top:0; }
+  footer { max-width:1280px; margin:24px auto 0; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Deck · three UI versions</h1>
+  <p>Each version covers the same content: the all-projects overview and per-project pages, accounts (with the office account shown for usage only and greyed out with its reason), workers with parallel lanes, quota and time to reset, the board with dependencies, the review inbox, the timeline, alerts and repo health. Each has a phone deck (390 px PWA) and a compact floating panel. All data is made up.</p>
+</header>
+<div class="grid">
+  <section class="v">
+    <h2>Current · Studio <span>(the owner's pick so far)</span></h2>
+    <p>PhoneDeck's hardware look: a warm-grey body, a dark LCD status block, chunky inked keys and an orange accent.</p>
+    <div class="links"><a href="deck.html">Phone deck</a><a href="panel.html">Panel</a></div>
+    <div class="shot"><iframe src="deck.html" title="Current version, phone deck" loading="lazy"></iframe></div>
+  </section>
+  <section class="v">
+    <h2>A · Mission Control</h2>
+    <p>A dark, dense command centre: neon on charcoal, monospace numerals, status LEDs, quota sparklines, a live ticker and keyboard hints.</p>
+    <div class="links"><a href="alt-a/deck.html">Phone deck</a><a href="alt-a/panel.html">Panel</a></div>
+    <div class="shot"><iframe src="alt-a/deck.html" title="Version A, phone deck" loading="lazy"></iframe></div>
+  </section>
+  <section class="v">
+    <h2>B · Paper / Calm</h2>
+    <p>A light, editorial look with a dark theme too: serif headlines, pastel status colours, a story-style “today” feed, swipeable kanban pages and big quota rings.</p>
+    <div class="links"><a href="alt-b/deck.html">Phone deck</a><a href="alt-b/panel.html">Panel</a></div>
+    <div class="shot"><iframe src="alt-b/deck.html" title="Version B, phone deck" loading="lazy"></iframe></div>
+  </section>
+</div>
+<footer>The previews are interactive. Open a version full-size to see its notes and, for the panels, the keyboard shortcuts. Fonts load from Google Fonts in these mockups only; the real PWA self-hosts them.</footer>
+</body>
+</html>

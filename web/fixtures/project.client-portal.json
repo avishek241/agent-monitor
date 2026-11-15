@@ -1,0 +1,301 @@
+{
+ "time": 1794759120,
+ "project": {
+  "id": "client-portal",
+  "title": "Client portal",
+  "short": "Client",
+  "scope": "office",
+  "allowPersonalAccounts": true,
+  "color": "#4f7cff",
+  "icon": "🏢",
+  "repo": {
+   "commit": "f00ba12 · 11: password reset · 5h ago",
+   "changes": [
+    {
+     "area": "src/export",
+     "files": 3
+    }
+   ]
+  },
+  "health": [
+   {
+    "label": "Portal :5000",
+    "group": "local",
+    "ok": true
+   }
+  ],
+  "enabled": true
+ },
+ "workers": [
+  {
+   "worker": "W4",
+   "account": "claude-office",
+   "label": "Claude · office",
+   "scope": "office",
+   "adapter": "claude-headless",
+   "state": "active",
+   "allowed": true,
+   "reason": null,
+   "lanes": [
+    {
+     "worker": "W4",
+     "lane": 1,
+     "state": "running",
+     "project": "client-portal",
+     "task": "13-export-csv",
+     "title": "Export CSV",
+     "step": "Write exporter",
+     "stepIndex": 1,
+     "stepCount": 4,
+     "etaMin": 40,
+     "lastActiveSec": 12
+    },
+    {
+     "worker": "W4",
+     "lane": 2,
+     "state": "free"
+    }
+   ]
+  },
+  {
+   "worker": "W1",
+   "account": "codex-a",
+   "label": "Codex · a",
+   "scope": "personal",
+   "adapter": "codex-exec",
+   "state": "active",
+   "allowed": true,
+   "reason": null,
+   "lanes": [
+    {
+     "worker": "W1",
+     "lane": 1,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "106-match-receipts",
+     "title": "Match receipts to bills",
+     "step": "Map columns",
+     "stepIndex": 3,
+     "stepCount": 5,
+     "etaMin": 22,
+     "lastActiveSec": 20
+    },
+    {
+     "worker": "W1",
+     "lane": 2,
+     "state": "running",
+     "project": "client-portal",
+     "task": "12-login-copy",
+     "title": "Login page wording",
+     "step": "Tests",
+     "stepIndex": 2,
+     "stepCount": 3,
+     "etaMin": 9,
+     "lastActiveSec": 4
+    },
+    {
+     "worker": "W1",
+     "lane": 3,
+     "state": "free"
+    }
+   ]
+  },
+  {
+   "worker": "W2",
+   "account": "codex-b",
+   "label": "Codex · b",
+   "scope": "personal",
+   "adapter": "codex-exec",
+   "state": "active",
+   "allowed": true,
+   "reason": null,
+   "lanes": [
+    {
+     "worker": "W2",
+     "lane": 1,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "107-supplier-import",
+     "title": "Supplier list",
+     "step": "Review",
+     "stepIndex": 5,
+     "stepCount": 5,
+     "etaMin": null,
+     "lastActiveSec": 720
+    },
+    {
+     "worker": "W2",
+     "lane": 2,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "109-stock-costs",
+     "title": "Stock costs",
+     "step": "Profile bills",
+     "stepIndex": 2,
+     "stepCount": 4,
+     "etaMin": 30,
+     "lastActiveSec": 960
+    },
+    {
+     "worker": "W2",
+     "lane": 3,
+     "state": "free"
+    }
+   ]
+  },
+  {
+   "worker": "W3",
+   "account": "claude-worker",
+   "label": "Claude · worker",
+   "scope": "personal",
+   "adapter": "claude-headless",
+   "state": "cooling",
+   "allowed": false,
+   "reason": "Cooling: limit resets 21:51",
+   "lanes": [
+    {
+     "worker": "W3",
+     "lane": 1,
+     "state": "cooling",
+     "project": "shop-ops",
+     "task": "104-vendor-model",
+     "title": "Vendor model",
+     "resumeAt": 1794759750
+    }
+   ]
+  }
+ ],
+ "board": {
+  "backlog": [],
+  "upNext": [],
+  "running": [
+   {
+    "id": "12-login-copy",
+    "num": 12,
+    "title": "Login page wording",
+    "summary": "",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "running",
+    "stateReason": "W1·2 · step 2/3",
+    "worker": "W1",
+    "progress": 0.6,
+    "step": {
+     "title": "Tests",
+     "index": 2,
+     "count": 3,
+     "etaMin": 9
+    },
+    "etaFinish": 1794759660,
+    "metrics": [],
+    "lastActiveSec": 4,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 2
+   },
+   {
+    "id": "13-export-csv",
+    "num": 13,
+    "title": "Export CSV",
+    "summary": "",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "running",
+    "stateReason": "W4·1 · step 1/4",
+    "worker": "W4",
+    "progress": 0.2,
+    "step": {
+     "title": "Write exporter",
+     "index": 1,
+     "count": 4,
+     "etaMin": 40
+    },
+    "etaFinish": 1794761520,
+    "metrics": [],
+    "lastActiveSec": 12,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 2
+   }
+  ],
+  "review": [],
+  "needsYou": [],
+  "doneToday": [
+   {
+    "id": "11-password-reset",
+    "num": 11,
+    "title": "Password reset",
+    "summary": "",
+    "tags": [],
+    "priority": "P2",
+    "size": "S",
+    "state": "done",
+    "stateReason": "merged 17:05",
+    "worker": null,
+    "progress": null,
+    "step": null,
+    "etaFinish": null,
+    "metrics": [],
+    "lastActiveSec": null,
+    "warnings": [],
+    "deps": [],
+    "resumeAt": null,
+    "kind": "task",
+    "rev": 2
+   }
+  ]
+ },
+ "inbox": [],
+ "alerts": [],
+ "timeline": [
+  {
+   "id": 990,
+   "ts": 1794758820,
+   "type": "attempt.started",
+   "severity": "info",
+   "project": "client-portal",
+   "task": "13-export-csv",
+   "worker": "W4",
+   "text": "13 attempt 1 started on W4·1"
+  }
+ ],
+ "domains": [],
+ "merge": {
+  "active": null,
+  "queue": []
+ },
+ "lanes": [
+  {
+   "worker": "W1",
+   "lane": 2,
+   "state": "running",
+   "project": "client-portal",
+   "task": "12-login-copy",
+   "title": "Login page wording",
+   "step": "Tests",
+   "stepIndex": 2,
+   "stepCount": 3,
+   "etaMin": 9,
+   "lastActiveSec": 4
+  },
+  {
+   "worker": "W4",
+   "lane": 1,
+   "state": "running",
+   "project": "client-portal",
+   "task": "13-export-csv",
+   "title": "Export CSV",
+   "step": "Write exporter",
+   "stepIndex": 1,
+   "stepCount": 4,
+   "etaMin": 40,
+   "lastActiveSec": 12
+  }
+ ]
+}

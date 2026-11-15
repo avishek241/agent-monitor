@@ -1,0 +1,226 @@
+{
+ "task": {
+  "schema": "deck.task/1",
+  "project": "shop-ops",
+  "id": "106-match-receipts",
+  "title": "Match receipts to bills",
+  "summary": "Link every receipt in the export to its bill so money owed is real.",
+  "brief": {
+   "path": "docs/tasks/106-match-receipts.md",
+   "sha256": "9f2c",
+   "snapshot": "runs/shop-ops/106-match-receipts/brief.md"
+  },
+  "tags": [
+   "data"
+  ],
+  "priority": "P1",
+  "size": "M",
+  "kind": "task",
+  "deps": [],
+  "capability": "data",
+  "workerClass": [
+   "codex-exec",
+   "claude-headless"
+  ],
+  "domains": [
+   "area:apps/api/receipts/**"
+  ],
+  "state": "running",
+  "stateSince": 1794758460,
+  "stateReason": "W1·1 · step 3/5",
+  "worker": "W1",
+  "rev": 14
+ },
+ "card": {
+  "schema": "deck.card/2",
+  "task": "106-match-receipts",
+  "attempt": 2,
+  "steps": [
+   {
+    "id": "read",
+    "title": "Read sources",
+    "status": "done",
+    "etaMin": 12,
+    "startedAt": 1794753120,
+    "endedAt": 1794753840,
+    "attempt": 1
+   },
+   {
+    "id": "profile",
+    "title": "Profile exports",
+    "status": "done",
+    "etaMin": 30,
+    "startedAt": 1794753840,
+    "endedAt": 1794755700,
+    "attempt": 1
+   },
+   {
+    "id": "map",
+    "title": "Map columns",
+    "status": "active",
+    "etaMin": 30,
+    "startedAt": 1794758640,
+    "endedAt": null,
+    "attempt": 2
+   },
+   {
+    "id": "pilot",
+    "title": "Pilot 20 rows",
+    "status": "pending",
+    "etaMin": 15,
+    "startedAt": null,
+    "endedAt": null,
+    "attempt": 2
+   },
+   {
+    "id": "handoff",
+    "title": "Handoff",
+    "status": "pending",
+    "etaMin": 5,
+    "startedAt": null,
+    "endedAt": null,
+    "attempt": 2
+   }
+  ],
+  "metrics": [
+   {
+    "label": "Rows matched",
+    "done": 412,
+    "total": 1050,
+    "kind": "count"
+   },
+   {
+    "label": "Errors",
+    "done": 3,
+    "total": null,
+    "kind": "bad"
+   }
+  ],
+  "note": "Mapping the bank-ref column",
+  "question": null,
+  "warnings": []
+ },
+ "attempts": [
+  {
+   "n": 1,
+   "worker": "W1",
+   "account": "codex-a",
+   "adapter": "codex-exec",
+   "startedAt": 1794753120,
+   "endedAt": 1794756060,
+   "outcome": "limit"
+  },
+  {
+   "n": 2,
+   "worker": "W1",
+   "account": "codex-a",
+   "adapter": "codex-exec",
+   "startedAt": 1794758460,
+   "endedAt": null,
+   "outcome": null,
+   "continuationOf": 1
+  }
+ ],
+ "handoff": null,
+ "history": [
+  {
+   "ts": 1794758640,
+   "attempt": 2,
+   "op": "step.start",
+   "patch": {
+    "id": "map"
+   }
+  },
+  {
+   "ts": 1794758520,
+   "attempt": 2,
+   "op": "step.add",
+   "patch": {
+    "id": "pilot"
+   }
+  },
+  {
+   "ts": 1794758520,
+   "attempt": 2,
+   "op": "step.add",
+   "patch": {
+    "id": "handoff"
+   }
+  }
+ ],
+ "events": [
+  {
+   "id": 1001,
+   "ts": 1794759000,
+   "type": "card.updated",
+   "severity": "info",
+   "task": "106-match-receipts",
+   "text": "card · step \"Map columns\" started"
+  },
+  {
+   "id": 995,
+   "ts": 1794758460,
+   "type": "attempt.started",
+   "severity": "info",
+   "task": "106-match-receipts",
+   "text": "attempt 2 started · resume session"
+  },
+  {
+   "id": 970,
+   "ts": 1794756060,
+   "type": "limit.hit",
+   "severity": "warn",
+   "task": "106-match-receipts",
+   "text": "limit reset · Codex · a"
+  }
+ ],
+ "view": {
+  "id": "106-match-receipts",
+  "num": 106,
+  "title": "Match receipts to bills",
+  "summary": "Link every receipt in the export to its bill so money owed is real.",
+  "tags": [
+   "data"
+  ],
+  "priority": "P1",
+  "size": "M",
+  "state": "running",
+  "stateReason": "W1·1 · step 3/5",
+  "worker": "W1",
+  "progress": 0.55,
+  "step": {
+   "title": "Map columns",
+   "index": 3,
+   "count": 5,
+   "etaMin": 22
+  },
+  "etaFinish": 1794760440,
+  "metrics": [
+   {
+    "label": "Rows matched",
+    "done": 412,
+    "total": 1050,
+    "kind": "count",
+    "rate": 18.0,
+    "left": 35.0
+   },
+   {
+    "label": "Errors",
+    "done": 3,
+    "total": null,
+    "kind": "bad",
+    "rate": null,
+    "left": null
+   }
+  ],
+  "lastActiveSec": 20,
+  "warnings": [],
+  "deps": [],
+  "resumeAt": null,
+  "kind": "task",
+  "rev": 14,
+  "lane": 1,
+  "account": "codex-a",
+  "attempt": 2
+ }
+}

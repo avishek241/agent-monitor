@@ -1,0 +1,1269 @@
+{
+ "time": 1794759120,
+ "inbox": {
+  "review": 2,
+  "questions": 1,
+  "alerts": 2
+ },
+ "projects": [
+  {
+   "id": "shop-ops",
+   "title": "Shop operations",
+   "short": "Shop ops",
+   "scope": "personal",
+   "color": "#ff5a1f",
+   "icon": "🛠",
+   "enabled": true,
+   "counts": {
+    "running": 2,
+    "queued": 3,
+    "review": 2,
+    "blocked": 1,
+    "limit_paused": 1,
+    "hung": 0,
+    "doneToday": 4
+   },
+   "headline": "107 pilot ready to review · W3 resumes 21:51",
+   "alerts": 2
+  },
+  {
+   "id": "client-portal",
+   "title": "Client portal",
+   "short": "Client",
+   "scope": "office",
+   "color": "#4f7cff",
+   "icon": "🏢",
+   "enabled": true,
+   "counts": {
+    "running": 2,
+    "queued": 0,
+    "review": 0,
+    "blocked": 0,
+    "limit_paused": 0,
+    "hung": 0,
+    "doneToday": 1
+   },
+   "headline": "W4 on 13 · step 1/4",
+   "alerts": 0
+  },
+  {
+   "id": "home-lab",
+   "title": "Home lab",
+   "short": "Home lab",
+   "scope": "personal",
+   "color": "#12a37b",
+   "icon": "🏡",
+   "enabled": false,
+   "counts": {
+    "running": 0,
+    "queued": 0,
+    "review": 0,
+    "blocked": 0,
+    "limit_paused": 0,
+    "hung": 0,
+    "doneToday": 0
+   },
+   "headline": "paused (disabled)",
+   "alerts": 0
+  }
+ ],
+ "accounts": [
+  {
+   "id": "codex-a",
+   "label": "Codex · a",
+   "tool": "codex",
+   "scope": "personal",
+   "pct5": 52,
+   "pct7": 40,
+   "resets5": 1794762720,
+   "resets7": 1795104720,
+   "readAgeSec": 35,
+   "confidence": "high",
+   "state": "ok",
+   "dispatch": true,
+   "capacity": {
+    "lanesUsed": 2,
+    "lanesMax": 3,
+    "spendable5": 36,
+    "committed5": 18,
+    "minutesToReset": 60,
+    "urgency": 0.3,
+    "fitsSize": "M",
+    "spare": true,
+    "spareSinceSec": 300,
+    "why": null,
+    "whyKind": null
+   },
+   "lanes": [
+    {
+     "worker": "W1",
+     "lane": 1,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "106-match-receipts",
+     "title": "Match receipts to bills",
+     "step": "Map columns",
+     "stepIndex": 3,
+     "stepCount": 5,
+     "etaMin": 22,
+     "lastActiveSec": 20
+    },
+    {
+     "worker": "W1",
+     "lane": 2,
+     "state": "running",
+     "project": "client-portal",
+     "task": "12-login-copy",
+     "title": "Login page wording",
+     "step": "Tests",
+     "stepIndex": 2,
+     "stepCount": 3,
+     "etaMin": 9,
+     "lastActiveSec": 4
+    },
+    {
+     "worker": "W1",
+     "lane": 3,
+     "state": "free"
+    }
+   ],
+   "usage": {
+    "points": [
+     {
+      "ts": 1794730320,
+      "pct5": 14.0,
+      "pct7": 32.8
+     },
+     {
+      "ts": 1794731220,
+      "pct5": 17.5,
+      "pct7": 33.0
+     },
+     {
+      "ts": 1794732120,
+      "pct5": 21.0,
+      "pct7": 33.2
+     },
+     {
+      "ts": 1794733020,
+      "pct5": 24.5,
+      "pct7": 33.5
+     },
+     {
+      "ts": 1794733920,
+      "pct5": 28.0,
+      "pct7": 33.7
+     },
+     {
+      "ts": 1794734820,
+      "pct5": 31.5,
+      "pct7": 33.9
+     },
+     {
+      "ts": 1794735720,
+      "pct5": 35.0,
+      "pct7": 34.1
+     },
+     {
+      "ts": 1794736620,
+      "pct5": 38.5,
+      "pct7": 34.4
+     },
+     {
+      "ts": 1794737520,
+      "pct5": 42.0,
+      "pct7": 34.6
+     },
+     {
+      "ts": 1794738420,
+      "pct5": 45.5,
+      "pct7": 34.8
+     },
+     {
+      "ts": 1794739320,
+      "pct5": 49.0,
+      "pct7": 35.0
+     },
+     {
+      "ts": 1794740220,
+      "pct5": 52.5,
+      "pct7": 35.3
+     },
+     {
+      "ts": 1794741120,
+      "pct5": 56.0,
+      "pct7": 35.5
+     },
+     {
+      "ts": 1794742020,
+      "pct5": 59.5,
+      "pct7": 35.7
+     },
+     {
+      "ts": 1794742920,
+      "pct5": 63.0,
+      "pct7": 36.0
+     },
+     {
+      "ts": 1794743820,
+      "pct5": 66.5,
+      "pct7": 36.2
+     },
+     {
+      "ts": 1794744720,
+      "pct5": 0,
+      "pct7": 36.4
+     },
+     {
+      "ts": 1794745620,
+      "pct5": 0,
+      "pct7": 36.6
+     },
+     {
+      "ts": 1794746520,
+      "pct5": 3.0,
+      "pct7": 36.9
+     },
+     {
+      "ts": 1794747420,
+      "pct5": 6.5,
+      "pct7": 37.1
+     },
+     {
+      "ts": 1794748320,
+      "pct5": 10.0,
+      "pct7": 37.3
+     },
+     {
+      "ts": 1794749220,
+      "pct5": 13.5,
+      "pct7": 37.5
+     },
+     {
+      "ts": 1794750120,
+      "pct5": 17.0,
+      "pct7": 37.8
+     },
+     {
+      "ts": 1794751020,
+      "pct5": 20.5,
+      "pct7": 38.0
+     },
+     {
+      "ts": 1794751920,
+      "pct5": 24.0,
+      "pct7": 38.2
+     },
+     {
+      "ts": 1794752820,
+      "pct5": 27.5,
+      "pct7": 38.4
+     },
+     {
+      "ts": 1794753720,
+      "pct5": 31.0,
+      "pct7": 38.6
+     },
+     {
+      "ts": 1794754620,
+      "pct5": 34.5,
+      "pct7": 38.9
+     },
+     {
+      "ts": 1794755520,
+      "pct5": 38.0,
+      "pct7": 39.1
+     },
+     {
+      "ts": 1794756420,
+      "pct5": 41.5,
+      "pct7": 39.3
+     },
+     {
+      "ts": 1794757320,
+      "pct5": 45.0,
+      "pct7": 39.5
+     },
+     {
+      "ts": 1794758220,
+      "pct5": 48.5,
+      "pct7": 39.8
+     },
+     {
+      "ts": 1794759120,
+      "pct5": 52.0,
+      "pct7": 40.0
+     }
+    ],
+    "resets": [
+     1794744720
+    ],
+    "burn5PerHour": 14,
+    "minutesToLimit": 206
+   },
+   "doneToday": 3,
+   "queued": [
+    {
+     "project": "shop-ops",
+     "task": "110-attendance-history",
+     "title": "Attendance history"
+    }
+   ]
+  },
+  {
+   "id": "codex-b",
+   "label": "Codex · b",
+   "tool": "codex",
+   "scope": "personal",
+   "pct5": 55,
+   "pct7": 48,
+   "resets5": 1794766920,
+   "resets7": 1795191120,
+   "readAgeSec": 50,
+   "confidence": "high",
+   "state": "ok",
+   "dispatch": true,
+   "capacity": {
+    "lanesUsed": 2,
+    "lanesMax": 3,
+    "spendable5": 30,
+    "committed5": 22,
+    "minutesToReset": 130,
+    "urgency": 0.12,
+    "fitsSize": "S",
+    "spare": false,
+    "spareSinceSec": null,
+    "why": "waits on ext:pc-ssh (held by 109)",
+    "whyKind": "domain"
+   },
+   "lanes": [
+    {
+     "worker": "W2",
+     "lane": 1,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "107-supplier-import",
+     "title": "Supplier list",
+     "step": "Review",
+     "stepIndex": 5,
+     "stepCount": 5,
+     "etaMin": null,
+     "lastActiveSec": 720
+    },
+    {
+     "worker": "W2",
+     "lane": 2,
+     "state": "running",
+     "project": "shop-ops",
+     "task": "109-stock-costs",
+     "title": "Stock costs",
+     "step": "Profile bills",
+     "stepIndex": 2,
+     "stepCount": 4,
+     "etaMin": 30,
+     "lastActiveSec": 960
+    },
+    {
+     "worker": "W2",
+     "lane": 3,
+     "state": "free"
+    }
+   ],
+   "usage": {
+    "points": [
+     {
+      "ts": 1794730320,
+      "pct5": 13.2,
+      "pct7": 40.8
+     },
+     {
+      "ts": 1794731220,
+      "pct5": 15.9,
+      "pct7": 41.0
+     },
+     {
+      "ts": 1794732120,
+      "pct5": 18.7,
+      "pct7": 41.2
+     },
+     {
+      "ts": 1794733020,
+      "pct5": 21.4,
+      "pct7": 41.5
+     },
+     {
+      "ts": 1794733920,
+      "pct5": 24.2,
+      "pct7": 41.7
+     },
+     {
+      "ts": 1794734820,
+      "pct5": 26.9,
+      "pct7": 41.9
+     },
+     {
+      "ts": 1794735720,
+      "pct5": 29.7,
+      "pct7": 42.1
+     },
+     {
+      "ts": 1794736620,
+      "pct5": 32.4,
+      "pct7": 42.4
+     },
+     {
+      "ts": 1794737520,
+      "pct5": 35.2,
+      "pct7": 42.6
+     },
+     {
+      "ts": 1794738420,
+      "pct5": 37.9,
+      "pct7": 42.8
+     },
+     {
+      "ts": 1794739320,
+      "pct5": 40.7,
+      "pct7": 43.0
+     },
+     {
+      "ts": 1794740220,
+      "pct5": 43.4,
+      "pct7": 43.3
+     },
+     {
+      "ts": 1794741120,
+      "pct5": 46.2,
+      "pct7": 43.5
+     },
+     {
+      "ts": 1794742020,
+      "pct5": 48.9,
+      "pct7": 43.7
+     },
+     {
+      "ts": 1794742920,
+      "pct5": 51.7,
+      "pct7": 44.0
+     },
+     {
+      "ts": 1794743820,
+      "pct5": 54.4,
+      "pct7": 44.2
+     },
+     {
+      "ts": 1794744720,
+      "pct5": 57.2,
+      "pct7": 44.4
+     },
+     {
+      "ts": 1794745620,
+      "pct5": 59.9,
+      "pct7": 44.6
+     },
+     {
+      "ts": 1794746520,
+      "pct5": 62.7,
+      "pct7": 44.9
+     },
+     {
+      "ts": 1794747420,
+      "pct5": 65.4,
+      "pct7": 45.1
+     },
+     {
+      "ts": 1794748320,
+      "pct5": 68.2,
+      "pct7": 45.3
+     },
+     {
+      "ts": 1794749220,
+      "pct5": 24.8,
+      "pct7": 45.5
+     },
+     {
+      "ts": 1794750120,
+      "pct5": 27.5,
+      "pct7": 45.8
+     },
+     {
+      "ts": 1794751020,
+      "pct5": 30.2,
+      "pct7": 46.0
+     },
+     {
+      "ts": 1794751920,
+      "pct5": 33.0,
+      "pct7": 46.2
+     },
+     {
+      "ts": 1794752820,
+      "pct5": 35.8,
+      "pct7": 46.4
+     },
+     {
+      "ts": 1794753720,
+      "pct5": 38.5,
+      "pct7": 46.6
+     },
+     {
+      "ts": 1794754620,
+      "pct5": 41.2,
+      "pct7": 46.9
+     },
+     {
+      "ts": 1794755520,
+      "pct5": 44.0,
+      "pct7": 47.1
+     },
+     {
+      "ts": 1794756420,
+      "pct5": 46.8,
+      "pct7": 47.3
+     },
+     {
+      "ts": 1794757320,
+      "pct5": 49.5,
+      "pct7": 47.5
+     },
+     {
+      "ts": 1794758220,
+      "pct5": 52.2,
+      "pct7": 47.8
+     },
+     {
+      "ts": 1794759120,
+      "pct5": 55.0,
+      "pct7": 48.0
+     }
+    ],
+    "resets": [
+     1794748920
+    ],
+    "burn5PerHour": 11,
+    "minutesToLimit": 245
+   },
+   "doneToday": 2,
+   "queued": [
+    {
+     "project": "shop-ops",
+     "task": "112-payment-ageing",
+     "title": "Payment ageing view"
+    }
+   ]
+  },
+  {
+   "id": "claude-office",
+   "label": "Claude · office",
+   "tool": "claude",
+   "scope": "office",
+   "pct5": 18,
+   "pct7": 30,
+   "resets5": 1794771120,
+   "resets7": 1795018320,
+   "readAgeSec": 240,
+   "confidence": "high",
+   "state": "ok",
+   "dispatch": true,
+   "capacity": {
+    "lanesUsed": 1,
+    "lanesMax": 2,
+    "spendable5": 64,
+    "committed5": 12,
+    "minutesToReset": 200,
+    "urgency": 0.26,
+    "fitsSize": "L",
+    "spare": true,
+    "spareSinceSec": null,
+    "why": "no eligible task: 3 queued tasks are personal projects (account policy)",
+    "whyKind": "policy"
+   },
+   "lanes": [
+    {
+     "worker": "W4",
+     "lane": 1,
+     "state": "running",
+     "project": "client-portal",
+     "task": "13-export-csv",
+     "title": "Export CSV",
+     "step": "Write exporter",
+     "stepIndex": 1,
+     "stepCount": 4,
+     "etaMin": 40,
+     "lastActiveSec": 12
+    },
+    {
+     "worker": "W4",
+     "lane": 2,
+     "state": "free"
+    }
+   ],
+   "usage": {
+    "points": [
+     {
+      "ts": 1794730320,
+      "pct5": 44.7,
+      "pct7": 22.8
+     },
+     {
+      "ts": 1794731220,
+      "pct5": 45.7,
+      "pct7": 23.0
+     },
+     {
+      "ts": 1794732120,
+      "pct5": 46.7,
+      "pct7": 23.2
+     },
+     {
+      "ts": 1794733020,
+      "pct5": 47.7,
+      "pct7": 23.5
+     },
+     {
+      "ts": 1794733920,
+      "pct5": 48.7,
+      "pct7": 23.7
+     },
+     {
+      "ts": 1794734820,
+      "pct5": 49.7,
+      "pct7": 23.9
+     },
+     {
+      "ts": 1794735720,
+      "pct5": 50.7,
+      "pct7": 24.1
+     },
+     {
+      "ts": 1794736620,
+      "pct5": 51.7,
+      "pct7": 24.4
+     },
+     {
+      "ts": 1794737520,
+      "pct5": 52.7,
+      "pct7": 24.6
+     },
+     {
+      "ts": 1794738420,
+      "pct5": 53.7,
+      "pct7": 24.8
+     },
+     {
+      "ts": 1794739320,
+      "pct5": 54.7,
+      "pct7": 25.1
+     },
+     {
+      "ts": 1794740220,
+      "pct5": 55.7,
+      "pct7": 25.3
+     },
+     {
+      "ts": 1794741120,
+      "pct5": 56.7,
+      "pct7": 25.5
+     },
+     {
+      "ts": 1794742020,
+      "pct5": 57.7,
+      "pct7": 25.7
+     },
+     {
+      "ts": 1794742920,
+      "pct5": 58.7,
+      "pct7": 25.9
+     },
+     {
+      "ts": 1794743820,
+      "pct5": 59.7,
+      "pct7": 26.2
+     },
+     {
+      "ts": 1794744720,
+      "pct5": 60.7,
+      "pct7": 26.4
+     },
+     {
+      "ts": 1794745620,
+      "pct5": 61.7,
+      "pct7": 26.6
+     },
+     {
+      "ts": 1794746520,
+      "pct5": 62.7,
+      "pct7": 26.9
+     },
+     {
+      "ts": 1794747420,
+      "pct5": 63.7,
+      "pct7": 27.1
+     },
+     {
+      "ts": 1794748320,
+      "pct5": 64.7,
+      "pct7": 27.3
+     },
+     {
+      "ts": 1794749220,
+      "pct5": 65.7,
+      "pct7": 27.5
+     },
+     {
+      "ts": 1794750120,
+      "pct5": 66.7,
+      "pct7": 27.8
+     },
+     {
+      "ts": 1794751020,
+      "pct5": 67.7,
+      "pct7": 28.0
+     },
+     {
+      "ts": 1794751920,
+      "pct5": 68.7,
+      "pct7": 28.2
+     },
+     {
+      "ts": 1794752820,
+      "pct5": 69.7,
+      "pct7": 28.4
+     },
+     {
+      "ts": 1794753720,
+      "pct5": 12.0,
+      "pct7": 28.6
+     },
+     {
+      "ts": 1794754620,
+      "pct5": 13.0,
+      "pct7": 28.9
+     },
+     {
+      "ts": 1794755520,
+      "pct5": 14.0,
+      "pct7": 29.1
+     },
+     {
+      "ts": 1794756420,
+      "pct5": 15.0,
+      "pct7": 29.3
+     },
+     {
+      "ts": 1794757320,
+      "pct5": 16.0,
+      "pct7": 29.6
+     },
+     {
+      "ts": 1794758220,
+      "pct5": 17.0,
+      "pct7": 29.8
+     },
+     {
+      "ts": 1794759120,
+      "pct5": 18.0,
+      "pct7": 30.0
+     }
+    ],
+    "resets": [
+     1794753120
+    ],
+    "burn5PerHour": 4,
+    "minutesToLimit": 1230
+   },
+   "doneToday": 1,
+   "queued": [],
+   "color": "#cc79a7"
+  },
+  {
+   "id": "claude-worker",
+   "label": "Claude · worker",
+   "tool": "claude",
+   "scope": "personal",
+   "pct5": 100,
+   "pct7": 71,
+   "resets5": 1794759660,
+   "resets7": 1794931920,
+   "readAgeSec": 20,
+   "confidence": "high",
+   "state": "cooling",
+   "dispatch": true,
+   "capacity": {
+    "lanesUsed": 0,
+    "lanesMax": 3,
+    "spendable5": 0,
+    "committed5": 0,
+    "minutesToReset": 9,
+    "urgency": 0,
+    "fitsSize": null,
+    "spare": false,
+    "spareSinceSec": null,
+    "why": "limit — resumes 104 at 21:51",
+    "whyKind": "cooling"
+   },
+   "lanes": [
+    {
+     "worker": "W3",
+     "lane": 1,
+     "state": "cooling",
+     "project": "shop-ops",
+     "task": "104-vendor-model",
+     "title": "Vendor model",
+     "resumeAt": 1794759750
+    }
+   ],
+   "usage": {
+    "points": [
+     {
+      "ts": 1794730320,
+      "pct5": 30.0,
+      "pct7": 63.8
+     },
+     {
+      "ts": 1794731220,
+      "pct5": 30.0,
+      "pct7": 64.0
+     },
+     {
+      "ts": 1794732120,
+      "pct5": 30.0,
+      "pct7": 64.2
+     },
+     {
+      "ts": 1794733020,
+      "pct5": 30.0,
+      "pct7": 64.5
+     },
+     {
+      "ts": 1794733920,
+      "pct5": 30.0,
+      "pct7": 64.7
+     },
+     {
+      "ts": 1794734820,
+      "pct5": 30.0,
+      "pct7": 64.9
+     },
+     {
+      "ts": 1794735720,
+      "pct5": 30.0,
+      "pct7": 65.2
+     },
+     {
+      "ts": 1794736620,
+      "pct5": 30.0,
+      "pct7": 65.4
+     },
+     {
+      "ts": 1794737520,
+      "pct5": 30.0,
+      "pct7": 65.6
+     },
+     {
+      "ts": 1794738420,
+      "pct5": 30.0,
+      "pct7": 65.8
+     },
+     {
+      "ts": 1794739320,
+      "pct5": 30.0,
+      "pct7": 66.0
+     },
+     {
+      "ts": 1794740220,
+      "pct5": 30.0,
+      "pct7": 66.3
+     },
+     {
+      "ts": 1794741120,
+      "pct5": 30.0,
+      "pct7": 66.5
+     },
+     {
+      "ts": 1794742020,
+      "pct5": 1.7,
+      "pct7": 66.7
+     },
+     {
+      "ts": 1794742920,
+      "pct5": 8.0,
+      "pct7": 67.0
+     },
+     {
+      "ts": 1794743820,
+      "pct5": 14.3,
+      "pct7": 67.2
+     },
+     {
+      "ts": 1794744720,
+      "pct5": 20.6,
+      "pct7": 67.4
+     },
+     {
+      "ts": 1794745620,
+      "pct5": 26.9,
+      "pct7": 67.6
+     },
+     {
+      "ts": 1794746520,
+      "pct5": 33.2,
+      "pct7": 67.8
+     },
+     {
+      "ts": 1794747420,
+      "pct5": 39.5,
+      "pct7": 68.1
+     },
+     {
+      "ts": 1794748320,
+      "pct5": 45.8,
+      "pct7": 68.3
+     },
+     {
+      "ts": 1794749220,
+      "pct5": 52.1,
+      "pct7": 68.5
+     },
+     {
+      "ts": 1794750120,
+      "pct5": 58.4,
+      "pct7": 68.8
+     },
+     {
+      "ts": 1794751020,
+      "pct5": 64.7,
+      "pct7": 69.0
+     },
+     {
+      "ts": 1794751920,
+      "pct5": 71.0,
+      "pct7": 69.2
+     },
+     {
+      "ts": 1794752820,
+      "pct5": 77.3,
+      "pct7": 69.4
+     },
+     {
+      "ts": 1794753720,
+      "pct5": 83.6,
+      "pct7": 69.7
+     },
+     {
+      "ts": 1794754620,
+      "pct5": 89.9,
+      "pct7": 69.9
+     },
+     {
+      "ts": 1794755520,
+      "pct5": 96.2,
+      "pct7": 70.1
+     },
+     {
+      "ts": 1794756420,
+      "pct5": 100,
+      "pct7": 70.3
+     },
+     {
+      "ts": 1794757320,
+      "pct5": 100,
+      "pct7": 70.5
+     },
+     {
+      "ts": 1794758220,
+      "pct5": 100,
+      "pct7": 70.8
+     },
+     {
+      "ts": 1794759120,
+      "pct5": 100,
+      "pct7": 71.0
+     }
+    ],
+    "resets": [
+     1794741660
+    ],
+    "burn5PerHour": null,
+    "minutesToLimit": null
+   },
+   "doneToday": 1,
+   "queued": [
+    {
+     "project": "shop-ops",
+     "task": "104-vendor-model",
+     "title": "Vendor model (resume)"
+    }
+   ]
+  },
+  {
+   "id": "claude-main",
+   "label": "Claude · main (W0)",
+   "tool": "claude",
+   "scope": "personal",
+   "pct5": 41,
+   "pct7": 62,
+   "resets5": 1794768120,
+   "resets7": 1795277520,
+   "readAgeSec": 35,
+   "confidence": "high",
+   "state": "ok",
+   "dispatch": false,
+   "role": "orchestrator",
+   "capacity": {
+    "lanesUsed": 0,
+    "lanesMax": 0,
+    "spare": false,
+    "why": "orchestrator · usage only, never dispatched",
+    "whyKind": "dispatch_off"
+   },
+   "lanes": [],
+   "usage": {
+    "points": [
+     {
+      "ts": 1794730320,
+      "pct5": 26.0,
+      "pct7": 54.8
+     },
+     {
+      "ts": 1794731220,
+      "pct5": 28.0,
+      "pct7": 55.0
+     },
+     {
+      "ts": 1794732120,
+      "pct5": 30.0,
+      "pct7": 55.2
+     },
+     {
+      "ts": 1794733020,
+      "pct5": 32.0,
+      "pct7": 55.5
+     },
+     {
+      "ts": 1794733920,
+      "pct5": 34.0,
+      "pct7": 55.7
+     },
+     {
+      "ts": 1794734820,
+      "pct5": 36.0,
+      "pct7": 55.9
+     },
+     {
+      "ts": 1794735720,
+      "pct5": 38.0,
+      "pct7": 56.1
+     },
+     {
+      "ts": 1794736620,
+      "pct5": 40.0,
+      "pct7": 56.4
+     },
+     {
+      "ts": 1794737520,
+      "pct5": 42.0,
+      "pct7": 56.6
+     },
+     {
+      "ts": 1794738420,
+      "pct5": 44.0,
+      "pct7": 56.8
+     },
+     {
+      "ts": 1794739320,
+      "pct5": 46.0,
+      "pct7": 57.0
+     },
+     {
+      "ts": 1794740220,
+      "pct5": 48.0,
+      "pct7": 57.3
+     },
+     {
+      "ts": 1794741120,
+      "pct5": 50.0,
+      "pct7": 57.5
+     },
+     {
+      "ts": 1794742020,
+      "pct5": 52.0,
+      "pct7": 57.7
+     },
+     {
+      "ts": 1794742920,
+      "pct5": 54.0,
+      "pct7": 58.0
+     },
+     {
+      "ts": 1794743820,
+      "pct5": 56.0,
+      "pct7": 58.2
+     },
+     {
+      "ts": 1794744720,
+      "pct5": 58.0,
+      "pct7": 58.4
+     },
+     {
+      "ts": 1794745620,
+      "pct5": 60.0,
+      "pct7": 58.6
+     },
+     {
+      "ts": 1794746520,
+      "pct5": 62.0,
+      "pct7": 58.9
+     },
+     {
+      "ts": 1794747420,
+      "pct5": 64.0,
+      "pct7": 59.1
+     },
+     {
+      "ts": 1794748320,
+      "pct5": 66.0,
+      "pct7": 59.3
+     },
+     {
+      "ts": 1794749220,
+      "pct5": 68.0,
+      "pct7": 59.5
+     },
+     {
+      "ts": 1794750120,
+      "pct5": 21.0,
+      "pct7": 59.8
+     },
+     {
+      "ts": 1794751020,
+      "pct5": 23.0,
+      "pct7": 60.0
+     },
+     {
+      "ts": 1794751920,
+      "pct5": 25.0,
+      "pct7": 60.2
+     },
+     {
+      "ts": 1794752820,
+      "pct5": 27.0,
+      "pct7": 60.4
+     },
+     {
+      "ts": 1794753720,
+      "pct5": 29.0,
+      "pct7": 60.6
+     },
+     {
+      "ts": 1794754620,
+      "pct5": 31.0,
+      "pct7": 60.9
+     },
+     {
+      "ts": 1794755520,
+      "pct5": 33.0,
+      "pct7": 61.1
+     },
+     {
+      "ts": 1794756420,
+      "pct5": 35.0,
+      "pct7": 61.3
+     },
+     {
+      "ts": 1794757320,
+      "pct5": 37.0,
+      "pct7": 61.5
+     },
+     {
+      "ts": 1794758220,
+      "pct5": 39.0,
+      "pct7": 61.8
+     },
+     {
+      "ts": 1794759120,
+      "pct5": 41.0,
+      "pct7": 62.0
+     }
+    ],
+    "resets": [
+     1794750120
+    ],
+    "burn5PerHour": 8,
+    "minutesToLimit": 442
+   },
+   "doneToday": 0,
+   "queued": []
+  }
+ ],
+ "machine": {
+  "running": 5,
+  "lanesTotal": 8,
+  "maxParallelTotal": 6,
+  "freeRamGb": 5.1,
+  "plannedAt": 1794759118
+ },
+ "backlog": {
+  "eligible": 2,
+  "target": 5,
+  "low": true,
+  "hint": "Spare: Codex·a 1 lane (M fits before 22:42), Claude·office 1 lane (office projects only)"
+ },
+ "needsYou": [
+  {
+   "kind": "review",
+   "project": "shop-ops",
+   "task": "107-supplier-import",
+   "num": 107,
+   "title": "Import the supplier list",
+   "text": "PILOT · W2 · 3/3 done-when ✓ · approving starts 108",
+   "rev": 21
+  },
+  {
+   "kind": "question",
+   "project": "shop-ops",
+   "task": "111-tax-number-rows",
+   "num": 111,
+   "title": "Rows without tax number?",
+   "text": "W2 asks · inactive (default) / active / skip",
+   "rev": 5,
+   "options": [
+    "inactive",
+    "active",
+    "skip"
+   ]
+  },
+  {
+   "kind": "alert",
+   "project": "shop-ops",
+   "task": "109-stock-costs",
+   "num": 109,
+   "title": "Stock costs quiet 16 min",
+   "text": "deepest child: ssh pc profile.py · 15m",
+   "rev": 6,
+   "eventId": 991
+  }
+ ],
+ "alerts": [
+  {
+   "id": 991,
+   "ts": 1794759000,
+   "type": "attempt.suspect",
+   "severity": "warn",
+   "project": "shop-ops",
+   "task": "109-stock-costs",
+   "worker": "W2",
+   "text": "109 quiet 16 min — deepest child: ssh pc 'python profile.py' for 15 min"
+  },
+  {
+   "id": 988,
+   "ts": 1794758520,
+   "type": "policy.denied",
+   "severity": "alert",
+   "project": "shop-ops",
+   "task": "110-attendance-history",
+   "worker": "W4",
+   "text": "Refused: W4 (office account) may never run personal project task 110"
+  }
+ ]
+}
