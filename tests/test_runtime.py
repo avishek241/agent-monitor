@@ -284,6 +284,28 @@ print('parent exits')
             p.wait()
 
 
+class PauseCancel(DeckCase):
+    def test_pause_and_cancel_stop_the_process(self):
+        self.build([account("cx", max=2)], [worker("W1", "cx", lanes=2)], [project("shop")])
+        self.usage("cx", 5, 250)
+        self.add("shop", "p", size="S", createdAt=T0)
+        self.add("shop", "c", size="S", createdAt=T0 + 1)
+        self.d.tick()
+        procs = {}
+        for tid in ("p", "c"):
+            rd = Path(self.stores["shop"].current_attempt(tid)["runDir"])
+            write_out(rd, [{"type": "thread.started", "thread_id": f"th-{tid}"}])
+            procs[tid], _ = self.start_proc("shop", tid)
+        self.d.tick()
+        self.stores["shop"].transition("p", "blocked", actor="W0", reason="paused by W0")       # T20
+        self.stores["shop"].transition("c", "cancelled", actor="owner", reason="cancelled")     # T29
+        self.d.tick()
+        self.assertEqual(sorted(self.probe.killed), sorted(procs.values()))
+        self.d.tick()
+        self.assertEqual(len(self.probe.killed), 2)                     # once each
+        self.assertEqual(self.stores["shop"].get("p")["state"], "blocked")
+
+
 class Reconcile(DeckCase):
     def running_task(self):
         self.build([account("cx")], [worker("W1", "cx")], [project("shop")])

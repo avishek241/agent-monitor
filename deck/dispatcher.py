@@ -93,6 +93,7 @@ class Dispatcher:
                     self.sup.supervise(pid, st, task, now)
                 except DeckError as e:
                     self.emit(pid, "daemon.error", "warn", f"supervise {task['id']}: {e}", task=task["id"])
+            self.sup.stop_ended(pid, st, now)
         self.fire_timers(now)
         self.promote(now)
         self.refresh_usage(now)

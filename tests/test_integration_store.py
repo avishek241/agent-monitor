@@ -153,3 +153,20 @@ class RealStore(DeckCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_STORE, "B1")
+class RealPause(RealStore):
+    def test_pause_kills_real_store(self):
+        self.build_real([account("cx")], [worker("W1", "cx")], [project("shop")])
+        self.usage("cx", 5, 250)
+        tid = self.ready("shop", "Pause me please", size="S", workerClass=["codex-exec"])
+        self.d.tick()
+        rd = self.launcher.calls[0]["run_dir"]
+        write_out(rd, [{"type": "thread.started", "thread_id": "th"}])
+        (rd / "pid.json").write_text(json.dumps({"pid": 50009, "pgid": 50009, "start": "x", "wrapper": None}))
+        self.probe.procs[50009] = {"alive": True, "start": "x", "cpu": 0.0, "run_dir": rd}
+        self.d.tick()
+        self.stores["shop"].transition(tid, "blocked", actor="W0", reason="paused")
+        self.d.tick()
+        self.assertEqual(self.probe.killed, [50009])

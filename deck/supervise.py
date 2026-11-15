@@ -484,6 +484,29 @@ class Supervisor:
         self.mem.pop((pid, tid, n), None)
         self.rt.replan = True
 
+    # ------------------------------------------------------------------ stopped by a person (T20 pause, T29 cancel, T30)
+    def stop_ended(self, pid, store, now):
+        """The store ends the attempt when W0/owner pauses, cancels or reassigns a running task; the process is ours
+        to stop (SIGINT → SIGTERM → SIGKILL). Done once per attempt; the wrapper still writes exit.json and cleans up."""
+        for task in store.list(["blocked", "cancelled", "queued"]):
+            a = store.current_attempt(task["id"]) if hasattr(store, "current_attempt") else (task.get("attempts") or [None])[-1]
+            if not a or a.get("outcome") != "cancelled" or not a.get("runDir"):
+                continue
+            key = (pid, task["id"], a["n"], "stop")
+            if key in self.mem or (Path(a["runDir"]) / "exit.json").exists():
+                continue
+            pg = a.get("pgid")
+            if pg is None and (Path(a["runDir"]) / "pid.json").exists():
+                try:
+                    pg = json.loads((Path(a["runDir"]) / "pid.json").read_text())["pgid"]
+                except (OSError, ValueError, KeyError):
+                    pg = None
+            if pg and self.rt.probe.alive(pg):
+                self.mem[key] = now
+                self.rt.probe.kill(pg)
+                self.rt.emit(pid, "attempt.killed", "info", f"{task['id']} attempt {a['n']} stopped ({task['state']})",
+                             task=task["id"], attempt=a["n"])
+
     # ------------------------------------------------------------------ restart reconciliation (§6.7)
     def reconcile(self, pid, store, now):
         counts = {"finished": 0, "adopted": 0, "crashed": 0}

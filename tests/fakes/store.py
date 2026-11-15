@@ -408,6 +408,8 @@ class FakeProjectStore:
             t["resumeAt"] = None
         elif to == "cancelled":
             self._release(t)
+        if frm in ("starting", "running", "hung") and actor in ("W0", "owner") and a and a["outcome"] == "running":
+            a.update(outcome="cancelled", endedAt=now)      # B1: T20/T29/T30 end the live attempt
         if to not in ("starting", "running", "hung", "limit_paused"):
             t["worker"] = None
         if "worker" in eff:
