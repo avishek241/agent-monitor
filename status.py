@@ -545,7 +545,13 @@ def claude_limit_from_logs(label):
     for f in [f for g in globs for f in glob.glob(X(g))]:
         if NOW - os.path.getmtime(f) > 6 * 3600:
             continue
-        m = re.findall(r"hit your 5-hour limit\D+resets (\d{1,2}):?(\d{2})?\s*([ap]m)", tail(f, 4000))
+        t4 = tail(f, 4000)
+        m = re.findall(r"hit your 5-hour limit\D+resets (\d{1,2}):?(\d{2})?\s*([ap]m)", t4)
+        # Only a limit message that is still the LAST real output counts: if the worker resumed after the reset and
+        # wrote more lines, the old message must not be re-read as "resets tomorrow" (W3 showed 100% for 24 h).
+        last = [ln for ln in t4.strip().splitlines() if ln.strip() and not ln.startswith(("Warning:", "Plugin "))][-3:]
+        if m and not any("hit your 5-hour limit" in ln for ln in last):
+            m = []
         if m and (newest is None or os.path.getmtime(f) > newest[0]):
             newest = (os.path.getmtime(f), m[-1])
     if not newest:
