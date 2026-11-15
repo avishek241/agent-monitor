@@ -12,6 +12,8 @@ It was built while orchestrating one Claude Code orchestrator (W0) and several C
 - **Health** — your app/API URLs (green/red), grouped.
 - **Repository** — last commit and uncommitted changes (uses `git --no-optional-locks`, so it never blocks your agents' commits).
 
+**Themes**: three layouts, each in light and dark, taken from the v2 mockups. *Studio* is PhoneDeck's hardware look, with a warm-grey body, dark LCD blocks and chunky ink-bordered keys. *Mission Control* is dense and data-first: monospace numerals, LEDs, thin rules, a KPI grid, sparklines, a live ticker and key hints. *Paper* is editorial: serif headlines, a one-paragraph summary, soft cards, pastel pills and quota rings. Pick the layout and Light, Dark or Auto (Auto follows macOS) in the panel header. **⌘T** cycles layouts and **⌘⇧T** flips light and dark while the panel is focused. Both choices are remembered. Colours, fonts and spacing are tokens in the `Theme` struct in `Panel.swift`, and every theme meets WCAG AA contrast. Fonts are bundled in `fonts/` (SIL OFL) and registered for the panel process only.
+
 ## Install / run
 ```bash
 git clone <this repo> ~/agent-monitor            # or copy the folder
@@ -37,6 +39,7 @@ Requirements: macOS 13+, Xcode command-line tools (`swiftc`), Python 3.9+. `star
 | `workers` | `[["Claude-A","W0"], …]` prefixes shown on badges and account rows |
 | `health[]` | `label`, `url`, optional `group` (one row per group) |
 | `usageCacheFile` | Where usage parsing is cached (20 s) |
+| `theme` | Optional default look, e.g. `"studio"`, `"mission-dark"`, `"paper-auto"` (your last choice in the panel wins) |
 
 Relative paths are resolved against the config file's folder; `~` is expanded.
 
@@ -67,7 +70,7 @@ Add to each account's `settings.json`:
 and use the same path as that account's `statusFile`.
 
 ## Files
-`Panel.swift` (SwiftUI panel) · `status.py` (data, `--serve` streaming mode, `--config`) · `start.sh` · `bin/card.py` · `bin/claude-statusline.sh` · `examples/*.config.json`.
+`Panel.swift` (SwiftUI panel) · `fonts/` · `status.py` (data, `--serve` streaming mode, `--config`) · `start.sh` · `bin/card.py` · `bin/claude-statusline.sh` · `examples/*.config.json`.
 
 ## Licence
 MIT — see [LICENSE](LICENSE).
