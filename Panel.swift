@@ -12,21 +12,29 @@ struct RunningTask: Decodable, Identifiable {
   var id: String { key }
   let key: String, title: String, account: String, elapsed: Int, steps: [Step], note: String
   let commands: Int, tokens: Int, edits: Int, recent: [Cmd], lastActive: Int, estimated: Bool, failovers: Int
-  let num: String; let summary: String?; let metrics: [Metric]?; let tags: [String]?
-  enum CodingKeys: String, CodingKey { case metrics, tags, summary, key, title, account, elapsed, steps, note, commands, tokens, edits, recent, lastActive, estimated, failovers, num = "id" }
+  let num: String; let summary: String?; let metrics: [Metric]?; let tags: [String]?; let wid: String?
+  enum CodingKeys: String, CodingKey { case metrics, tags, summary, key, title, account, elapsed, steps, note, commands, tokens, edits, recent, lastActive, estimated, failovers, wid, num = "id" }
 }
-struct Queued: Decodable, Identifiable { var id: String { num + title }; let num: String, title: String, summary: String, worker: String, waitingFor: String, blocked: Bool
-  enum CodingKeys: String, CodingKey { case num = "id", title, summary, worker, waitingFor, blocked } }
+struct Queued: Decodable, Identifiable { var id: String { num + title }; let num: String, title: String, summary: String, worker: String, waitingFor: String, blocked: Bool; let wid: String?
+  enum CodingKeys: String, CodingKey { case num = "id", title, summary, worker, waitingFor, blocked, wid } }
 struct Agent: Decodable, Identifiable { var id: String { title }; let title: String, tools: Int, recent: [String], lastActive: Int }
-struct Done: Decodable, Identifiable { var id: String { tid + time }; let tid: String, title: String, time: String, ok: Bool
-  enum CodingKeys: String, CodingKey { case tid = "id", title, time, ok } }
+struct Done: Decodable, Identifiable { var id: String { tid + time }; let tid: String, title: String, time: String, ok: Bool; let wid: String?
+  enum CodingKeys: String, CodingKey { case tid = "id", title, time, ok, wid } }
 struct Account: Decodable, Identifiable { var id: String { name + tool }; let name: String, tool: String, five: Double, seven: Double, resetIn: Int, lastLimit: String
-  let age: Int?; let unknown: Bool? }
+  let age: Int?; let unknown: Bool?; let wid: String? }
 struct Change: Decodable, Identifiable { var id: String { area }; let area: String, files: Int }
 struct Status: Decodable {
   let time: String, running: [RunningTask], queued: [Queued]?, agents: [Agent], finished: [Done], accounts: [Account], commit: String, changes: [Change]
   let title: String?
   let health: [Health]?
+  let workers: [Worker]?
+}
+struct Lane: Decodable, Hashable { let id: String; let title: String; let stale: Bool }
+struct PipeItem: Decodable, Hashable { let id: String; let title: String; let blocked: Bool; let likely: Bool }
+/// One worker (W0, W1…) with what it is doing: from status.py's "workers" block (local files only).
+struct Worker: Decodable, Identifiable {
+  let id: String, name: String, color: String?, slot: Int, account: String
+  let lanes: [Lane], doneToday: Int, failedToday: Int?, doneIds: [String], lastDone: Int, idleSecs: Int, pipeline: [PipeItem]
 }
 struct Health: Decodable, Identifiable { var id: String { label }; let label: String; let up: Bool; let group: String? }
 
@@ -134,6 +142,8 @@ struct Theme {
   var lcd = Color.black, lcdText = Color.white, lcdDim = Color.gray, lcdLine = Color.gray
   var keyAlert = Color.white, keyQueue = Color.white
   var chips: [Role: Chip] = [:]
+  // Raw surfaces for worker-colour contrast maths: every surface worker-coloured text can sit on, the card surface, the LCD.
+  var inkBgs: [UInt32] = [], cardHex: UInt32 = 0xFFFFFF, bgHex: UInt32 = 0xFFFFFF, lcdHex: UInt32 = 0x0F0F10
 
   func chip(_ r: Role) -> Chip { chips[r] ?? .solid(.gray) }
   func usage(_ p: Double) -> Color { p >= 90 ? bad : p >= 60 ? warn : ok }
@@ -255,6 +265,14 @@ struct Theme {
                  .claude: .tint(0x3E2B1D, 0xF3BB8F), .codex: .tint(0x1E2F42, 0xA8CAEF), .violet: .tint(0x2E2842, 0xCBBCF2), .teal: .tint(0x1C3634, 0x97D8D1),
                  .sky: .tint(0x1E2F42, 0xA8CAEF), .neutral: .tint(0x2F2D29, 0xA39D93), .number: .tint(0x2E2842, 0xCBBCF2), .numberMuted: .tint(0x2F2D29, 0xA39D93)]
     }
+    switch (l, dark) {
+    case (.studio, false): t.inkBgs = [0xE6E4DD, 0xFBFAF7, 0xF2F0EA, 0xFFFBEA, 0xFFF0ED]; t.cardHex = 0xFBFAF7; t.bgHex = 0xEDEBE6; t.lcdHex = 0x0F0F10
+    case (.studio, true): t.inkBgs = [0x1C1B19, 0x2D2B28, 0x262522, 0x3A2420, 0x37301A]; t.cardHex = 0x2D2B28; t.bgHex = 0x232220; t.lcdHex = 0x0B0B0C
+    case (.mission, false): t.inkBgs = [0xF3F6F9, 0xFFFFFF, 0xE8EDF2]; t.cardHex = 0xFFFFFF; t.bgHex = 0xF3F6F9
+    case (.mission, true): t.inkBgs = [0x0A0C0F, 0x0F1318, 0x141A21]; t.cardHex = 0x0F1318; t.bgHex = 0x0A0C0F
+    case (.paper, false): t.inkBgs = [0xF6F2EA, 0xFFFDF8, 0xECE9E3, 0xFBF7EF]; t.cardHex = 0xFFFDF8; t.bgHex = 0xF6F2EA
+    case (.paper, true): t.inkBgs = [0x1B1A17, 0x25231F, 0x2F2D29, 0x211F1C]; t.cardHex = 0x25231F; t.bgHex = 0x1B1A17
+    }
     return t
   }
 }
@@ -304,21 +322,211 @@ final class ThemeStore: ObservableObject {
   }
 }
 
-/// Recent 5-hour usage per account, kept in memory for the Mission Control sparklines.
-final class UsageHistory: ObservableObject {
-  @Published private(set) var points: [String: [Double]] = [:]
-  private var last = Date.distantPast
-  /// Snapshot tooling only.
-  func debugSeed(_ name: String, _ v: Double) { points[name] = (0..<24).map { i in max(0, v - Double(24 - i) * v / 40 + Double((i * 7) % 5)) } }
-  func record(_ s: Status?) {
-    guard let s = s, Date().timeIntervalSince(last) >= 30 || points.isEmpty else { return }
-    last = Date()
-    for a in s.accounts where a.unknown != true { points[a.name, default: []].append(a.five); if points[a.name]!.count > 60 { points[a.name]!.removeFirst() } }
+// MARK: - Worker colours: one colour per worker (W0, W1…) everywhere on the panel
+// Default hues follow the Okabe–Ito palette (designed to stay distinct with the common colour-vision deficiencies),
+// assigned by the order of the config's "workers" list, then any extra accounts; a "workers" entry may carry its own colour.
+// Each theme derives readable variants: text/lines are pushed darker (light themes) or lighter (dark themes) until they
+// reach 4.5:1 on every surface they can sit on, and badge text is checked against its own badge fill.
+
+struct RGB: Equatable {
+  var r: Double, g: Double, b: Double
+  init(_ v: UInt32) { r = Double((v >> 16) & 0xFF) / 255; g = Double((v >> 8) & 0xFF) / 255; b = Double(v & 0xFF) / 255 }
+  init(r: Double, g: Double, b: Double) { self.r = r; self.g = g; self.b = b }
+  static func parse(_ s: String?) -> RGB? {
+    guard var h = s?.trimmingCharacters(in: .whitespaces) else { return nil }
+    if h.hasPrefix("#") { h.removeFirst() }
+    guard h.count == 6, let v = UInt32(h, radix: 16) else { return nil }
+    return RGB(v)
   }
+  var lum: Double {
+    func f(_ c: Double) -> Double { c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+  }
+  func contrast(_ o: RGB) -> Double { let a = lum, b = o.lum; return (max(a, b) + 0.05) / (min(a, b) + 0.05) }
+  func mix(_ o: RGB, _ t: Double) -> RGB { RGB(r: r + (o.r - r) * t, g: g + (o.g - g) * t, b: b + (o.b - b) * t) }
+  var color: Color { Color(.sRGB, red: r, green: g, blue: b, opacity: 1) }
+  var hexString: String { String(format: "#%02X%02X%02X", Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded())) }
+  static let black = RGB(0x000000), white = RGB(0xFFFFFF)
+  /// Darken (on light surfaces) or lighten (on dark ones) until the colour reaches `target` contrast on every surface.
+  func readable(on bgs: [RGB], _ target: Double = 4.5) -> RGB {
+    guard !bgs.isEmpty else { return self }
+    let light = bgs.map(\.lum).reduce(0, +) / Double(bgs.count) > 0.25
+    var c = self
+    for i in 0...40 {
+      if bgs.allSatisfy({ c.contrast($0) >= target }) { return c }
+      c = self.mix(light ? .black : .white, Double(i + 1) * 0.025)
+    }
+    return c
+  }
+  /// Black or white, whichever reads better (always ≥ 4.58:1).
+  var bestInk: RGB { contrast(.black) >= contrast(.white) ? .black : .white }
+}
+
+struct WorkerColor {
+  let wid: String, name: String, hueName: String
+  let base: RGB          // the worker's own colour
+  let ink: Color         // text, stripes and graph lines on the theme's surfaces (≥ 4.5:1)
+  let lcd: Color         // the same on the Studio LCD
+  let fill: Color, onFill: Color, stroke: Color   // badge
+  let tint: Color        // faint wash for drawer headers
+  let inkRGB: RGB, fillRGB: RGB, onFillRGB: RGB, lcdRGB: RGB
+}
+
+struct WorkerPalette {
+  static let hues: [(UInt32, String)] = [(0x0072B2, "blue"), (0xE69F00, "orange"), (0x009E73, "green"), (0xCC79A7, "pink"),
+                                         (0xD55E00, "vermilion"), (0x56B4E9, "sky"), (0xF0E442, "yellow"), (0x8C8C8C, "grey")]
+  let th: Theme
+  let workers: [Worker]
+  private let colors: [String: WorkerColor]
+  init(th: Theme, workers: [Worker]) {
+    self.th = th; self.workers = workers
+    var m: [String: WorkerColor] = [:]
+    for w in workers { m[w.id] = Self.make(th, w) }
+    colors = m
+  }
+  static func make(_ th: Theme, _ w: Worker) -> WorkerColor {
+    let h = hues[((w.slot % hues.count) + hues.count) % hues.count]
+    let custom = RGB.parse(w.color)
+    let base = custom ?? RGB(h.0)
+    let bgs = th.inkBgs.map(RGB.init)
+    let ink = base.readable(on: bgs)
+    let lcd = base.readable(on: [RGB(th.lcdHex)])
+    let card = RGB(th.cardHex)
+    var fill: RGB, on: RGB, stroke: Color
+    switch th.layout {
+    case .studio: fill = base; on = base.bestInk; stroke = .clear
+    case .mission: fill = RGB(th.bgHex).mix(ink, th.dark ? 0.16 : 0.10); on = ink.readable(on: [fill]); stroke = ink.color.opacity(0.6)
+    case .paper: fill = card.mix(base, th.dark ? 0.26 : 0.18); on = base.readable(on: [fill]); stroke = .clear
+    }
+    return WorkerColor(wid: w.id, name: w.name, hueName: custom == nil ? h.1 : "custom", base: base, ink: ink.color, lcd: lcd.color,
+                       fill: fill.color, onFill: on.color, stroke: stroke, tint: card.mix(base, th.dark ? 0.12 : 0.07).color,
+                       inkRGB: ink, fillRGB: fill, onFillRGB: on, lcdRGB: lcd)
+  }
+  /// By worker id ("W2"), or from a label that starts with one ("W2 Codex-B (worker)").
+  func of(_ wid: String?, label: String? = nil) -> WorkerColor? {
+    if let w = wid, !w.isEmpty, let c = colors[w] { return c }
+    if let l = label, let first = l.split(separator: " ").first, let c = colors[String(first)] { return c }
+    if let l = label, let c = colors.values.first(where: { !$0.name.isEmpty && l.contains($0.name) }) { return c }
+    return nil
+  }
+  /// "W0 blue · W1 orange · …" for tooltips.
+  var key: String { workers.compactMap { w in colors[w.id].map { "\(w.id) \($0.hueName)" } }.joined(separator: " · ") }
+}
+
+struct WorkersKey: EnvironmentKey { static let defaultValue = WorkerPalette(th: Theme.make(.studio, dark: false), workers: []) }
+extension EnvironmentValues { var workers: WorkerPalette { get { self[WorkersKey.self] } set { self[WorkersKey.self] = newValue } } }
+
+/// Small UI preferences that survive restarts (UserDefaults).
+final class UIPrefs: ObservableObject {
+  static let workersKey = "agentMonitor.workersOpen"
+  @Published var workersOpen: Bool { didSet { UserDefaults.standard.set(workersOpen, forKey: Self.workersKey) } }
+  init() { workersOpen = UserDefaults.standard.bool(forKey: Self.workersKey) }
+}
+
+/// One usage reading. `reset` is the 5-hour window's reset time (unix seconds, 0 = unknown).
+struct UsageSample: Codable { let t: Double; let five: Double; let seven: Double; let reset: Double }
+
+/// Usage per worker over the last 24 h: one sample a minute, kept in memory for the sparklines and graphs and saved to
+/// ~/Library/Application Support/agent-monitor/usage-history-<config>.json so it survives restarts.
+final class UsageHistory: ObservableObject {
+  @Published private(set) var samples: [String: [UsageSample]] = [:]
+  private var last = Date.distantPast
+  static let keep: Double = 24 * 3600, every: Double = 60
+  let file: URL? = {
+    guard let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("agent-monitor") else { return nil }
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let cfg = ProcessInfo.processInfo.environment["AGENT_MONITOR_CONFIG"].map { (($0 as NSString).lastPathComponent as NSString).deletingPathExtension } ?? "config"
+    return dir.appendingPathComponent("usage-history-\(cfg.replacingOccurrences(of: "/", with: "_")).json")
+  }()
+  init(load: Bool = true) {
+    guard load, let f = file, let d = try? Data(contentsOf: f), let s = try? JSONDecoder().decode([String: [UsageSample]].self, from: d) else { return }
+    let cut = Date().timeIntervalSince1970 - Self.keep
+    samples = s.mapValues { $0.filter { $0.t >= cut } }.filter { !$0.value.isEmpty }
+  }
+  static func key(_ a: Account) -> String { (a.wid?.isEmpty == false ? a.wid! : a.name) }
+  /// Last hour of 5-hour usage for a sparkline.
+  func spark(_ key: String) -> [Double] { (samples[key] ?? []).suffix(60).map(\.five) }
+  func record(_ s: Status?) {
+    guard let s = s, Date().timeIntervalSince(last) >= Self.every else { return }
+    last = Date()
+    let now = Date().timeIntervalSince1970
+    for a in s.accounts where a.unknown != true && ((a.age ?? 0) < 600 || a.five >= 100) {
+      let k = Self.key(a)
+      var arr = samples[k] ?? []
+      arr.append(UsageSample(t: now, five: a.five, seven: a.seven, reset: a.resetIn > 0 ? now + Double(a.resetIn) : 0))
+      if let i = arr.firstIndex(where: { $0.t >= now - Self.keep }), i > 0 { arr.removeFirst(i) }
+      samples[k] = arr
+    }
+    save()
+  }
+  func save() {
+    guard let f = file, let d = try? JSONEncoder().encode(samples) else { return }
+    try? d.write(to: f, options: .atomic)
+  }
+  /// Snapshot tooling only: a plausible 24 h of readings ending at the current values (no file is written).
+  func debugSeed(_ key: String, five: Double, seven: Double, resetIn: Int, seed: Int) {
+    let now = Date().timeIntervalSince1970, nextReset = now + Double(max(resetIn, 600))
+    var out: [UsageSample] = []
+    var t = now - Self.keep
+    var x = UInt64(truncatingIfNeeded: seed &* 2654435761 &+ 7)
+    func rnd() -> Double { x = x &* 6364136223846793005 &+ 1442695040888963407; return Double((x >> 33) % 1000) / 1000 }
+    let rates = (0..<6).map { _ in 6 + rnd() * 22 }   // % per hour in each 5-hour window
+    while t <= now {
+      let w = Int(floor((nextReset - t) / (5 * 3600)))           // 0 = current window
+      let start = nextReset - Double(w + 1) * 5 * 3600
+      let inWin = (t - start) / 3600
+      var v: Double
+      if w == 0 { let span = (now - start) / 3600; v = span > 0 ? five * min(1, inWin / span) : five }
+      else { v = min(100, inWin * rates[min(w, rates.count - 1)]) }
+      if !(w == 2 && inWin > 1.5 && inWin < 2.3) {   // the panel was closed for a while: a gap in the line
+        out.append(UsageSample(t: t, five: (v * 10).rounded() / 10, seven: max(0, seven - (now - t) / Self.keep * 9), reset: nextReset - Double(w) * 5 * 3600))
+      }
+      t += 300
+    }
+    samples[key] = out
+  }
+}
+
+/// Burn rate, time to the 5-hour limit and the reset markers, from the samples.
+struct WorkerStats {
+  let a: Account?
+  let samples: [UsageSample]
+  let now = Date().timeIntervalSince1970
+  var limited: Bool { (a?.five ?? 0) >= 100 }
+  /// Times where a 5-hour window reset between two samples.
+  var resets: [Double] {
+    var out: [Double] = []
+    for (p, c) in zip(samples, samples.dropFirst()) {
+      if (p.reset > 0 && p.reset <= c.t + 30) || p.five - c.five >= 15 { out.append(p.reset > 0 && p.reset <= c.t + 30 ? max(p.t, p.reset) : c.t) }
+    }
+    return out
+  }
+  /// % of the 5-hour window used per hour over the last 90 min of the current window (nil until there are ≥ 10 min of readings).
+  var burn: Double? {
+    let from = max(now - 90 * 60, resets.last ?? 0)
+    let s = samples.filter { $0.t >= from }
+    guard let f = s.first, let l = s.last, l.t - f.t >= 600 else { return nil }
+    return max(0, (l.five - f.five) / ((l.t - f.t) / 3600))
+  }
+  /// Seconds until 100 % at the current rate; nil when not burning.
+  var limitIn: Int? {
+    guard let a = a, !limited, let b = burn, b >= 0.2 else { return nil }
+    return Int((100 - a.five) / b * 3600)
+  }
+  var resetsFirst: Bool { if let l = limitIn, let a = a, a.resetIn > 0 { return l > a.resetIn }; return false }
+  var limitText: String {
+    if limited { return "at limit" }
+    guard burn != nil else { return "—" }
+    guard let l = limitIn else { return "not at this rate" }
+    return resetsFirst ? "resets first" : "~" + approx(l)
+  }
+  var burnText: String { burn.map { String(format: $0 >= 10 ? "%.0f%%/h" : "%.1f%%/h", $0) } ?? "—" }
 }
 
 // MARK: - Formatting and derived text
 
+/// Coarse duration for estimates: "53m", "3h 48m".
+func approx(_ s: Int) -> String { s >= 3600 ? "\(s / 3600)h \(s % 3600 / 60)m" : "\(max(1, s / 60))m" }
 func dur(_ s: Int) -> String { s >= 3600 ? "\(s / 3600)h \(s % 3600 / 60)m" : s >= 60 ? "\(s / 60)m \(s % 60)s" : "\(s)s" }
 func secs(_ s: Double) -> String { s < 0 ? "" : s < 60 ? String(format: "%.1fs", s) : dur(Int(s)) }
 func tok(_ t: Int) -> String { t >= 1_000_000 ? String(format: "%.1fM", Double(t) / 1e6) : "\(t / 1000)k" }
@@ -518,6 +726,250 @@ struct TaskDetails: View {
   }
 }
 
+// MARK: - Worker badge, colour key, usage graph and the Workers drawer (styled per layout)
+
+/// The worker's badge in its own colour; the tooltip names the colour and gives the whole colour key.
+struct WorkerBadge: View {
+  @Environment(\.theme) var th
+  @Environment(\.workers) var wp
+  let label: String; var wid: String? = nil; var size: CGFloat = 11.5
+  var body: some View {
+    if let c = wp.of(wid, label: label) {
+      let r: CGFloat = th.layout == .mission ? 2 : 20
+      let font: Font = th.layout == .paper ? th.text(size + 0.5, 600) : th.layout == .mission ? th.mono(size, 600) : th.mono(size, 800)
+      Text(th.layout == .studio ? label.uppercased() : label).font(font).lineLimit(1)
+        .tracking(th.layout == .studio ? 0.6 : 0)
+        .padding(.horizontal, th.layout == .mission ? 6 : 8).padding(.vertical, th.layout == .mission ? 2 : 3)
+        .foregroundColor(c.onFill).background(RoundedRectangle(cornerRadius: r).fill(c.fill))
+        .overlay(RoundedRectangle(cornerRadius: r).stroke(c.stroke, lineWidth: 1)).fixedSize()
+        .help("\(c.wid) · \(c.name): \(c.hueName) everywhere on this panel.\nColour key: \(wp.key)")
+    } else {
+      Pill(text: label, role: .neutral, size: size).help(label)
+    }
+  }
+}
+
+/// A small square in the worker's colour (with the id next to it when `id` is set).
+struct WorkerDot: View {
+  @Environment(\.workers) var wp
+  let wid: String?; var label: String? = nil; var lcd = false; var size: CGFloat = 9
+  var body: some View {
+    if let c = wp.of(wid, label: label) {
+      RoundedRectangle(cornerRadius: 2).fill(lcd ? c.lcd : c.ink).frame(width: size, height: size)
+        .help("\(c.wid) · \(c.name): \(c.hueName)")
+    }
+  }
+}
+
+/// Colour key: "■ W0 ■ W1 …" in each worker's colour.
+struct WorkerKeyRow: View {
+  @Environment(\.theme) var th
+  @Environment(\.workers) var wp
+  var lcd = false
+  var body: some View {
+    HStack(spacing: S.s) {
+      ForEach(wp.workers) { w in
+        if let c = wp.of(w.id) {
+          HStack(spacing: S.xs) {
+            RoundedRectangle(cornerRadius: 2).fill(lcd ? c.lcd : c.ink).frame(width: 9, height: 9)
+            Text(w.id).font(th.mono(11.5, 700)).foregroundColor(lcd ? c.lcd : c.ink)
+          }.help("\(w.id) · \(w.name): \(c.hueName)")
+        }
+      }
+    }.fixedSize()
+  }
+}
+
+/// 5-hour (solid) and 7-day (dashed) usage over time with reset markers. Studio draws it as a dot-matrix LCD.
+struct UsageGraph: View {
+  @Environment(\.theme) var th
+  let samples: [UsageSample]; let resets: [Double]; let color: Color
+  var height: CGFloat = 64
+  static func span(_ s: [UsageSample]) -> Double {
+    let now = Date().timeIntervalSince1970
+    return min(24 * 3600, max(3 * 3600, now - (s.first?.t ?? now)))
+  }
+  var body: some View {
+    let now = Date().timeIntervalSince1970, span = Self.span(samples), t0 = now - span
+    let resetColor = th.layout == .studio ? Color.white.opacity(0.45) : th.faint
+    Canvas { ctx, size in
+      let W = size.width, H = size.height
+      let xOf: (Double) -> CGFloat = { CGFloat(($0 - t0) / span) * W }
+      if th.layout == .studio {
+        // Dot matrix: 5 px pitch. 5h fills columns from the bottom; 7d is one bright dot per column; resets light a dashed column.
+        let pitch: CGFloat = 5, dot: CGFloat = 3
+        let cols = Int(W / pitch), rows = Int(H / pitch)
+        for ci in 0..<cols {
+          let a = t0 + span * Double(ci) / Double(cols), b = t0 + span * Double(ci + 1) / Double(cols)
+          let bucket = samples.filter { $0.t >= a && $0.t < b }
+          let near = bucket.isEmpty ? samples.last(where: { $0.t < a && a - $0.t < 600 }) : nil
+          let v5 = bucket.map(\.five).max() ?? near?.five, v7 = bucket.last?.seven ?? near?.seven
+          let isReset = resets.contains { $0 >= a && $0 < b }
+          let lit = v5.map { Int(($0 / 100 * Double(rows)).rounded()) } ?? -1
+          let r7 = v7.map { max(0, Int(($0 / 100 * Double(rows)).rounded()) - 1) } ?? -1
+          for ri in 0..<rows {
+            let rect = CGRect(x: CGFloat(ci) * pitch + 1, y: H - CGFloat(ri + 1) * pitch + 1, width: dot, height: dot)
+            let c: Color
+            if isReset && ri % 2 == 0 { c = resetColor }
+            else if ri == r7 { c = .white.opacity(0.85) }
+            else if ri < lit { c = color.opacity(ri == lit - 1 ? 1 : 0.78) }
+            else { c = .white.opacity(0.07) }
+            ctx.fill(Path(roundedRect: rect, cornerRadius: 0.8), with: .color(c))
+          }
+        }
+        return
+      }
+      // Line chart (Mission Control, Paper)
+      for g in [0.25, 0.5, 0.75, 1.0] {
+        let y = H * (1 - g)
+        ctx.stroke(Path { $0.move(to: CGPoint(x: 0, y: y)); $0.addLine(to: CGPoint(x: W, y: y)) }, with: .color(th.line.opacity(g == 1 ? 1 : 0.8)),
+                   style: StrokeStyle(lineWidth: 1, dash: th.layout == .paper && g < 1 ? [2, 4] : []))
+      }
+      let yOf: (Double) -> CGFloat = { H * (1 - CGFloat(min(100, max(0, $0)) / 100)) }
+      // split into runs where the panel was running (a gap > 15 min breaks the line)
+      var runs: [[UsageSample]] = []
+      for s in samples where s.t >= t0 - 300 {
+        if let l = runs.last?.last, s.t - l.t <= 900 { runs[runs.count - 1].append(s) } else { runs.append([s]) }
+      }
+      for run in runs {
+        guard let f = run.first, let l = run.last else { continue }
+        var area = Path(); area.move(to: CGPoint(x: xOf(f.t), y: H))
+        for s in run { area.addLine(to: CGPoint(x: xOf(s.t), y: yOf(s.five))) }
+        area.addLine(to: CGPoint(x: xOf(l.t), y: H)); area.closeSubpath()
+        if th.layout == .paper {
+          ctx.fill(area, with: .linearGradient(Gradient(colors: [color.opacity(th.dark ? 0.35 : 0.22), color.opacity(0.02)]), startPoint: .zero, endPoint: CGPoint(x: 0, y: H)))
+        } else { ctx.fill(area, with: .color(color.opacity(th.dark ? 0.16 : 0.10))) }
+        var five = Path(), seven = Path()
+        for (i, s) in run.enumerated() {
+          let p5 = CGPoint(x: xOf(s.t), y: yOf(s.five)), p7 = CGPoint(x: xOf(s.t), y: yOf(s.seven))
+          if i == 0 { five.move(to: p5); seven.move(to: p7) } else { five.addLine(to: p5); seven.addLine(to: p7) }
+        }
+        ctx.stroke(seven, with: .color(color.opacity(0.75)), style: StrokeStyle(lineWidth: 1.25, lineCap: .round, dash: [3, 3]))
+        ctx.stroke(five, with: .color(color), style: StrokeStyle(lineWidth: th.layout == .paper ? 2 : 1.5, lineCap: .round, lineJoin: .round))
+      }
+      for r in resets where r >= t0 {
+        let x = xOf(r)
+        ctx.stroke(Path { $0.move(to: CGPoint(x: x, y: 0)); $0.addLine(to: CGPoint(x: x, y: H)) }, with: .color(resetColor), style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
+      }
+      if let l = samples.last {
+        let p = CGPoint(x: xOf(l.t), y: yOf(l.five))
+        ctx.fill(Path(ellipseIn: CGRect(x: p.x - 3, y: p.y - 3, width: 6, height: 6)), with: .color(color))
+      }
+    }
+    .frame(height: height)
+  }
+}
+
+/// Caption under a graph: span on the left, legend in the middle, "now" on the right.
+struct GraphCaption: View {
+  @Environment(\.theme) var th
+  let samples: [UsageSample]; let color: Color; var lcd = false
+  var body: some View {
+    let hours = Int((UsageGraph.span(samples) / 3600).rounded())
+    let dim = lcd ? th.lcdDim : th.dim
+    let reset = lcd ? Color.white.opacity(0.6) : th.faint
+    HStack(spacing: S.s) {
+      Text(th.layout == .studio ? "−\(hours)H" : "−\(hours) h").foregroundColor(dim)
+      Spacer(minLength: S.xs)
+      HStack(spacing: S.xs) { Rectangle().fill(color).frame(width: 12, height: 3); Text(th.layout == .studio ? "5H" : "5-hour").foregroundColor(dim) }
+      HStack(spacing: S.xs) {
+        if lcd { Circle().fill(Color.white.opacity(0.85)).frame(width: 4, height: 4) }
+        else { HStack(spacing: 2) { ForEach(0..<3, id: \.self) { _ in Rectangle().fill(color.opacity(0.75)).frame(width: 3, height: 1.5) } } }
+        Text(th.layout == .studio ? "7D" : "7-day").foregroundColor(dim)
+      }
+      HStack(spacing: S.xs) { Text("┆").foregroundColor(reset); Text(th.layout == .studio ? "RESET" : "reset").foregroundColor(dim) }
+      Spacer(minLength: S.xs)
+      Text(th.layout == .studio ? "NOW" : "now").foregroundColor(dim)
+    }.font(th.mono(11.5, th.layout == .studio ? 700 : 400)).lineLimit(1)
+  }
+}
+
+/// The facts the drawer shows for one worker, shared by all layouts.
+struct WorkerFacts {
+  let w: Worker; let a: Account?; let st: WorkerStats
+  var five: String { a.map { $0.unknown == true ? "—" : $0.five >= 100 ? "LIMIT" : "\(Int($0.five))%" } ?? "—" }
+  var seven: String { a.map { $0.unknown == true ? "—" : "\(Int($0.seven))%" } ?? "—" }
+  var resetIn: String { a.map { $0.resetIn > 0 ? approx($0.resetIn) : "—" } ?? "—" }
+  var liveLanes: [Lane] { w.lanes.filter { !$0.stale } }
+  var lanesValue: String { w.lanes.isEmpty ? "0" : liveLanes.count == w.lanes.count ? "\(w.lanes.count)" : "\(liveLanes.count) +\(w.lanes.count - liveLanes.count) stale" }
+  var doneValue: String { "\(w.doneToday)" + ((w.failedToday ?? 0) > 0 ? " · \(w.failedToday!) failed" : "") }
+  var idleValue: String { w.idleSecs == 0 ? "busy" : w.idleSecs < 0 ? "—" : approx(w.idleSecs) }
+  /// Idle for 10+ minutes while the 5-hour window still has room: worth giving it work.
+  var spare: String? {
+    guard let a = a, a.unknown != true, !st.limited, w.idleSecs >= 600, a.five < 85 else { return nil }
+    return "Spare capacity: idle \(approx(w.idleSecs)) with \(100 - Int(a.five))% of the 5-hour window left"
+  }
+  /// (label, value, tooltip)
+  var cells: [(String, String, String)] {
+    [("Resets in", resetIn, "Time until the 5-hour window resets"),
+     ("Burn", st.burnText, "5-hour usage per hour over the last 90 minutes"),
+     ("Limit in", st.limitText, "Estimated time until 100% at the current rate"),
+     ("Lanes now", lanesValue, "Jobs running in parallel now (stale = no update for 30+ min)"),
+     ("Done today", doneValue, "Jobs this worker finished since midnight"),
+     ("Idle", idleValue, "Time since its last job ended, while nothing is running")]
+  }
+}
+
+struct WorkersDrawer: View {
+  @Environment(\.theme) var th
+  @Environment(\.workers) var wp
+  let s: Status
+  @ObservedObject var history: UsageHistory
+  var body: some View {
+    VStack(alignment: .leading, spacing: th.layout == .mission ? 0 : S.m) {
+      ForEach(wp.workers) { w in
+        let a = s.accounts.first { ($0.wid ?? "") == w.id } ?? s.accounts.first { $0.name == w.account }
+        let samples = a.map { history.samples[UsageHistory.key($0)] ?? [] } ?? []
+        let f = WorkerFacts(w: w, a: a, st: WorkerStats(a: a, samples: samples))
+        if let c = wp.of(w.id) {
+          switch th.layout {
+          case .studio: StudioWorker(f: f, c: c, samples: samples)
+          case .mission: MCWorker(f: f, c: c, samples: samples)
+          case .paper: PaperWorker(f: f, c: c, samples: samples)
+          }
+        }
+      }
+    }
+  }
+}
+
+/// Lane and pipeline lines, shared: ▶ running, ◌ stale, ⧗ queued, ✋ blocked, ? likely.
+struct WorkerJobs: View {
+  @Environment(\.theme) var th
+  let f: WorkerFacts; let color: Color; var text: Color? = nil; var dim: Color? = nil
+  var body: some View {
+    let tx = text ?? th.text, dm = dim ?? th.faint
+    VStack(alignment: .leading, spacing: S.xs + 2) {
+      if f.w.lanes.isEmpty && f.w.pipeline.isEmpty && f.w.doneIds.isEmpty {
+        Text(th.layout == .studio ? "NO JOBS YET TODAY" : "No jobs yet today").font(th.mono(12.5)).foregroundColor(dm)
+      }
+      ForEach(f.w.lanes, id: \.self) { l in
+        HStack(alignment: .firstTextBaseline, spacing: S.s) {
+          Text(l.stale ? "◌" : "▶").font(th.mono(12.5, 800)).foregroundColor(l.stale ? dm : color).frame(width: 14)
+          Text(l.id).font(th.mono(13, 700)).foregroundColor(l.stale ? dm : color).fixedSize()
+          Text(l.title + (l.stale ? " · stale" : "")).font(th.text(13)).foregroundColor(l.stale ? dm : tx).lineLimit(1).help(l.title)
+        }
+      }
+      if !f.w.pipeline.isEmpty {
+        Text(th.layout == .paper ? "Up next" : "UP NEXT").font(th.layout == .paper ? th.text(13, 600) : th.mono(11.5, 700)).tracking(th.layout == .paper ? 0 : 1.2).foregroundColor(dm).padding(.top, S.xxs)
+        ForEach(f.w.pipeline, id: \.self) { q in
+          HStack(alignment: .firstTextBaseline, spacing: S.s) {
+            Text(q.blocked ? "✋" : q.likely ? "?" : "⧗").font(th.mono(12.5, 800)).foregroundColor(dm).frame(width: 14)
+            Text(q.id).font(th.mono(13, 700)).foregroundColor(tx).fixedSize()
+            Text(q.title + (q.likely ? " · likely" : "") + (q.blocked ? " · needs you" : "")).font(th.text(13)).foregroundColor(dm).lineLimit(1).help(q.title)
+          }
+        }
+      }
+      if !f.w.doneIds.isEmpty {
+        HStack(alignment: .firstTextBaseline, spacing: S.s) {
+          Text("✓").font(th.mono(12.5, 800)).foregroundColor(dm).frame(width: 14)
+          Text((th.layout == .paper ? "Finished today: " : "DONE: ") + f.w.doneIds.suffix(6).joined(separator: " · ")).font(th.mono(12.5)).foregroundColor(dm).lineLimit(1)
+        }
+      }
+    }
+  }
+}
+
 // MARK: - Theme picker (styled per layout). Tooltips name the full theme, e.g. "Studio · Light".
 
 struct ThemePicker: View {
@@ -622,10 +1074,12 @@ struct CollapseButton: View {
 struct LCD<Content: View>: View {
   @Environment(\.theme) var th
   let content: Content
-  init(@ViewBuilder content: () -> Content) { self.content = content() }
+  var edge: Color? = nil
+  init(edge: Color? = nil, @ViewBuilder content: () -> Content) { self.edge = edge; self.content = content() }
   var body: some View {
-    content.padding(.horizontal, S.m + 2).padding(.vertical, S.m).frame(maxWidth: .infinity, alignment: .leading)
+    content.padding(.horizontal, S.m + 2).padding(.leading, edge == nil ? 0 : 4).padding(.vertical, S.m).frame(maxWidth: .infinity, alignment: .leading)
       .background(RoundedRectangle(cornerRadius: 14).fill(th.lcd))
+      .overlay { if let e = edge { RoundedRectangle(cornerRadius: 14).fill(e).mask(HStack(spacing: 0) { Rectangle().frame(width: 9); Spacer(minLength: 0) }).allowsHitTesting(false) } }
       .overlay(Canvas { ctx, size in   // scanlines
         var y: CGFloat = 0
         while y < size.height { ctx.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 1)), with: .color(.white.opacity(0.03))); y += 3 }
@@ -638,12 +1092,15 @@ struct LCD<Content: View>: View {
 /// Key surface: ink border + solid drop shadow.
 struct KeyStyle: ViewModifier {
   let th: Theme; var fill: Color? = nil; var highlight = false; var dashed = false
+  /// Worker colour: a stripe down the left edge and the key-cap's drop edge.
+  var edge: Color? = nil
   func body(content: Content) -> some View {
     let shape = RoundedRectangle(cornerRadius: 14)
-    content.padding(.horizontal, S.m + 2).padding(.vertical, S.m).frame(maxWidth: .infinity, alignment: .leading)
+    content.padding(.horizontal, S.m + 2).padding(.leading, edge == nil ? 0 : 4).padding(.vertical, S.m).frame(maxWidth: .infinity, alignment: .leading)
       .background(shape.fill(fill ?? th.surface))
+      .overlay { if let e = edge { shape.fill(e).mask(HStack(spacing: 0) { Rectangle().frame(width: 7); Spacer(minLength: 0) }).allowsHitTesting(false) } }
       .overlay(shape.stroke(highlight ? th.accent : th.ink, style: StrokeStyle(lineWidth: 2, dash: dashed ? [5, 3] : [])))
-      .background(dashed ? nil : shape.fill(th.ink).offset(y: 4))
+      .background(dashed ? nil : shape.fill(edge ?? th.ink).overlay(shape.stroke(th.ink, lineWidth: 2)).offset(y: 4))
       .padding(.bottom, dashed ? 0 : 4)
   }
 }
@@ -651,17 +1108,22 @@ struct KeyStyle: ViewModifier {
 struct StudioLabel: View {
   @Environment(\.theme) var th
   let title: String; var count: String? = nil
+  /// Set for a section that expands: shows a chevron and the worker colour key.
+  var open: Bool? = nil
   var body: some View {
     HStack(spacing: S.s) {
-      Text(title).font(th.mono(11.5, 800)).tracking(2.2).foregroundColor(th.faint).lineLimit(1)
+      if let o = open { Image(systemName: o ? "chevron.down" : "chevron.right").font(.system(size: 11, weight: .heavy)).foregroundColor(th.accentText) }
+      Text(title).font(th.mono(11.5, 800)).tracking(2.2).foregroundColor(open == nil ? th.faint : th.text).lineLimit(1)
       Rectangle().fill(th.line).frame(height: 1)
+      if open != nil { WorkerKeyRow() }
       if let c = count { Text(c.uppercased()).font(th.mono(11.5, 800)).tracking(1.6).foregroundColor(th.accentText) }
-    }
+    }.contentShape(Rectangle())
   }
 }
 
 struct StudioTask: View {
   @Environment(\.theme) var th
+  @Environment(\.workers) var wp
   let t: RunningTask
   @State private var expanded = false
   @State private var raw = false
@@ -671,7 +1133,7 @@ struct StudioTask: View {
         NumTag(text: t.num).padding(.top, 2)
         Wrap(text: t.title, font: th.title(16, 700), size: 16)
         Spacer(minLength: S.xs)
-        Pill(text: t.account, role: th.workerRole(t.account))
+        WorkerBadge(label: t.account, wid: t.wid)
       }
       if let sm = t.summary, !sm.isEmpty { Wrap(text: sm, font: th.text(13.5, 400), size: 13.5, color: th.dim) }
       if let tg = t.tags, !tg.isEmpty { Flow { ForEach(tg, id: \.self) { Pill(text: $0, role: th.tagRole($0)) } } }
@@ -687,15 +1149,18 @@ struct StudioTask: View {
       if !expanded, let m = firstMetricLine(t) { Text(m).font(th.mono(12.5, 700)).foregroundColor(th.text).lineLimit(1).help(m) }
       if expanded { TaskDetails(t: t, raw: $raw) }
     }
-    .modifier(KeyStyle(th: th, highlight: expanded))
+    .modifier(KeyStyle(th: th, highlight: expanded, edge: wp.of(t.wid, label: t.account)?.ink))
     .contentShape(Rectangle()).onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
   }
 }
 
 struct StudioPanel: View {
   @Environment(\.theme) var th
+  @Environment(\.workers) var wp
   @ObservedObject var store: Store
   @ObservedObject var ts: ThemeStore
+  @ObservedObject var history: UsageHistory
+  @ObservedObject var prefs: UIPrefs
   var body: some View {
     let s = store.status
     VStack(alignment: .leading, spacing: S.l) {
@@ -721,9 +1186,26 @@ struct StudioPanel: View {
               if blocked > 0 { Text(c ? "✋\(blocked)" : "\(blocked) NEED YOU").foregroundColor(hex(0xFF7A45)) }
               if !s.agents.isEmpty { Text(c ? "◆\(s.agents.count)" : "\(s.agents.count) AGENTS") }
               if store.collapsed {
-                ForEach(s.accounts) { a in Text("\(splitWorker(a.name).0) \(a.five >= 100 ? "LIMIT" : "\(Int(a.five))%")").foregroundColor(a.five >= 100 ? hex(0xFF6B5E) : hex(0xBDBDBD)) }
+                ForEach(s.accounts) { a in Text("\(splitWorker(a.name).0) \(a.five >= 100 ? "LIMIT" : "\(Int(a.five))%")").foregroundColor(a.five >= 100 ? hex(0xFF6B5E) : wp.of(a.wid, label: a.name)?.lcd ?? hex(0xBDBDBD)) }
               }
             }.font(th.mono(11.5, 700)).tracking(1).foregroundColor(hex(0xBDBDBD)).lineLimit(1)
+            if !store.collapsed && !wp.workers.isEmpty {
+              // Colour key and per-worker 5-hour usage; click to open the Workers drawer.
+              Button(action: { withAnimation(.easeInOut(duration: 0.2)) { prefs.workersOpen.toggle() } }) {
+                HStack(spacing: S.m) {
+                  ForEach(wp.workers) { w in
+                    let a = s.accounts.first { ($0.wid ?? "") == w.id }
+                    HStack(spacing: S.xs) {
+                      WorkerDot(wid: w.id, lcd: true, size: 8)
+                      Text("\(w.id) \(a.map { $0.unknown == true ? "—" : $0.five >= 100 ? "LIMIT" : "\(Int($0.five))%" } ?? "—")")
+                        .foregroundColor(a.map { $0.five >= 100 } == true ? hex(0xFF6B5E) : wp.of(w.id)?.lcd ?? hex(0xBDBDBD))
+                    }
+                  }
+                  Spacer(minLength: 0)
+                  Text(prefs.workersOpen ? "WORKERS ▾" : "WORKERS ▸").foregroundColor(th.lcdDim)
+                }.font(th.mono(11.5, 700)).tracking(1).lineLimit(1).contentShape(Rectangle())
+              }.buttonStyle(.plain).help("Workers: click to \(prefs.workersOpen ? "close" : "open") the drawer.  Colour key: \(wp.key)")
+            }
           }
         }
       }
@@ -735,20 +1217,24 @@ struct StudioPanel: View {
   }
   @ViewBuilder func sections(_ s: Status) -> some View {
     VStack(alignment: .leading, spacing: S.s + 2) {
-      StudioLabel(title: "ACCOUNTS", count: "\(s.accounts.count)")
+      Button(action: { withAnimation(.easeInOut(duration: 0.2)) { prefs.workersOpen.toggle() } }) {
+        StudioLabel(title: "WORKERS", open: prefs.workersOpen)
+      }.buttonStyle(.plain).help(prefs.workersOpen ? "Close the Workers drawer" : "Open the Workers drawer: usage graph, burn rate, lanes and pipeline per worker")
+      if prefs.workersOpen && !wp.workers.isEmpty { WorkersDrawer(s: s, history: history) } else {
       ForEach(s.accounts) { a in
         let stale = (a.age ?? 0) >= 600
-        LCD {
+        let wc = wp.of(a.wid, label: a.name)
+        LCD(edge: wc?.lcd) {
           VStack(alignment: .leading, spacing: S.xs + 2) {
             HStack(alignment: .firstTextBaseline, spacing: S.s) {
-              Text(a.name).font(th.mono(13, 700)).foregroundColor(.white).lineLimit(1).help(a.name)
-              Pill(text: a.tool, role: a.tool == "Claude" ? .claude : .codex, size: 11)
+              Text(a.name).font(th.mono(13, 700)).foregroundColor(wc?.lcd ?? .white).lineLimit(1).help(a.name)
+              Pill(text: a.tool, role: .neutral, size: 11)
               Spacer(minLength: S.xs)
               if a.unknown == true { Text("not known yet").font(th.mono(12.5)).foregroundColor(th.lcdDim) }
               else if a.five >= 100 { Text("LIMIT → \(dur(a.resetIn))").font(th.mono(12.5, 800)).foregroundColor(hex(0xFF6B5E)) }
               else { Text("5h \(Int(a.five))% · 7d \(Int(a.seven))%").font(th.mono(12.5, 600)).foregroundColor(stale ? th.lcdDim : hex(0xDDDDDD)) }
             }
-            Bar(value: a.unknown == true ? 0 : a.five / 100, color: stale ? hex(0x777777) : a.five >= 90 ? hex(0xFF6B5E) : a.five >= 60 ? hex(0xE3A13A) : hex(0x35E07F),
+            Bar(value: a.unknown == true ? 0 : a.five / 100, color: stale ? hex(0x777777) : a.five >= 90 ? hex(0xFF6B5E) : wc?.lcd ?? (a.five >= 60 ? hex(0xE3A13A) : hex(0x35E07F)),
                 track: hex(0x2A2A2A), height: 6, radius: 3)
             HStack(spacing: S.s) {
               if a.resetIn > 0 && a.five < 100 && a.unknown != true { Text("↻ 5-hour window resets in \(dur(a.resetIn))") }
@@ -756,6 +1242,7 @@ struct StudioPanel: View {
             }.font(th.mono(11.5)).foregroundColor(th.lcdDim)
           }
         }
+      }
       }
     }
     VStack(alignment: .leading, spacing: S.s + 2) {
@@ -772,7 +1259,7 @@ struct StudioPanel: View {
               NumTag(text: q.num, muted: true).padding(.top, 2)
               Wrap(text: q.title, font: th.title(15, 700), size: 15)
               Spacer(minLength: S.xs)
-              if !q.worker.isEmpty { Pill(text: q.worker, role: th.workerRole(q.worker)) }
+              if !q.worker.isEmpty { WorkerBadge(label: q.worker, wid: q.wid) }
             }
             if !q.summary.isEmpty { Wrap(text: q.summary, font: th.text(13.5), size: 13.5, color: th.dim) }
             HStack(alignment: .firstTextBaseline, spacing: S.s) {
@@ -797,9 +1284,10 @@ struct StudioPanel: View {
           ForEach(s.finished) { d in
             HStack(alignment: .firstTextBaseline, spacing: S.s) {
               Text(d.ok ? "✓" : "✕").font(th.mono(13, 800)).foregroundColor(d.ok ? hex(0x35E07F) : hex(0xFF6B5E)).frame(width: 14)
-              Text(d.tid).font(th.mono(12.5, 800)).foregroundColor(hex(0xFF7A45)).frame(minWidth: 30, alignment: .leading)
+              Text(d.tid).font(th.mono(12.5, 800)).foregroundColor(hex(0xF4F4F4)).frame(minWidth: 30, alignment: .leading)
               Text(d.title).font(th.mono(12.5)).foregroundColor(hex(0xDDDDDD)).lineLimit(1).help(d.title)
               Spacer(minLength: S.s)
+              if let c = wp.of(d.wid) { Text(c.wid).font(th.mono(12.5, 800)).foregroundColor(c.lcd).fixedSize().help("\(c.wid) · \(c.name)") }
               Text(d.time).font(th.mono(12.5)).foregroundColor(th.lcdDim).fixedSize()
             }
           }
@@ -872,13 +1360,17 @@ struct HealthRows: View {
 struct MCHead: View {
   @Environment(\.theme) var th
   let title: String; var count: String? = nil; var trailing: String? = nil
+  /// Set for a section that expands: shows a chevron and the worker colour key.
+  var open: Bool? = nil
   var body: some View {
     HStack(spacing: S.s) {
-      Text(title).font(th.mono(11.5, 600)).tracking(2.4).foregroundColor(th.dim).lineLimit(1)
+      if let o = open { Image(systemName: o ? "chevron.down" : "chevron.right").font(.system(size: 10, weight: .bold)).foregroundColor(th.accent) }
+      Text(title).font(th.mono(11.5, 600)).tracking(2.4).foregroundColor(open == nil ? th.dim : th.text).lineLimit(1)
       if let c = count { Text(c.uppercased()).font(th.mono(11.5, 600)).tracking(1).foregroundColor(th.accent) }
       Rectangle().fill(th.line).frame(height: 1)
+      if open != nil { WorkerKeyRow() }
       if let t = trailing { Text(t).font(th.mono(11.5)).foregroundColor(th.dim) }
-    }.padding(.horizontal, S.m).padding(.top, S.l).padding(.bottom, S.s)
+    }.padding(.horizontal, S.m).padding(.top, S.l).padding(.bottom, S.s).contentShape(Rectangle())
   }
 }
 
@@ -951,6 +1443,7 @@ struct MCKpi: View {
 
 struct MCTaskRow: View {
   @Environment(\.theme) var th
+  @Environment(\.workers) var wp
   let t: RunningTask
   @State private var expanded = false
   @State private var raw = false
@@ -975,7 +1468,7 @@ struct MCTaskRow: View {
       }
       Bar(value: progressOf(t), color: th.progress, track: th.track, height: 5, radius: 0, segments: 32).padding(.leading, 17)
       Flow(spacing: 6, lineSpacing: 6) {
-        Pill(text: t.account, role: th.workerRole(t.account))
+        WorkerBadge(label: t.account, wid: t.wid)
         ForEach(t.tags ?? [], id: \.self) { Pill(text: $0, role: th.tagRole($0)) }
       }.padding(.leading, 17)
       if !expanded, let m = firstMetricLine(t) { Text(m).font(th.mono(12, 600)).foregroundColor(th.text).lineLimit(1).padding(.leading, 17).help(m) }
@@ -986,16 +1479,21 @@ struct MCTaskRow: View {
     }
     .padding(.horizontal, S.m).padding(.vertical, 10)
     .background(expanded ? th.bg2 : Color.clear)
-    .overlay(alignment: .leading) { if expanded { Rectangle().fill(th.accent).frame(width: 2) } }
+    .overlay(alignment: .leading) {
+      if let c = wp.of(t.wid, label: t.account) { Rectangle().fill(c.ink).frame(width: expanded ? 4 : 3) }
+      else if expanded { Rectangle().fill(th.accent).frame(width: 2) }
+    }
     .contentShape(Rectangle()).onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
   }
 }
 
 struct MissionPanel: View {
   @Environment(\.theme) var th
+  @Environment(\.workers) var wp
   @ObservedObject var store: Store
   @ObservedObject var ts: ThemeStore
   @ObservedObject var history: UsageHistory
+  @ObservedObject var prefs: UIPrefs
   var tickerText: String {
     guard let s = store.status else { return "waiting for status…" }
     var parts = s.finished.map { "\($0.time)  \($0.ok ? "DONE" : "FAIL") \($0.tid) \($0.title)" }
@@ -1025,7 +1523,12 @@ struct MissionPanel: View {
         HStack(spacing: S.m) {
           Text("▶\(s.running.count) run").foregroundColor(th.text)
           Text("⧗\(s.queued?.count ?? 0) wait").foregroundColor(th.accent)
-          ForEach(s.accounts) { a in Text("\(splitWorker(a.name).0) \(a.five >= 100 ? "LIMIT" : "\(Int(a.five))%")").foregroundColor(th.usage(a.five)) }
+          ForEach(s.accounts) { a in
+            HStack(spacing: S.xs) {
+              Text(splitWorker(a.name).0).foregroundColor(wp.of(a.wid, label: a.name)?.ink ?? th.text)
+              Text(a.five >= 100 ? "LIMIT" : "\(Int(a.five))%").foregroundColor(a.five >= 90 ? th.bad : th.text)
+            }
+          }
         }.font(th.mono(12.5, 600)).lineLimit(1).padding(.horizontal, S.m).padding(.vertical, 10)
       } else {
         Ticker(text: tickerText)
@@ -1060,18 +1563,22 @@ struct MissionPanel: View {
       Rule()
     }.fixedSize(horizontal: false, vertical: true)
 
-    MCHead(title: "ACCOUNTS", count: "\(s.accounts.count)", trailing: "5H BURN")
+    Button(action: { withAnimation(.easeInOut(duration: 0.2)) { prefs.workersOpen.toggle() } }) {
+      MCHead(title: "WORKERS", count: "\(s.accounts.count)", open: prefs.workersOpen)
+    }.buttonStyle(.plain).help(prefs.workersOpen ? "Close the Workers drawer" : "Open the Workers drawer: usage graph, burn rate, lanes and pipeline per worker")
+    if prefs.workersOpen && !wp.workers.isEmpty { Rule(); WorkersDrawer(s: s, history: history) } else {
     ForEach(s.accounts) { a in
       let (wid, rest) = splitWorker(a.name)
       let stale = (a.age ?? 0) >= 600
       let c = stale ? th.faint : th.usage(a.five)
+      let wc = wp.of(a.wid, label: a.name)
       HStack(spacing: 10) {
         LED(color: c, size: 7, glow: th.dark)
         VStack(alignment: .leading, spacing: 3) {
-          Text(wid).font(th.mono(14, 600)).foregroundColor(th.text)
+          Text(wid).font(th.mono(14, 600)).foregroundColor(wc?.ink ?? th.text)
           Text("\(a.tool) · \(rest)").font(th.mono(11.5)).foregroundColor(th.dim).lineLimit(1).help(a.name)
         }.frame(width: 150, alignment: .leading)
-        Sparkline(points: history.points[a.name] ?? [a.five], color: c).frame(height: 26)
+        Sparkline(points: { let p = history.spark(UsageHistory.key(a)); return p.isEmpty ? [a.five] : p }(), color: stale ? th.faint : wc?.ink ?? c).frame(height: 26)
         VStack(alignment: .trailing, spacing: 3) {
           Text(a.unknown == true ? "—" : "\(Int(a.five))%").font(th.mono(14, 600)).foregroundColor(a.five >= 100 ? th.bad : th.text)
           Text("5h · 7d \(Int(a.seven))%").font(th.mono(11.5)).foregroundColor(th.dim)
@@ -1081,7 +1588,9 @@ struct MissionPanel: View {
           Text(stale ? "read \(dur(a.age ?? 0)) ago" : "reset").font(th.mono(11.5)).foregroundColor(stale ? th.warn : th.dim).lineLimit(1)
         }.frame(width: 84, alignment: .trailing)
       }.padding(.horizontal, S.m).padding(.vertical, 9)
+      .overlay(alignment: .leading) { if let w = wc { Rectangle().fill(w.ink).frame(width: 3) } }
       Rule()
+    }
     }
 
     MCHead(title: "IN PROGRESS", count: "\(s.running.count)")
@@ -1102,7 +1611,7 @@ struct MissionPanel: View {
             Wrap(text: (item.blocked ? "✋ " : "⧗ ") + item.waitingFor, font: th.mono(12), size: 12, color: item.blocked ? th.warn : th.faint)
           }
           Spacer(minLength: S.xs)
-          if !item.worker.isEmpty { Pill(text: item.worker, role: th.workerRole(item.worker)) }
+          if !item.worker.isEmpty { WorkerBadge(label: item.worker, wid: item.wid) }
         }.padding(.horizontal, S.m).padding(.vertical, 9)
         Rule()
       }
@@ -1135,6 +1644,7 @@ struct MissionPanel: View {
         Text(d.tid).font(th.mono(12, 600)).foregroundColor(th.accent)
         Text(d.title).font(th.mono(12)).foregroundColor(th.text).lineLimit(1).help(d.title)
         Spacer(minLength: 0)
+        if let c = wp.of(d.wid) { Text(c.wid).font(th.mono(12, 600)).foregroundColor(c.ink).fixedSize().help("\(c.wid) · \(c.name)") }
       }.padding(.horizontal, S.m).padding(.vertical, 6)
       Rectangle().fill(th.line.opacity(0.7)).frame(height: 1)
     }
@@ -1208,19 +1718,25 @@ struct Kicker: View {
 
 struct PaperRing: View {
   @Environment(\.theme) var th
+  @Environment(\.workers) var wp
   let a: Account
   var body: some View {
     let stale = (a.age ?? 0) >= 600
-    let c = stale ? th.faint : th.usage(a.five)
+    // The ring is the worker's own colour; the number turns red near the limit.
+    let c = stale ? th.faint : a.five >= 90 ? th.bad : wp.of(a.wid, label: a.name)?.ink ?? th.usage(a.five)
     VStack(spacing: S.xs + 2) {
       ZStack {
         Circle().stroke(th.track, lineWidth: 7)
         if a.unknown != true {
           Circle().trim(from: 0, to: min(1, a.five / 100)).stroke(c, style: StrokeStyle(lineWidth: 7, lineCap: .round)).rotationEffect(.degrees(-90))
         }
-        Text(a.unknown == true ? "—" : "\(Int(a.five))%").font(th.mono(14, 600)).foregroundColor(th.text)
+        Text(a.unknown == true ? "—" : "\(Int(a.five))%").font(th.mono(14, 600)).foregroundColor(a.five >= 90 && !stale ? th.bad : th.text)
       }.frame(width: 64, height: 64)
-      Text(splitWorker(a.name).0 + " · " + a.tool).font(th.text(13, 600)).foregroundColor(th.text).lineLimit(1).help(a.name)
+      HStack(spacing: S.xs) {
+        WorkerDot(wid: a.wid, label: a.name, size: 8)
+        Text(splitWorker(a.name).0).font(th.text(13, 700)).foregroundColor(wp.of(a.wid, label: a.name)?.ink ?? th.text)
+        Text("· " + a.tool).font(th.text(13, 600)).foregroundColor(th.text)
+      }.lineLimit(1).help(a.name)
       Group {
         if a.five >= 100 { Text("resting · \(dur(a.resetIn))").foregroundColor(th.bad) }
         else if a.unknown == true { Text("not known yet") }
@@ -1233,6 +1749,7 @@ struct PaperRing: View {
 
 struct PaperTask: View {
   @Environment(\.theme) var th
+  @Environment(\.workers) var wp
   let t: RunningTask
   @State private var expanded = false
   @State private var raw = false
@@ -1255,20 +1772,23 @@ struct PaperTask: View {
       }
       if !expanded, let m = firstMetricLine(t) { Text(m).font(th.text(13.5, 600)).foregroundColor(th.text).lineLimit(1).help(m) }
       Flow {
-        Pill(text: t.account, role: th.workerRole(t.account))
+        WorkerBadge(label: t.account, wid: t.wid)
         ForEach(t.tags ?? [], id: \.self) { Pill(text: $0, role: th.tagRole($0)) }
       }.padding(.top, S.xs)
       if expanded { TaskDetails(t: t, raw: $raw).padding(.top, S.xs) }
     }
-    .modifier(PaperCard(th: th, highlight: expanded))
+    .modifier(PaperCard(th: th, edge: wp.of(t.wid, label: t.account)?.ink, highlight: expanded))
     .contentShape(Rectangle()).onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
   }
 }
 
 struct PaperPanel: View {
   @Environment(\.theme) var th
+  @Environment(\.workers) var wp
   @ObservedObject var store: Store
   @ObservedObject var ts: ThemeStore
+  @ObservedObject var history: UsageHistory
+  @ObservedObject var prefs: UIPrefs
   var greeting: String {
     let h = Calendar.current.component(.hour, from: Date())
     return h < 5 ? "Good night." : h < 12 ? "Good morning." : h < 17 ? "Good afternoon." : "Good evening."
@@ -1325,10 +1845,19 @@ struct PaperPanel: View {
       PaperH2(title: "Needs you", count: "\(q.filter { $0.blocked }.count) things")
       ForEach(q.filter { $0.blocked }) { paperQueued($0) }
     }
-    PaperH2(title: "Accounts", count: "\(s.accounts.count)")
-    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: S.s), count: min(4, max(1, s.accounts.count))), spacing: S.m) {
-      ForEach(s.accounts) { PaperRing(a: $0) }
-    }.modifier(PaperCard(th: th))
+    Button(action: { withAnimation(.easeInOut(duration: 0.2)) { prefs.workersOpen.toggle() } }) {
+      HStack(alignment: .firstTextBaseline, spacing: S.s) {
+        Image(systemName: prefs.workersOpen ? "chevron.down" : "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundColor(th.accentText)
+        Text("Workers").font(th.title(20, 600)).foregroundColor(th.text)
+        Spacer()
+        WorkerKeyRow()
+      }.padding(.top, S.s).contentShape(Rectangle())
+    }.buttonStyle(.plain).help(prefs.workersOpen ? "Close the Workers drawer" : "Open the Workers drawer: usage graph, burn rate, lanes and pipeline per worker")
+    if prefs.workersOpen && !wp.workers.isEmpty { WorkersDrawer(s: s, history: history) } else {
+      LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: S.s), count: min(4, max(1, s.accounts.count))), spacing: S.m) {
+        ForEach(s.accounts) { PaperRing(a: $0) }
+      }.modifier(PaperCard(th: th))
+    }
     PaperH2(title: "In progress", count: "\(s.running.count) moving")
     if s.running.isEmpty { Text("Nothing running").font(th.text(14)).foregroundColor(th.faint) }
     ForEach(s.running) { PaperTask(t: $0) }
@@ -1354,6 +1883,7 @@ struct PaperPanel: View {
           Text(d.tid).font(th.mono(13, 600)).foregroundColor(th.faint).frame(minWidth: 30, alignment: .leading)
           Text(d.title).font(th.text(14.5)).foregroundColor(th.text).lineLimit(1).help(d.title)
           Spacer(minLength: S.s)
+          if let c = wp.of(d.wid) { Text(c.wid).font(th.mono(13, 700)).foregroundColor(c.ink).fixedSize().help("\(c.wid) · \(c.name)") }
           Text(d.time).font(th.mono(13)).foregroundColor(th.faint).fixedSize()
         }
       }
@@ -1374,10 +1904,121 @@ struct PaperPanel: View {
       Wrap(text: q.title, font: th.title(17, 600), size: 17)
       if !q.summary.isEmpty { Wrap(text: q.summary, font: th.text(14), size: 14, color: th.faint) }
       Wrap(text: q.waitingFor, font: th.text(13.5, q.blocked ? 600 : 400), size: 13.5, color: q.blocked ? th.chip(.hot).ink : th.faint)
-      if !q.worker.isEmpty { Pill(text: q.worker, role: th.workerRole(q.worker)).padding(.top, S.xxs) }
+      if !q.worker.isEmpty { WorkerBadge(label: q.worker, wid: q.wid).padding(.top, S.xxs) }
     }.modifier(PaperCard(th: th, edge: q.blocked ? th.chip(.hot).ink : th.accent))
   }
 }
+
+// MARK: - Workers drawer, one view per layout
+
+/// Studio: an LCD panel with a dot-matrix graph.
+struct StudioWorker: View {
+  @Environment(\.theme) var th
+  let f: WorkerFacts; let c: WorkerColor; let samples: [UsageSample]
+  var body: some View {
+    LCD(edge: c.lcd) {
+      VStack(alignment: .leading, spacing: S.s) {
+        HStack(alignment: .center, spacing: S.s) {
+          WorkerBadge(label: f.w.id, wid: f.w.id, size: 12)
+          Text(f.w.name.uppercased()).font(th.mono(13, 700)).foregroundColor(.white).lineLimit(1).help(f.a?.name ?? f.w.name)
+          if let a = f.a { Pill(text: a.tool, role: .neutral, size: 11) }
+          Spacer(minLength: S.xs)
+          Text(f.five).font(th.lcdDigits(30)).foregroundColor(f.st.limited ? hex(0xFF6B5E) : c.lcd).shadow(color: c.lcd.opacity(0.35), radius: 5).fixedSize()
+          VStack(alignment: .leading, spacing: 0) { Text("5H"); Text("7D \(f.seven)") }.font(th.mono(11.5, 700)).foregroundColor(th.lcdDim).fixedSize()
+        }
+        UsageGraph(samples: samples, resets: f.st.resets, color: c.lcd, height: 60)
+        GraphCaption(samples: samples, color: c.lcd, lcd: true)
+        Rectangle().fill(th.lcdLine).frame(height: 1)
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: S.s, alignment: .leading), count: 3), alignment: .leading, spacing: S.s) {
+          ForEach(f.cells, id: \.0) { cell in
+            VStack(alignment: .leading, spacing: 2) {
+              Text(cell.0.uppercased()).font(th.mono(11.5, 700)).tracking(1).foregroundColor(th.lcdDim).lineLimit(1)
+              Text(cell.1.uppercased()).font(th.mono(13.5, 700)).foregroundColor(hex(0xEEEEEE)).lineLimit(1).minimumScaleFactor(0.8)
+            }.help(cell.2)
+          }
+        }
+        if let sp = f.spare { Wrap(text: "◆ " + sp, font: th.mono(12.5, 700), size: 12.5, color: hex(0x35E07F)) }
+        Rectangle().fill(th.lcdLine).frame(height: 1)
+        WorkerJobs(f: f, color: c.lcd, text: hex(0xDDDDDD), dim: th.lcdDim)
+      }
+    }
+  }
+}
+
+/// Mission Control: a dense row with a ruled line chart and KPI cells.
+struct MCWorker: View {
+  @Environment(\.theme) var th
+  let f: WorkerFacts; let c: WorkerColor; let samples: [UsageSample]
+  var body: some View {
+    VStack(alignment: .leading, spacing: S.s) {
+      HStack(alignment: .center, spacing: 10) {
+        LED(color: f.st.limited ? th.bad : th.usage(f.a?.five ?? 0), size: 7, glow: th.dark)
+        Text(f.w.id).font(th.mono(15, 600)).foregroundColor(c.ink)
+        Text("\(f.a?.tool ?? "") · \(f.w.name)").font(th.mono(12)).foregroundColor(th.dim).lineLimit(1).help(f.a?.name ?? f.w.name)
+        Spacer(minLength: S.xs)
+        Text(f.five).font(th.mono(18, 600)).foregroundColor(f.st.limited ? th.bad : th.text).fixedSize()
+        VStack(alignment: .leading, spacing: 0) { Text("5H"); Text("7D \(f.seven)") }.font(th.mono(11.5)).foregroundColor(th.dim).fixedSize()
+      }
+      UsageGraph(samples: samples, resets: f.st.resets, color: c.ink, height: 64).help("Top rule = 100%; dotted rules every 25%")
+      GraphCaption(samples: samples, color: c.ink)
+      VStack(spacing: 0) {
+        ForEach(0..<2, id: \.self) { row in
+          HStack(spacing: 0) {
+            ForEach(0..<3, id: \.self) { col in
+              let cell = f.cells[row * 3 + col]
+              VStack(alignment: .leading, spacing: 3) {
+                Text(cell.0.uppercased()).font(th.mono(11.5)).tracking(1.2).foregroundColor(th.dim).lineLimit(1)
+                Text(cell.1).font(th.mono(13.5, 600)).foregroundColor(th.text).lineLimit(1).minimumScaleFactor(0.8)
+              }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, S.s).padding(.vertical, 6).help(cell.2)
+              if col < 2 { Rectangle().fill(th.line).frame(width: 1) }
+            }
+          }.fixedSize(horizontal: false, vertical: true)
+          if row == 0 { Rule() }
+        }
+      }.overlay(Rectangle().stroke(th.line))
+      if let sp = f.spare { Wrap(text: "◆ " + sp, font: th.mono(12.5, 600), size: 12.5, color: th.ok) }
+      WorkerJobs(f: f, color: c.ink)
+    }
+    .padding(.horizontal, S.m).padding(.vertical, 10).padding(.leading, 4)
+    .overlay(alignment: .leading) { Rectangle().fill(c.ink).frame(width: 3) }
+    .overlay(alignment: .bottom) { Rule() }
+  }
+}
+
+/// Paper: a soft card with a calm area chart and a plain-English line.
+struct PaperWorker: View {
+  @Environment(\.theme) var th
+  let f: WorkerFacts; let c: WorkerColor; let samples: [UsageSample]
+  var body: some View {
+    VStack(alignment: .leading, spacing: S.s) {
+      HStack(spacing: S.s) {
+        Kicker(text: "\(f.w.id) · \(f.w.name)", color: c.ink)
+        Spacer()
+        if let a = f.a { Pill(text: a.tool, role: .neutral) }
+      }
+      (Text(f.st.limited ? "Resting" : "\(f.five) used").font(th.title(19, 600)).foregroundColor(th.text)
+        + Text(f.st.limited ? " until the 5-hour window resets" : " of the 5-hour window").font(th.title(16.5, 400)).foregroundColor(th.dim))
+        .fixedSize(horizontal: false, vertical: true)
+      Text("7-day \(f.seven) · burning \(f.st.burnText) · resets in \(f.resetIn)").font(th.text(14)).foregroundColor(th.faint).lineLimit(1)
+      UsageGraph(samples: samples, resets: f.st.resets, color: c.ink, height: 72).padding(.top, S.xs)
+      GraphCaption(samples: samples, color: c.ink)
+      LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: S.s, alignment: .leading), count: 3), alignment: .leading, spacing: S.m) {
+        ForEach(f.cells, id: \.0) { cell in
+          VStack(alignment: .leading, spacing: 2) {
+            Text(cell.1).font(th.mono(15, 600)).foregroundColor(th.text).lineLimit(1).minimumScaleFactor(0.8)
+            Text(cell.0).font(th.text(13)).foregroundColor(th.faint).lineLimit(1)
+          }.help(cell.2)
+        }
+      }.padding(.top, S.xs)
+      if let sp = f.spare {
+        Wrap(text: sp, font: th.text(13.5, 600), size: 13.5, color: th.chip(.ok).ink)
+          .padding(.horizontal, S.s + 2).padding(.vertical, S.xs + 2).background(RoundedRectangle(cornerRadius: 10).fill(th.chip(.ok).fill))
+      }
+      WorkerJobs(f: f, color: c.ink).padding(.top, S.xs)
+    }.modifier(PaperCard(th: th, edge: c.ink))
+  }
+}
+
 
 // MARK: - Root
 
@@ -1385,15 +2026,17 @@ struct PanelView: View {
   @ObservedObject var store: Store
   @ObservedObject var ts: ThemeStore
   @ObservedObject var history: UsageHistory
+  @ObservedObject var prefs: UIPrefs
   var body: some View {
     Group {
       switch ts.theme.layout {
-      case .studio: StudioPanel(store: store, ts: ts)
-      case .mission: MissionPanel(store: store, ts: ts, history: history)
-      case .paper: PaperPanel(store: store, ts: ts)
+      case .studio: StudioPanel(store: store, ts: ts, history: history, prefs: prefs)
+      case .mission: MissionPanel(store: store, ts: ts, history: history, prefs: prefs)
+      case .paper: PaperPanel(store: store, ts: ts, history: history, prefs: prefs)
       }
     }
     .environment(\.theme, ts.theme)
+    .environment(\.workers, WorkerPalette(th: ts.theme, workers: store.status?.workers ?? []))
   }
 }
 
@@ -1410,8 +2053,9 @@ struct RootView: View {
   @ObservedObject var store: Store
   @ObservedObject var ts: ThemeStore
   @ObservedObject var history: UsageHistory
+  @ObservedObject var prefs: UIPrefs
   var body: some View {
-    ScrollView { PanelView(store: store, ts: ts, history: history) }
+    ScrollView { PanelView(store: store, ts: ts, history: history, prefs: prefs) }
       .padding(.top, 28)
       .background(PanelBackground().environment(\.theme, ts.theme).ignoresSafeArea())
       .preferredColorScheme(ts.theme.dark ? .dark : .light)
@@ -1428,6 +2072,7 @@ app.setActivationPolicy(.accessory)
 let store = Store(script: script)
 let themes = ThemeStore()
 let history = UsageHistory()
+let prefs = UIPrefs()
 let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 let width: CGFloat = 520
 let panel = NSPanel(contentRect: NSRect(x: screen.maxX - width, y: screen.minY, width: width, height: screen.height),
@@ -1446,7 +2091,7 @@ func applyWindowTheme(_ t: Theme) {
 }
 applyWindowTheme(themes.theme)
 themes.onChange = { applyWindowTheme($0) }
-panel.contentView = NSHostingView(rootView: RootView(store: store, ts: themes, history: history))
+panel.contentView = NSHostingView(rootView: RootView(store: store, ts: themes, history: history, prefs: prefs))
 panel.setFrame(NSRect(x: screen.maxX - width, y: screen.minY, width: width, height: screen.height), display: true)
 store.onCollapse = { c in
   let h: CGFloat = c ? 140 : screen.height

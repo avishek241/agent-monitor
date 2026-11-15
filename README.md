@@ -5,7 +5,8 @@ A floating, always-on-top macOS panel that shows what your AI agents and backgro
 It was built while orchestrating one Claude Code orchestrator (W0) and several Codex/Claude workers (W1–W3) on a real project, and is project-agnostic: everything project-specific lives in one JSON config.
 
 ## What it shows
-- **Accounts** — 5-hour / 7-day usage per Claude Code and Codex account, reset countdown, "LIMIT" when a headless worker reports it, the age of each reading (never a fake 0%).
+- **Workers** — 5-hour / 7-day usage per Claude Code and Codex account, reset countdown, "LIMIT" when a headless worker reports it, the age of each reading (never a fake 0%). Click **Workers** (section header, or the colour key in Studio's top display) to open a drawer per worker: a usage graph over the last 24 h (5-hour solid, 7-day dashed, window resets marked), time to reset, burn rate (%/h over the last 90 min), estimated time until the limit at that rate, jobs running now (parallel lanes, with task ids), jobs finished today, idle time with a *spare capacity* hint, and its pipeline (queued tasks assigned to it, or that name it in `waitingFor`). Open/closed is remembered. Usage samples (one a minute) are saved to `~/Library/Application Support/agent-monitor/usage-history-<config>.json` so graphs survive restarts.
+- **Worker colours** — each worker has one colour used everywhere: the left stripe and badge on its task cards (and the key-cap edge in Studio), its account row, sparkline and graph, the drawer, and its "Recently finished" rows. Hover a badge for the colour key. Defaults follow the colour-blind-safe Okabe–Ito palette in `workers` order (W0 blue, W1 orange, W2 green, W3 pink, then vermilion, sky, yellow, grey); each theme darkens or lightens them until text reaches 4.5:1 on every surface, and badge text is checked against its badge.
 - **In progress** — one card per task: plain-English title + one-line summary, worker badge (W0, W1…), tags, steps with per-step and whole-task ETA, **progress numbers** (e.g. "Documents profiled 620 / 3,657 · ≈42/min · ~1.2 h left"), last activity, stale warning after 30 min without an update; raw shell activity is collapsed.
 - **Up next** — queued tasks (waiting on a condition) and blocked ones (waiting on a person).
 - **Recently finished** — from runner logs and done cards, by any agent.
@@ -36,7 +37,7 @@ Requirements: macOS 13+, Xcode command-line tools (`swiftc`), Python 3.9+. `star
 | `codexTaskPattern` | Regex (group 1 = brief path) to find the task in a running `codex exec` command line |
 | `claudeAccounts[]` | `label`, `statusFile` (written by `bin/claude-statusline.sh`), optional `limitLogGlobs` (headless logs with "You've hit your 5-hour limit · resets 3:50pm") |
 | `headlessTaskPattern`, `headlessClaudeLabel` | Detect `claude -p "… <task> …"` workers that haven't written a card yet |
-| `workers` | `[["Claude-A","W0"], …]` prefixes shown on badges and account rows |
+| `workers` | `[["Claude-A","W0"], …]` prefixes shown on badges and account rows; an optional third item (or `{"name","id","color"}`) sets that worker's colour, e.g. `["Codex-B","W1","#E69F00"]` |
 | `health[]` | `label`, `url`, optional `group` (one row per group) |
 | `usageCacheFile` | Where usage parsing is cached (20 s) |
 | `theme` | Optional default look, e.g. `"studio"`, `"mission-dark"`, `"paper-auto"` (your last choice in the panel wins) |

@@ -459,7 +459,9 @@ def finished():
             except (OSError, ValueError):
                 pass
             num, title = pretty(name)
-            rows.append({"id": num, "title": title, "time": t[:5], "ok": code == "0", "_t": os.path.getmtime(f)})
+            info = _log_finish(f) or {}
+            rows.append({"id": num, "title": title, "time": t[:5], "ok": code == "0", "_t": os.path.getmtime(f),
+                         "_acct": codex_short(info["alias"]) if info.get("alias") else "", "_name": name})
     # Tasks finished by the orchestrator or Claude workers: progress cards marked done in the last 12 h.
     for path in glob.glob(os.path.join(PROGRESS, "*.json")):
         try:
@@ -469,16 +471,23 @@ def finished():
             with open(path) as fh:
                 p = json.load(fh)
             name = os.path.basename(path)[:-5]
-            if p.get("active") or p.get("status") != "done" or name in seen or "demo" in name:
+            if p.get("active") or p.get("status") != "done" or "demo" in name:
+                continue
+            if name in seen:  # finished by a runner log: the card names the worker more reliably
+                for r in rows:
+                    if r.get("_name") == name and p.get("account"):
+                        r["_acct"] = str(p["account"])
                 continue
             seen.add(name)
             num, title = pretty(name)
-            rows.append({"id": num, "title": str(p.get("title") or title)[:80], "time": time.strftime("%H:%M", time.localtime(mt)), "ok": True, "_t": mt})
+            rows.append({"id": num, "title": str(p.get("title") or title)[:80], "time": time.strftime("%H:%M", time.localtime(mt)), "ok": True, "_t": mt,
+                         "_acct": str(p.get("account", ""))})
         except (OSError, ValueError, TypeError):
             continue
     rows.sort(key=lambda r: -r["_t"])
     for r in rows:
         r.pop("_t", None)
+        r.pop("_name", None)
     return rows[:8]
 
 
@@ -600,7 +609,23 @@ def up(url):
         return False
 
 
-WORKERS = [tuple(w) for w in CFG.get("workers", [])]  # [["Claude-A", "W0"], ["Codex-B", "W1"], …] prefixes shown on the panel
+def _worker_defs():
+    """config "workers": [["Claude-A", "W0"], ["Codex-B", "W1", "#0072B2"], {"name": "Codex-C", "id": "W2", "color": "#E69F00"}, …]
+    The optional colour overrides the panel's default (assigned by order: W0, W1, … then any extra accounts)."""
+    out = []
+    for w in CFG.get("workers", []):
+        if isinstance(w, dict):
+            name, wid, col = w.get("name", ""), w.get("id", ""), w.get("color")
+        elif isinstance(w, (list, tuple)) and len(w) >= 2:
+            name, wid, col = w[0], w[1], (w[2] if len(w) > 2 else None)
+        else:
+            continue
+        out.append({"name": str(name), "id": str(wid), "color": col if isinstance(col, str) and re.match(r"^#?[0-9A-Fa-f]{6}$", col) else None})
+    return out
+
+
+WORKER_DEFS = _worker_defs()
+WORKERS = [(w["name"], w["id"]) for w in WORKER_DEFS]  # prefixes shown on the panel
 
 
 def numbered(label):
@@ -612,14 +637,133 @@ def numbered(label):
     return label
 
 
+def worker_id(label):
+    """'W2 Codex-B', 'W2' or 'Codex-B (worker)' -> 'W2'; '' when no worker is named."""
+    m = re.match(r"^(W\d+)\b", str(label or ""))
+    if m:
+        return m.group(1)
+    for name, num in WORKERS:
+        if name and name in str(label or ""):
+            return num
+    return ""
+
+
+def _midnight():
+    t = time.localtime(NOW)
+    return time.mktime((t.tm_year, t.tm_mon, t.tm_mday, 0, 0, 0, 0, 0, -1))
+
+
+_LOGINFO = {}  # path -> (mtime, size, {"task", "alias", "code", "t"})
+
+
+def _log_finish(f):
+    """Last 'finished with exit N' of a runner log and the Codex account it ran on (cached by mtime/size)."""
+    try:
+        st = os.stat(f)
+    except OSError:
+        return None
+    hit = _LOGINFO.get(f)
+    if hit and hit[0] == st.st_mtime and hit[1] == st.st_size:
+        return hit[2]
+    info = None
+    try:
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            txt = fh.read()
+        fin = list(re.finditer(r"\[(\d\d:\d\d:\d\d)\] (\S+) finished with exit (\d+)", txt))
+        if fin:
+            m = fin[-1]
+            al = re.findall(r"codex account '(\w+)'", txt[:m.start()])
+            info = {"task": m.group(2), "alias": al[-1] if al else "", "code": int(m.group(3)), "t": st.st_mtime}
+    except OSError:
+        pass
+    _LOGINFO[f] = (st.st_mtime, st.st_size, info)
+    return info
+
+
+_EVENTS = {"t": 0, "v": []}
+
+
+def _finish_events(since):
+    """[(task, worker id, ok, time)] for tasks finished since `since`: runner logs + progress cards marked done.
+    Re-read at most every 15 s (a running worker's log grows every tick)."""
+    if NOW - _EVENTS["t"] < 15:
+        return _EVENTS["v"]
+    ev = {}
+    for f in log_files():
+        try:
+            if os.path.getmtime(f) < since:
+                continue
+        except OSError:
+            continue
+        i = _log_finish(f)
+        if i:
+            ev[i["task"]] = (i["task"], worker_id(numbered(codex_short(i["alias"]))) if i["alias"] else "", i["code"] == 0, i["t"])
+    for path in glob.glob(os.path.join(PROGRESS, "*.json")):
+        try:
+            mt = os.path.getmtime(path)
+            if mt < since:
+                continue
+            with open(path) as fh:
+                p = json.load(fh)
+            if p.get("active") or p.get("status") != "done":
+                continue
+            name = os.path.basename(path)[:-5]
+            wid = worker_id(numbered(str(p.get("account", ""))))
+            if wid or name not in ev:
+                ev[name] = (name, wid or (ev.get(name) or ("", ""))[1], True, mt)
+        except (OSError, ValueError, TypeError):
+            continue
+    _EVENTS["t"], _EVENTS["v"] = NOW, list(ev.values())
+    return _EVENTS["v"]
+
+
+def workers_block(d):
+    """Per-worker facts for the panel's Workers drawer: lanes now, jobs done today, idle time, pipeline. Local files only."""
+    ids = [(w["id"], w["name"], w["color"]) for w in WORKER_DEFS]
+    for a in d["accounts"]:  # extra accounts that no configured worker names
+        if not a.get("wid"):
+            short = re.sub(r"\s*\(.*\)$", "", a["name"]).strip() or a["name"]
+            a["wid"] = short
+            if short not in [i[0] for i in ids]:
+                ids.append((short, short, None))
+    events = _finish_events(NOW - 24 * 3600)
+    today = _midnight()
+    out = []
+    for slot, (wid, name, col) in enumerate(ids):
+        acct = next((a["name"] for a in d["accounts"] if a.get("wid") == wid), "")
+        lanes = [{"id": t.get("id") or t["key"], "title": t["title"], "stale": t.get("lastActive", 0) > 1800}
+                 for t in d["running"] if t.get("wid") == wid]
+        done = sorted([e for e in events if e[1] == wid], key=lambda e: e[3])
+        done_today = [e for e in done if e[3] >= today]
+        live_lanes = [l for l in lanes if not l["stale"]]
+        idle = 0 if live_lanes else (int(NOW - done[-1][3]) if done else -1)
+        pipe = []
+        for q in d["queued"]:
+            if q.get("wid") == wid:
+                pipe.append({"id": q["id"], "title": q["title"], "blocked": q["blocked"], "likely": False})
+            elif not q.get("wid") and re.search(rf"\b{re.escape(wid)}\b", q.get("waitingFor", "")):
+                pipe.append({"id": q["id"], "title": q["title"], "blocked": q["blocked"], "likely": True})
+        out.append({"id": wid, "name": name, "color": col, "slot": slot, "account": acct, "lanes": lanes,
+                    "doneToday": len([e for e in done_today if e[2]]), "failedToday": len([e for e in done_today if not e[2]]),
+                    "doneIds": [pretty(e[0])[0] or e[0] for e in done_today][-8:],
+                    "lastDone": int(NOW - done[-1][3]) if done else -1, "idleSecs": idle, "pipeline": pipe[:6]})
+    return out
+
+
 def _number_all(d):
     for t in d["running"]:
         t["account"] = numbered(t.get("account", ""))
+        t["wid"] = worker_id(t["account"])
     for q in d["queued"]:
         q["worker"] = numbered(q.get("worker", ""))
+        q["wid"] = worker_id(q["worker"])
     for a in d["accounts"]:
         a["name"] = numbered(a["name"])
+        a["wid"] = worker_id(a["name"])
     d["accounts"].sort(key=lambda a: a["name"][:2])
+    for r in d["finished"]:
+        r["wid"] = worker_id(numbered(r.pop("_acct", "")))
+    d["workers"] = workers_block(d)
     return d
 
 
