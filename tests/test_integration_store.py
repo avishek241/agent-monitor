@@ -151,12 +151,6 @@ class RealStore(DeckCase):
         self.assertEqual(self.stores["shop"].get(tid)["state"], "review")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
-@unittest.skipUnless(HAVE_STORE, "B1")
-class RealPause(RealStore):
     def test_pause_kills_real_store(self):
         self.build_real([account("cx")], [worker("W1", "cx")], [project("shop")])
         self.usage("cx", 5, 250)
@@ -170,3 +164,7 @@ class RealPause(RealStore):
         self.stores["shop"].transition(tid, "blocked", actor="W0", reason="paused")
         self.d.tick()
         self.assertEqual(self.probe.killed, [50009])
+
+
+if __name__ == "__main__":
+    unittest.main()
