@@ -47,7 +47,8 @@ function toast(text, kind = "") {
 
 async function load(route, force = false) {
   const jobs = [];
-  if (force || !S.overview) jobs.push(api.overview().then((o) => { S.overview = o; S.ovAt = nowLocal(); }));
+  // Overview first: non-Studio layouts need its project list to load every project on the very first paint.
+  if (force || !S.overview) { const o = await api.overview(); S.overview = o; S.ovAt = nowLocal(); }
   const p = route.project;
   if (p && (force || !S.projects[p])) jobs.push(api.project(p).then((vm) => { S.projects[p] = vm; }));
   // Mission and Paper show cross-project lists (needs you, inbox, board): load every enabled project.
