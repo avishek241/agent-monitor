@@ -1347,6 +1347,7 @@ def _auto_track(run):
     ended = [k for k in live if k not in cur]
     for k in ended:
         v = live[k]
+        done = [d for d in done if d.get("key") != k]  # a session can finish several times: keep its latest finish only
         done.append({"key": k, "title": v.get("title", k), "account": v.get("account", ""), "t": v.get("t", NOW)})
     done = [d for d in done if NOW - d.get("t", 0) < 24 * 3600][-40:]
     if ended or set(cur) != set(live) or NOW - max([v.get("t", 0) for v in live.values()] or [0]) > 60:
@@ -1376,6 +1377,10 @@ def _snapshot():
     if AUTO:  # most recently active first
         run.sort(key=lambda t: t.get("lastActive", 0))
     _auto_repo(run)
+    # Only ongoing work is shown: a task whose steps are all done (100 %) leaves "In progress" and moves to
+    # Recently finished; it comes back by itself when new work starts in it (e.g. you send that session a new request).
+    if CFG.get("hideCompleted", True):
+        run = [t for t in run if not (t.get("steps") and all(s.get("status") == "done" for s in t["steps"]))]
     _auto_track(run)
     for t in run:
         for k in [k for k in t if k.startswith("_")]:
