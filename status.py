@@ -788,7 +788,7 @@ def _live_claude_sessions():
 
 def _nice_title(st, proj):
     t = st["title"]
-    if t and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)+", t):  # slug-style title: "hkust-ribbon-masterplan-v10"
+    if t and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)+", t):  # slug-style title: "ribbon-masterplan-v10"
         t = t.replace("-", " ").capitalize()
     t = t or re.sub(r"\s+", " ", st["first"]).strip()
     return (t or f"Claude session in {proj}")[:80]
