@@ -3,7 +3,16 @@
 Local files only (plus optional localhost health checks): no network, no AI, no tokens.
 All project-specific settings come from a JSON config (see README.md and examples/):
   --config <path>  or  $AGENT_MONITOR_CONFIG  or  ~/.config/agent-monitor/config.json"""
-import glob, json, os, re, subprocess, time, urllib.request
+import glob, json, os, re, subprocess, tempfile, time, urllib.request
+
+try:  # cross-platform process list (required on Windows; optional on macOS, where `ps` is the fallback)
+    import psutil
+except ImportError:
+    psutil = None
+
+WINDOWS = os.name == "nt"
+TMP = tempfile.gettempdir()  # /tmp on macOS/Linux, %TEMP% on Windows
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # no console flash for child processes on Windows
 
 # Every Claude session has its own scratchpad; runner logs and background-agent transcripts can be in any of them.
 import sys as _sys
@@ -15,7 +24,7 @@ def _load_config():
         path = _sys.argv[_sys.argv.index("--config") + 1]
     path = path or os.environ.get("AGENT_MONITOR_CONFIG") or os.path.expanduser("~/.config/agent-monitor/config.json")
     try:
-        with open(os.path.expanduser(path)) as fh:
+        with open(os.path.expanduser(path), encoding="utf-8-sig") as fh:
             cfg = json.load(fh)
     except (OSError, ValueError):
         cfg = {}
@@ -24,7 +33,10 @@ def _load_config():
 
 
 CFG = _load_config()
-X = lambda p: os.path.expanduser(os.path.join(CFG["_dir"], p)) if p and not os.path.isabs(os.path.expanduser(p)) else os.path.expanduser(p or "")
+def X(p):
+    """Config path -> absolute path: ~ and environment variables (%TEMP%, %USERPROFILE%, $HOME) expanded, relative to the config's folder."""
+    p = os.path.expandvars(os.path.expanduser(p or ""))
+    return os.path.join(CFG["_dir"], p) if p and not os.path.isabs(p) else p
 LOG_DIR_GLOBS = [X(g) for g in CFG.get("runnerLogDirGlobs", [])]          # folders holding "<task>.log" runner logs
 CLAUDE_TASKS_GLOBS = [X(g) for g in CFG.get("claudeTaskOutputGlobs", [])]  # Claude Code background agent transcripts
 
@@ -38,7 +50,7 @@ def find_log(name):
     return max(hits, key=os.path.getmtime) if hits else ""
 REPO = X(CFG.get("repo", ""))                                   # git repo whose changes / task branches are shown ("" = none)
 WORKTREES = X(CFG.get("worktreesDir", os.path.join(os.path.dirname(REPO), os.path.basename(REPO) + "-worktrees") if REPO else ""))
-PROGRESS = X(CFG.get("progressDir", "/tmp/agent-progress"))   # one JSON card per task (README: card format)
+PROGRESS = X(CFG.get("progressDir", os.path.join(TMP, "agent-progress")))   # one JSON card per task (README: card format)
 # Codex accounts: {"label": "Codex-A (worker)", "home": "~/.codex", "runnerAlias": "rahul", "short": "Codex-A"}
 CODEX = CFG.get("codexAccounts", [])
 HOMES = {a["label"]: X(a["home"]) for a in CODEX}
@@ -48,9 +60,80 @@ PHASES = ["Explore", "Build", "Verify", "Handoff"]
 
 def sh(cmd):
     try:
-        return subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3).stdout
+        return subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3, creationflags=NO_WINDOW).stdout
     except Exception:
         return ""
+
+
+def git(*args):
+    """git in the configured repo, without a shell (same on macOS and Windows). Never takes locks."""
+    if not REPO:
+        return ""
+    try:
+        return subprocess.run(["git", "--no-optional-locks", "-C", REPO, *args], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=3, creationflags=NO_WINDOW).stdout or ""
+    except Exception:
+        return ""
+
+
+def _etime(s):
+    """ps etime '[[dd-]hh:]mm:ss' -> seconds."""
+    try:
+        parts = [int(x) for x in re.split(r"[-:]", s)]
+    except ValueError:
+        return 0
+    return sum(p * mu for p, mu in zip(reversed(parts), [1, 60, 3600, 86400]))
+
+
+# A running `codex exec …`: plain `codex exec` on macOS; on Windows also `codex.js exec`, `codex.exe exec`, `codex-x86_64-pc-windows-msvc.exe exec`.
+CODEX_EXEC = CFG.get("codexExecPattern", r"codex[^/\s\"']*[\"']?\s+exec\b")
+# A headless Claude worker: `claude -p …` (claude.exe / claude.cmd / node …/claude-code/cli.js on Windows).
+CLAUDE_P = CFG.get("headlessClaudePattern", r"claude(?:\.exe|\.cmd|-code/cli\.js)?[\"']?\s+(?:-p|--print)\b")
+
+
+_PROCS = {"t": -1, "v": []}
+# Reading a command line is slow on Windows (~2 s for every process), so only likely agent processes are read:
+# the process name must match this (codex.exe, codex-x86_64-….exe, claude.exe, node.exe, bun.exe, …).
+AGENT_PROC_NAMES = re.compile(CFG.get("agentProcessNames", r"codex|claude|node|bun|deno|python|pwsh|powershell|bash|sh\b|zsh"), re.I)
+
+
+def _proc_table():
+    """All candidate agent processes with their command lines, read once per tick (psutil)."""
+    if _PROCS["t"] == NOW:
+        return _PROCS["v"]
+    me, out = os.getpid(), []
+    for p in psutil.process_iter(["pid", "name"]):
+        try:
+            if p.info["pid"] == me or not AGENT_PROC_NAMES.search(p.info.get("name") or ""):
+                continue
+            cl = p.cmdline()
+            if not cl:
+                continue
+            out.append({"pid": p.info["pid"], "secs": max(0, int(NOW - p.create_time())), "cmd": " ".join(cl).replace("\\", "/"),
+                        "env": (lambda p=p: p.environ())})
+        except (psutil.Error, OSError):
+            continue
+    _PROCS["t"], _PROCS["v"] = NOW, out
+    return out
+
+
+def procs(pattern):
+    """Processes whose command line matches `pattern`: [{"pid", "secs" (running time), "cmd", "env"()}].
+    Command lines use forward slashes on every OS, so the config's task patterns work unchanged on Windows."""
+    rx, out = re.compile(pattern), []
+    if psutil:
+        for p in _proc_table():
+            if rx.search(p["cmd"]):
+                out.append(p)
+        return out
+    for line in sh("ps -axww -o pid=,etime=,command=").splitlines():  # macOS fallback without psutil
+        f = line.split(None, 2)
+        if len(f) < 3 or not f[0].isdigit() or not rx.search(f[2]):
+            continue
+        pid = f[0]
+        out.append({"pid": int(pid), "secs": _etime(f[1]), "cmd": f[2],
+                    "env": (lambda pid=pid: dict(re.findall(r"(?:^|\s)(\w+)=(\S+)", sh(f"ps eww -o command= -p {pid}"))))})
+    return out
 
 
 def tail(path, n=4000):
@@ -65,7 +148,7 @@ def tail(path, n=4000):
 
 def _titles():
     try:
-        with open(X(CFG.get("titlesFile", "titles.json"))) as fh:
+        with open(X(CFG.get("titlesFile", "titles.json")), encoding="utf-8-sig") as fh:
             return json.load(fh)
     except (OSError, ValueError):
         return {}
@@ -250,10 +333,10 @@ def auto_metrics(name):
         return hit[1]
     m = []
     branch = f"task/{name}"
-    n = sh(f"git --no-optional-locks -C '{REPO}' rev-list --count main..{branch} 2>/dev/null").strip() if REPO else ""
+    n = git("rev-list", "--count", f"main..{branch}").strip()
     if n.isdigit():
         m.append({"label": "Commits on task branch", "done": float(n), "total": None, "kind": "", "rate": "", "left": ""})
-        files = sh(f"git --no-optional-locks -C '{REPO}' diff --name-only main...{branch} 2>/dev/null").split()
+        files = git("diff", "--name-only", f"main...{branch}").split()
         m.append({"label": "Files changed", "done": float(len(files)), "total": None, "kind": "", "rate": "", "left": ""})
     wt = os.path.join(WORKTREES, name) if WORKTREES else ""
     if wt and os.path.isdir(wt):
@@ -304,8 +387,8 @@ def codex_short(alias):
 
 def running():
     out = []
-    for line in sh("pgrep -f 'codex exec' | xargs -I{} ps -o pid=,etime=,command= -p {}").splitlines():
-        pid = line.split()[0] if line.split() else ""
+    for pr in procs(CODEX_EXEC):
+        line = pr["cmd"]
         m = re.search(CFG.get("codexTaskPattern", r"complete (\S+\.md)"), line)
         if not m:
             continue
@@ -320,23 +403,24 @@ def running():
         except OSError:
             accts = []
         # The process environment is authoritative for the account (CODEX_HOME), logs are a fallback.
-        env = sh(f"ps eww -o command= -p {pid}") if pid.isdigit() else ""
-        home = re.search(r"CODEX_HOME=(\S+)", env)
+        try:
+            home = (pr["env"]() or {}).get("CODEX_HOME", "")
+        except Exception:
+            home = ""
         if home:
-            hp = os.path.realpath(os.path.expanduser(home.group(1).rstrip("/")))
+            hp = os.path.normcase(os.path.realpath(os.path.expanduser(home.rstrip("/\\"))))
             for a in CODEX:
-                if os.path.realpath(X(a["home"])) == hp:
+                if os.path.normcase(os.path.realpath(X(a["home"]))) == hp:
                     accts.append(a.get("runnerAlias", a["label"]))
         num, title = pretty(name)
-        parts = [int(x) for x in re.split(r"[-:]", line.split()[1])]
-        secs = sum(p * mu for p, mu in zip(reversed(parts), [1, 60, 3600, 86400]))
+        secs = pr["secs"]
         sd = session_details(session_for(name))
         task = {"summary": summary_for(num), "key": name, "id": num, "title": title, "account": codex_short(accts[-1] if accts else ""),
                 "elapsed": secs, "steps": [], "note": "", "commands": sd["commands"], "tokens": sd["tokens"], "edits": sd["edits"],
                 "recent": sd["recent"], "lastActive": sd["lastActive"], "estimated": True,
                 "failovers": len(re.findall(r"hit its limit", txt))}
         try:
-            with open(os.path.join(PROGRESS, name + ".json")) as fh:
+            with open(os.path.join(PROGRESS, name + ".json"), encoding="utf-8-sig") as fh:
                 p = json.load(fh)
             task["steps"], task["note"] = with_eta(p.get("steps", []), str(p.get("note", ""))[:200])
             task["estimated"] = False
@@ -353,9 +437,9 @@ def running():
             task["note"] = sd["last"][:200]
         out.append(task)
     # Headless Claude workers (`claude -p "... docs/tasks/NNN-x.md ..."`): shown even before they write a card.
-    for line in sh("pgrep -fl 'claude -p'").splitlines():
-        m = re.search(CFG.get("headlessTaskPattern", r"docs/tasks/(\d{3}-[\w-]+)\.md"), line)
-        if not m or "pgrep" in line:
+    for pr in procs(CLAUDE_P):
+        m = re.search(CFG.get("headlessTaskPattern", r"docs/tasks/(\d{3}-[\w-]+)\.md"), pr["cmd"])
+        if not m:
             continue
         name = m.group(1)
         if any(t["key"] == name for t in out):
@@ -370,7 +454,7 @@ def running():
     # Interactive Codex sessions do not run under `codex exec`.
     for path in glob.glob(os.path.join(PROGRESS, '*.json')):
         try:
-            with open(path) as fh:
+            with open(path, encoding="utf-8-sig") as fh:
                 p = json.load(fh)
             if p.get('source') != 'interactive' or not p.get('active'):
                 continue
@@ -401,7 +485,7 @@ def queued():
     out = []
     for path in glob.glob(os.path.join(PROGRESS, '*.json')):
         try:
-            with open(path) as fh:
+            with open(path, encoding="utf-8-sig") as fh:
                 p = json.load(fh)
             st = p.get('status')
             if st not in ('queued', 'blocked') or p.get('active'):
@@ -453,7 +537,7 @@ def finished():
                 continue
             seen.add(name)
             try:
-                with open(os.path.join(PROGRESS, name + ".json")) as fh:
+                with open(os.path.join(PROGRESS, name + ".json"), encoding="utf-8-sig") as fh:
                     if json.load(fh).get("active"):
                         continue  # paused/resuming task: it is shown in progress, not as finished
             except (OSError, ValueError):
@@ -468,7 +552,7 @@ def finished():
             mt = os.path.getmtime(path)
             if NOW - mt > 12 * 3600:
                 continue
-            with open(path) as fh:
+            with open(path, encoding="utf-8-sig") as fh:
                 p = json.load(fh)
             name = os.path.basename(path)[:-5]
             if p.get("active") or p.get("status") != "done" or "demo" in name:
@@ -528,7 +612,7 @@ def usage():
     claude = [(a["label"], X(a["statusFile"])) for a in CFG.get("claudeAccounts", [])]
     for i, (label, path) in enumerate(claude):
         try:
-            with open(path) as fh:
+            with open(path, encoding="utf-8-sig") as fh:
                 c = json.load(fh)
             rl = c.get("rate_limits", {})
             five, seven = rl.get("five_hour"), rl.get("seven_day") or {}
@@ -575,16 +659,16 @@ def claude_limit_from_logs(label):
 
 def cached_usage(path=None, ttl=20):
     """Usage parsing is the slowest part; the panel refreshes every 2 s, so reuse it for 20 s."""
-    path = path or X(CFG.get("usageCacheFile", "/tmp/agent-monitor-usage.json"))
+    path = path or X(CFG.get("usageCacheFile", os.path.join(TMP, "agent-monitor-usage.json")))
     try:
         if NOW - os.path.getmtime(path) < ttl:
-            with open(path) as fh:
+            with open(path, encoding="utf-8-sig") as fh:
                 return json.load(fh)
     except (OSError, ValueError):
         pass
     res = usage()
     try:
-        with open(path + ".tmp", "w") as fh:
+        with open(path + ".tmp", "w", encoding="utf-8") as fh:
             json.dump(res, fh)
         os.replace(path + ".tmp", path)
     except OSError:
@@ -594,7 +678,7 @@ def cached_usage(path=None, ttl=20):
 
 def repo_changes():
     areas = {}
-    for l in (sh(f"git --no-optional-locks -C '{REPO}' status --short") if REPO else "").splitlines():
+    for l in git("status", "--short").splitlines():
         parts = l[3:].strip().strip('"').split("/")
         key = "/".join(parts[:2]) if parts[0] in ("apps", "packages", "docs", "scripts") and len(parts) > 1 else parts[0]
         areas[key] = areas.get(key, 0) + 1
@@ -607,6 +691,35 @@ def up(url):
         return True
     except Exception:
         return False
+
+
+_HEALTH = {}  # url -> up, kept fresh by a background thread in --serve mode
+
+
+def health_rows():
+    """Health checks run in parallel; in --serve mode a background thread keeps them fresh, so a slow or refused
+    port (Windows waits ~2 s on a refused localhost connection) never delays a tick."""
+    hs = CFG.get("health", [])
+    if not _HEALTH:
+        _check_health(hs)
+    return [{"label": h["label"], "up": _HEALTH.get(h["url"], False), "group": h.get("group", "")} for h in hs]
+
+
+def _check_health(hs):
+    from concurrent.futures import ThreadPoolExecutor
+    urls = list({h["url"] for h in hs})
+    if urls:
+        with ThreadPoolExecutor(max_workers=min(8, len(urls))) as ex:
+            _HEALTH.update(zip(urls, ex.map(up, urls)))
+
+
+def _health_loop(every=5.0):
+    while True:
+        try:
+            _check_health(CFG.get("health", []))
+        except Exception:
+            pass
+        time.sleep(every)
 
 
 def _worker_defs():
@@ -703,7 +816,7 @@ def _finish_events(since):
             mt = os.path.getmtime(path)
             if mt < since:
                 continue
-            with open(path) as fh:
+            with open(path, encoding="utf-8-sig") as fh:
                 p = json.load(fh)
             if p.get("active") or p.get("status") != "done":
                 continue
@@ -779,10 +892,10 @@ def _snapshot():
     "agents": claude_agents(),
     "finished": finished(),
     "accounts": cached_usage(),
-    "commit": sh(f"git --no-optional-locks -C '{REPO}' log -1 --format='%h · %s · %ar'").strip()[:90] if REPO else "",
+    "commit": git("log", "-1", "--format=%h · %s · %ar").strip()[:90],
     "changes": repo_changes(),
     "title": CFG.get("title", "Agent monitor"),
-    "health": [{"label": h["label"], "up": up(h["url"]), "group": h.get("group", "")} for h in CFG.get("health", [])],
+    "health": health_rows(),
     }
 
 
@@ -800,6 +913,10 @@ def serve(interval=2.0):
             _USAGE["v"], _USAGE["t"] = file_cached(), NOW
         return _USAGE["v"]
     cached_usage = mem_usage
+    if CFG.get("health"):
+        import threading
+        _check_health(CFG["health"])
+        threading.Thread(target=_health_loop, daemon=True).start()
     while True:
         NOW = time.time()
         try:
