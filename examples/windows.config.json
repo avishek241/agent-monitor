@@ -1,12 +1,5 @@
 {
-  "title": "My project · agents",
-  "progressDir": "%TEMP%/agent-progress",
-  "repo": "~/code/my-project",
-  "runnerLogDirGlobs": ["~/code/my-project/.agent-logs"],
-  "claudeTaskOutputGlobs": ["%TEMP%/claude/*/*/tasks/*.output"],
-  "codexAccounts": [{"label": "Codex (worker)", "home": "~/.codex", "runnerAlias": "main", "short": "Codex"}],
-  "claudeAccounts": [{"label": "Claude (orchestrator)", "statusFile": "%TEMP%/agent-monitor-claude-status.json"}],
-  "workers": [["Claude", "W0"], ["Codex", "W1"]],
-  "health": [{"label": "App :3000", "url": "http://127.0.0.1:3000"}],
+  "title": "My agents",
+  "autoDiscover": true,
   "theme": "studio-auto"
 }

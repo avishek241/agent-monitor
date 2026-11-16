@@ -36,7 +36,7 @@ if not exist "%CFGDIR%" mkdir "%CFGDIR%"
 if not exist "%CFG%" (
   copy /y "%REPO%\examples\windows.config.json" "%CFG%" >nul
   echo  Created your config: %CFG%
-  echo  Open it in Notepad and set "title", "repo" and your accounts.
+  echo  It finds your running Claude Code and Codex work by itself. Optional settings: see README.
 ) else (
   echo  Keeping your existing config: %CFG%
 )

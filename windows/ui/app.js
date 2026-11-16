@@ -93,6 +93,14 @@ function splitWorker(name) {
   return p.length === 2 && p[0].length <= 3 ? p : [name.slice(0, 2), name];
 }
 const activeStep = (t) => (t.steps || []).find((s) => s.status === "active");
+/** Auto-found sessions without a to-do list have no measurable progress: show live/waiting instead of 0 %. */
+const noSteps = (t) => !(t.steps && t.steps.length);
+const waiting = (t) => (t.tags || []).includes("needs you");
+const progText = (t) => (noSteps(t) ? (waiting(t) ? "your turn" : "live") : `${Math.floor(progressOf(t) * 100)}%`);
+const progBar = (t, color, height, radius, segments) => (noSteps(t) ? bar(waiting(t) ? 0 : null, color, St.th.track, height, radius, 0) : bar(progressOf(t), color, St.th.track, height, radius, segments));
+/** Main usage window of an account: "5h" normally, "7d" when the plan only has a weekly limit (some Codex plans). */
+const win = (a) => (a && a.win === "7d" ? "7d" : "5h");
+const winLong = (a) => (win(a) === "7d" ? "weekly" : "5-hour");
 const pct = (v) => `${Math.floor(v)}%`;
 
 // ---------------------------------------------------------------- html helpers
@@ -293,7 +301,7 @@ function workerFacts(w, a, st) {
   const doneValue = `${w.doneToday}` + ((w.failedToday || 0) > 0 ? ` · ${w.failedToday} failed` : "");
   const idleValue = w.idleSecs === 0 ? "busy" : w.idleSecs < 0 ? "—" : approx(w.idleSecs);
   const spare = a && a.unknown !== true && !st.limited && w.idleSecs >= 600 && a.five < 85
-    ? `Spare capacity: idle ${approx(w.idleSecs)} with ${100 - Math.floor(a.five)}% of the 5-hour window left` : null;
+    ? `Spare capacity: idle ${approx(w.idleSecs)} with ${100 - Math.floor(a.five)}% of the ${winLong(a)} window left` : null;
   const cells = [["Resets in", resetIn, "Time until the 5-hour window resets"],
     ["Burn", st.burnText, "5-hour usage per hour over the last 90 minutes"],
     ["Limit in", st.limitText, "Estimated time until 100% at the current rate"],
@@ -460,8 +468,8 @@ function studioTask(t) {
     <div class="row g8 top">${`<span style="padding-top:2px">${numTag(t.id)}</span>`}<div class="grow">${wrap(t.title, F.title(16, 700), th.text)}</div>${workerBadge(t.account, t.wid)}</div>
     ${when(t.summary, () => wrap(t.summary, F.text(13.5, 400), th.dim))}
     ${when(t.tags && t.tags.length, () => `<div class="row g6 wrap">${each(t.tags, (g) => pill(g, tagRole(g)))}</div>`)}
-    <div class="row base"><span style="${F.mono(11.5, 800)};${track(1.4)};color:${th.faint}">${t.estimated ? "PROGRESS (ESTIMATED)" : "PROGRESS"}</span><span class="grow"></span><span style="${F.mono(14, 800)}">${Math.floor(progressOf(t) * 100)}%</span></div>
-    ${bar(progressOf(t), th.progress, th.track, 8)}
+    <div class="row base"><span style="${F.mono(11.5, 800)};${track(1.4)};color:${th.faint}">${noSteps(t) ? (waiting(t) ? "WAITING FOR YOU" : "WORKING") : t.estimated ? "PROGRESS (ESTIMATED)" : "PROGRESS"}</span><span class="grow"></span><span style="${F.mono(14, 800)}">${noSteps(t) ? "" : progText(t)}</span></div>
+    ${progBar(t, th.progress, 8)}
     ${when(!ex && a, () => line1(`● ${a.title}`, F.mono(12.5, 700), th.accentText))}
     ${when(!ex && m, () => line1(m, F.mono(12.5, 700), th.text))}
     ${when(ex, () => taskDetails(t))}</div>`;
@@ -482,7 +490,7 @@ function studioWorker(f, c, samples) {
   return lcd(`<div class="col g8">
     <div class="row g8">${workerBadge(f.w.id, f.w.id, 12)}${line1(f.w.name.toUpperCase(), F.mono(13, 700), "#FFFFFF")}${when(f.a, () => pill(f.a.tool, "neutral", 11))}<span class="grow"></span>
       <span class="nowrap" style="${F.lcd(30)};color:${f.st.limited ? "#FF6B5E" : c.lcd};text-shadow:0 0 5px ${withAlpha(c.lcd, 0.35)}">${esc(f.five)}</span>
-      <span class="col nowrap" style="${F.mono(11.5, 700)};color:${th.lcdDim};line-height:1.25"><span>5H</span><span>7D ${esc(f.seven)}</span></span></div>
+      <span class="col nowrap" style="${F.mono(11.5, 700)};color:${th.lcdDim};line-height:1.25"><span>${win(f.a).toUpperCase()}</span><span>${win(f.a) === "7d" ? "WEEKLY" : `7D ${esc(f.seven)}`}</span></span></div>
     ${usageGraph("w-" + f.w.id, samples, f.st.resets, c.lcd, 60)}
     ${graphCaption(samples, c.lcd, true)}
     <div class="rule" style="background:${th.lcdLine}"></div>
@@ -526,11 +534,11 @@ function studioSections(s) {
     const stale = (a.age || 0) >= 600, wc = wp.of(a.wid, a.name);
     const right = a.unknown === true ? `<span style="${F.mono(12.5)};color:${th.lcdDim}">not known yet</span>`
       : a.five >= 100 ? `<span class="nowrap" style="${F.mono(12.5, 800)};color:#FF6B5E">LIMIT → ${dur(a.resetIn)}</span>`
-        : `<span class="nowrap" style="${F.mono(12.5, 600)};color:${stale ? th.lcdDim : "#DDDDDD"}">5h ${pct(a.five)} · 7d ${pct(a.seven)}</span>`;
+        : `<span class="nowrap" style="${F.mono(12.5, 600)};color:${stale ? th.lcdDim : "#DDDDDD"}">${win(a) === "7d" ? `7d ${pct(a.five)} (weekly)` : `5h ${pct(a.five)} · 7d ${pct(a.seven)}`}</span>`;
     const barC = stale ? "#777777" : a.five >= 90 ? "#FF6B5E" : (wc && wc.lcd) || (a.five >= 60 ? "#E3A13A" : "#35E07F");
     return lcd(`<div class="col g6"><div class="row g8 base">${line1(a.name, F.mono(13, 700), (wc && wc.lcd) || "#FFFFFF")}${pill(a.tool, "neutral", 11)}<span class="grow"></span>${right}</div>
       ${bar(a.unknown === true ? 0 : a.five / 100, barC, "#2A2A2A", 6, 3)}
-      <div class="row g8 wrap" style="${F.mono(11.5)};color:${th.lcdDim}">${when(a.resetIn > 0 && a.five < 100 && a.unknown !== true, () => `<span>↻ 5-hour window resets in ${dur(a.resetIn)}</span>`)}${when(a.age != null && a.age >= 600, () => `<span style="color:#F0B54A">· reading from ${dur(a.age)} ago</span>`)}</div></div>`, wc ? wc.lcd : null);
+      <div class="row g8 wrap" style="${F.mono(11.5)};color:${th.lcdDim}">${when(a.resetIn > 0 && a.five < 100 && a.unknown !== true, () => `<span>↻ ${winLong(a)} window resets in ${dur(a.resetIn)}</span>`)}${when(a.age != null && a.age >= 600, () => `<span style="color:#F0B54A">· reading from ${dur(a.age)} ago</span>`)}</div></div>`, wc ? wc.lcd : null);
   });
   h += `</div><div class="col g10">${studioLabel("IN PROGRESS", String(s.running.length))}${s.running.length ? "" : `<div style="${F.mono(12.5)};color:${th.faint}">Nothing running</div>`}${each(s.running, studioTask)}</div>`;
   if (q.length) {
@@ -545,7 +553,7 @@ function studioSections(s) {
     const c = wp.of(d.wid);
     return `<div class="row g8 base"><span class="mark" style="${F.mono(13, 800)};color:${d.ok ? "#35E07F" : "#FF6B5E"}">${d.ok ? "✓" : "✕"}</span><span style="${F.mono(12.5, 800)};color:#F4F4F4;min-width:30px">${esc(d.id)}</span>${line1(d.title, F.mono(12.5), "#DDDDDD")}<span class="grow"></span>${when(c, () => `<span class="nowrap" title="${attr(`${c.wid} · ${c.name}`)}" style="${F.mono(12.5, 800)};color:${c.lcd}">${esc(c.wid)}</span>`)}<span class="nowrap" style="${F.mono(12.5)};color:${th.lcdDim}">${esc(d.time)}</span></div>`;
   })}</div>`)}</div>`;
-  h += `<div class="col g10">${studioLabel("REPO & HEALTH")}${lcd(`<div class="col g8">${wrap(s.commit, F.code(12.5), "#DDDDDD")}${s.changes.length ? "" : `<div style="${F.mono(12)};color:${th.lcdDim}">working tree clean</div>`}${each(s.changes, (c) => `<div class="row g8">${line1(c.area, F.code(12.5), th.lcdText)}<span class="grow"></span><span class="nowrap" style="${F.mono(12.5, 700)};color:#F0B54A">${c.files} files changed</span></div>`)}${
+  h += `<div class="col g10">${studioLabel("REPO & HEALTH", s.repo || null)}${lcd(`<div class="col g8">${wrap(s.commit, F.code(12.5), "#DDDDDD")}${s.changes.length ? "" : `<div style="${F.mono(12)};color:${th.lcdDim}">working tree clean</div>`}${each(s.changes, (c) => `<div class="row g8">${line1(c.area, F.code(12.5), th.lcdText)}<span class="grow"></span><span class="nowrap" style="${F.mono(12.5, 700)};color:#F0B54A">${c.files} files changed</span></div>`)}${
     when(s.health && s.health.length, () => `<div class="rule" style="background:${th.lcdLine}"></div>${healthRows(s.health, "#DDDDDD")}`)}</div>`)}</div>`;
   return h;
 }
@@ -578,8 +586,8 @@ function mcTaskRow(t) {
   const edge = wc ? `box-shadow:inset ${ex ? 4 : 3}px 0 0 ${wc.ink}` : ex ? `box-shadow:inset 2px 0 0 ${th.accent}` : "";
   return `<div class="col g8 click" data-act="task" data-key="${attr(t.key)}" style="padding:10px 12px;background:${ex ? th.bg2 : "transparent"};${edge}">
     <div class="row" style="gap:10px">${led(live, 7, th.dark)}<div class="col grow" style="gap:3px;min-width:0"><div class="row base" style="gap:6px;min-width:0"><span style="${F.mono(13, 600)};color:${th.accent}">${esc(t.id)}</span>${line1(t.title, F.title(16, 600), th.text)}</div>${line1(a ? "▸ " + a.title : t.summary || "", F.mono(12), th.dim)}</div>
-      <div class="col nowrap" style="gap:3px;align-items:flex-end"><span style="${F.mono(14, 600)};color:${th.text}">${Math.floor(progressOf(t) * 100)}%</span><span style="${F.mono(11.5)};color:${th.dim}">${dur(t.elapsed)}</span></div></div>
-    <div style="padding-left:17px">${bar(progressOf(t), th.progress, th.track, 5, 0, 32)}</div>
+      <div class="col nowrap" style="gap:3px;align-items:flex-end"><span style="${F.mono(14, 600)};color:${waiting(t) ? th.warn : th.text}">${progText(t)}</span><span style="${F.mono(11.5)};color:${th.dim}">${dur(t.elapsed)}</span></div></div>
+    <div style="padding-left:17px">${progBar(t, th.progress, 5, 0, 32)}</div>
     <div class="row g6 wrap" style="padding-left:17px">${workerBadge(t.account, t.wid)}${each(t.tags, (g) => pill(g, tagRole(g)))}</div>
     ${when(!ex && m, () => `<div style="padding-left:17px">${line1(m, F.mono(12, 600), th.text, "display:block")}</div>`)}
     ${when(ex, () => `<div class="col g8" style="padding-left:17px">${when(t.summary, () => wrap(t.summary, F.title(15, 500), th.text, 3))}${taskDetails(t)}</div>`)}</div>`;
@@ -589,7 +597,7 @@ function mcWorker(f, c, samples) {
   const cell = (k) => `<div class="col" style="flex:1;min-width:0;gap:3px;padding:6px 8px" title="${attr(k[2])}"><span class="one" style="${F.mono(11.5)};${track(1.2)};color:${th.dim}">${esc(k[0].toUpperCase())}</span><span class="one" style="${F.mono(13.5, 600)};color:${th.text}">${esc(k[1])}</span></div>`;
   return `<div class="col g8" style="padding:10px 12px 10px 16px;box-shadow:inset 3px 0 0 ${c.ink};border-bottom:1px solid ${th.line}">
     <div class="row" style="gap:10px">${led(f.st.limited ? th.bad : usageColor(f.a ? f.a.five : 0), 7, th.dark)}<span style="${F.mono(15, 600)};color:${c.ink}">${esc(f.w.id)}</span>${line1(`${f.a ? f.a.tool : ""} · ${f.w.name}`, F.mono(12), th.dim)}<span class="grow"></span>
-      <span class="nowrap" style="${F.mono(18, 600)};color:${f.st.limited ? th.bad : th.text}">${esc(f.five)}</span><span class="col nowrap" style="${F.mono(11.5)};color:${th.dim};line-height:1.25"><span>5H</span><span>7D ${esc(f.seven)}</span></span></div>
+      <span class="nowrap" style="${F.mono(18, 600)};color:${f.st.limited ? th.bad : th.text}">${esc(f.five)}</span><span class="col nowrap" style="${F.mono(11.5)};color:${th.dim};line-height:1.25"><span>${win(f.a).toUpperCase()}</span><span>${win(f.a) === "7d" ? "WEEKLY" : `7D ${esc(f.seven)}`}</span></span></div>
     <div title="Top rule = 100%; dotted rules every 25%">${usageGraph("w-" + f.w.id, samples, f.st.resets, c.ink, 64)}</div>
     ${graphCaption(samples, c.ink)}
     <div class="col" style="border:1px solid ${th.line}"><div class="row" style="align-items:stretch">${cell(f.cells[0])}${vrule()}${cell(f.cells[1])}${vrule()}${cell(f.cells[2])}</div>${rule()}<div class="row" style="align-items:stretch">${cell(f.cells[3])}${vrule()}${cell(f.cells[4])}${vrule()}${cell(f.cells[5])}</div></div>
@@ -631,7 +639,7 @@ function missionContent(s) {
     return `<div class="row" style="gap:10px;padding:9px 12px;${wc ? `box-shadow:inset 3px 0 0 ${wc.ink}` : ""}">${led(c, 7, th.dark)}
       <div class="col" style="flex:0 0 132px;gap:3px;min-width:0"><span style="${F.mono(14, 600)};color:${wc ? wc.ink : th.text}">${esc(wid)}</span>${line1(`${a.tool} · ${rest}`, F.mono(11.5), th.dim)}</div>
       <div class="grow" style="height:26px;min-width:20px">${sparkline(sp.length ? sp : [a.five], stale ? th.faint : (wc ? wc.ink : c))}</div>
-      <div class="col" style="flex:0 0 100px;gap:3px;align-items:flex-end;min-width:0"><span style="${F.mono(14, 600)};color:${a.five >= 100 ? th.bad : th.text}">${a.unknown === true ? "—" : pct(a.five)}</span><span class="one" style="${F.mono(11.5)};color:${th.dim}">5h · 7d ${pct(a.seven)}</span></div>
+      <div class="col" style="flex:0 0 100px;gap:3px;align-items:flex-end;min-width:0"><span style="${F.mono(14, 600)};color:${a.five >= 100 ? th.bad : th.text}">${a.unknown === true ? "—" : pct(a.five)}</span><span class="one" style="${F.mono(11.5)};color:${th.dim}">${win(a) === "7d" ? "weekly limit" : `5h · 7d ${pct(a.seven)}`}</span></div>
       <div class="col" style="flex:0 0 92px;gap:3px;align-items:flex-end;min-width:0"><span style="${F.mono(14, 600)};color:${th.text}">${a.resetIn > 0 ? dur(a.resetIn) : "—"}</span><span class="one" style="${F.mono(11.5)};color:${stale ? th.warn : th.dim}">${stale ? `read ${dur(a.age || 0)} ago` : "reset"}</span></div></div>${rule()}`;
   });
   h += mcHead("IN PROGRESS", String(s.running.length));
@@ -654,7 +662,7 @@ function missionContent(s) {
   });
   const parts = (s.commit || "").split(" · ");
   const cell = (k, v, color) => `<div class="col" style="flex:1;min-width:0;gap:3px;padding:6px 8px"><span style="${F.mono(11.5)};${track(1.4)};color:${th.dim}">${k}</span>${line1(v, F.mono(13, 600), color || th.text)}</div>`;
-  h += mcHead("REPO · HEALTH");
+  h += mcHead("REPO · HEALTH", null, s.repo || null);
   h += `<div class="col g8" style="padding:0 12px"><div class="row" style="align-items:stretch;border:1px solid ${th.line}">${cell("COMMIT", parts[0] || "—")}${vrule()}${cell("AGE", parts.length > 2 ? parts[parts.length - 1] : "—")}${vrule()}${cell("CHANGES", s.changes.length ? `${files} files` : "clean", s.changes.length ? th.warn : th.ok)}</div>
     ${when(parts.length > 1, () => wrap(parts.slice(1, parts.length > 2 ? -1 : undefined).join(" · "), F.mono(12), th.dim))}
     ${each(s.changes, (c) => `<div class="row g8">${line1(c.area, F.mono(12), th.text)}<span class="grow"></span><span class="nowrap" style="${F.mono(12)};color:${th.warn}">${c.files} files changed</span></div>`)}
@@ -679,7 +687,7 @@ function paperRing(a) {
     <div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="${R}" fill="none" stroke="${th.track}" stroke-width="7"/>${when(a.unknown !== true && frac > 0, () => `<circle cx="32" cy="32" r="${R}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(L * frac).toFixed(2)} ${L.toFixed(2)}" transform="rotate(-90 32 32)"/>`)}</svg>
       <span style="${F.mono(14, 600)};color:${a.five >= 90 && !stale ? th.bad : th.text}">${a.unknown === true ? "—" : pct(a.five)}</span></div>
     <div class="row g4 nowrap" title="${attr(a.name)}">${workerDot(a.wid, a.name, false, 8)}<span style="${F.text(13, 700)};color:${(wc && wc.ink) || th.text}">${esc(splitWorker(a.name)[0])}</span><span style="${F.text(13, 600)};color:${th.text}">· ${esc(a.tool)}</span></div>
-    <span class="one" style="${F.text(12.5)};color:${a.five >= 100 ? th.bad : th.faint}">${a.five >= 100 ? `resting · ${dur(a.resetIn)}` : a.unknown === true ? "not known yet" : `7d ${pct(a.seven)} · ↻ ${dur(a.resetIn)}`}</span>
+    <span class="one" style="${F.text(12.5)};color:${a.five >= 100 ? th.bad : th.faint}">${a.five >= 100 ? `resting · ${dur(a.resetIn)}` : a.unknown === true ? "not known yet" : `${win(a) === "7d" ? "weekly" : `7d ${pct(a.seven)}`} · ↻ ${dur(a.resetIn)}`}</span>
     ${when(a.age != null && a.age >= 600, () => `<span class="one" style="${F.text(12)};color:${th.warn}">read ${dur(a.age)} ago</span>`)}</div>`;
 }
 function paperTask(t) {
@@ -688,7 +696,7 @@ function paperTask(t) {
   return paperCard(`<div class="col g6">
     <div class="row g8">${kicker(`In progress · ${t.id}`, th.ok)}<span class="grow"></span><span class="led" style="width:9px;height:9px;background:${live}"></span></div>
     ${wrap(t.title, F.title(18, 600), th.text)}${when(t.summary, () => wrap(t.summary, F.text(14.5), th.faint))}
-    <div class="row g8" style="padding-top:4px"><div class="grow">${bar(progressOf(t), th.progress, th.track, 6)}</div><span class="nowrap" style="${F.mono(13.5, 600)};color:${th.text}">${Math.floor(progressOf(t) * 100)}%</span></div>
+    <div class="row g8" style="padding-top:4px"><div class="grow">${progBar(t, th.progress, 6)}</div><span class="nowrap" style="${F.mono(13.5, 600)};color:${waiting(t) ? th.warn : th.text}">${progText(t)}</span></div>
     ${when(!ex && a, () => line1(`Now: ${a.title}`, F.text(13.5), th.dim, "display:block"))}
     ${when(!ex && m, () => line1(m, F.text(13.5, 600), th.text, "display:block"))}
     <div class="row g6 wrap" style="padding-top:4px">${workerBadge(t.account, t.wid)}${each(t.tags, (g) => pill(g, tagRole(g)))}</div>
@@ -698,7 +706,7 @@ function paperWorker(f, c, samples) {
   const th = St.th;
   return paperCard(`<div class="col g8">
     <div class="row g8">${kicker(`${f.w.id} · ${f.w.name}`, c.ink)}<span class="grow"></span>${when(f.a, () => pill(f.a.tool, "neutral"))}</div>
-    <div><span style="${F.title(19, 600)};color:${th.text}">${f.st.limited ? "Resting" : `${esc(f.five)} used`}</span><span style="${F.title(16.5, 400)};color:${th.dim}">${f.st.limited ? " until the 5-hour window resets" : " of the 5-hour window"}</span></div>
+    <div><span style="${F.title(19, 600)};color:${th.text}">${f.st.limited ? "Resting" : `${esc(f.five)} used`}</span><span style="${F.title(16.5, 400)};color:${th.dim}">${f.st.limited ? ` until the ${winLong(f.a)} window resets` : ` of the ${winLong(f.a)} window`}</span></div>
     ${line1(`7-day ${f.seven} · burning ${f.st.burnText} · resets in ${f.resetIn}`, F.text(14), th.faint, "display:block")}
     <div style="padding-top:4px">${usageGraph("w-" + f.w.id, samples, f.st.resets, c.ink, 72)}</div>
     ${graphCaption(samples, c.ink)}
@@ -764,7 +772,7 @@ function paperSections(s) {
     const c = wp.of(d.wid);
     return `<div class="row g8 base"><span class="led" style="width:9px;height:9px;background:${d.ok ? th.ok : th.bad}"></span><span style="${F.mono(13, 600)};color:${th.faint};min-width:30px">${esc(d.id)}</span>${line1(d.title, F.text(14.5), th.text)}<span class="grow"></span>${when(c, () => `<span class="nowrap" title="${attr(`${c.wid} · ${c.name}`)}" style="${F.mono(13, 700)};color:${c.ink}">${esc(c.wid)}</span>`)}<span class="nowrap" style="${F.mono(13)};color:${th.faint}">${esc(d.time)}</span></div>`;
   })}</div>`);
-  h += paperH2("Repository & health");
+  h += paperH2("Repository & health", s.repo || null);
   h += paperCard(`<div class="col g8">${wrap(s.commit, F.code(12.5), th.dim)}${s.changes.length ? "" : `<div style="${F.text(13.5)};color:${th.faint}">Working tree clean</div>`}${each(s.changes, (c) => `<div class="row g8">${line1(c.area, F.code(12.5), th.text)}<span class="grow"></span>${pill(`${c.files} files changed`, "warn")}</div>`)}${when(s.health && s.health.length, () => `<div style="padding-top:4px">${healthRows(s.health)}</div>`)}</div>`);
   return h;
 }

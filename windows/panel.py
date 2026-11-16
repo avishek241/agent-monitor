@@ -305,9 +305,14 @@ def main():
     FEED.stop()
 
 
+DEFAULT_CONFIG = {"title": "My agents", "autoDiscover": True, "theme": "studio-auto"}
+
 if __name__ == "__main__":
     if not os.path.exists(CONFIG):
-        ctypes.windll.user32.MessageBoxW(None, f"No config at:\n{CONFIG}\n\nRun windows\\install.bat first, or copy examples\\windows.config.json there and edit it.",
-                                         "agent-monitor", 0x30)
-        sys.exit(1)
+        # No config yet: start in auto-discovery mode (running Claude Code sessions, Codex jobs, usage) with nothing to fill in.
+        try:
+            write_json(CONFIG, DEFAULT_CONFIG)
+        except OSError:
+            ctypes.windll.user32.MessageBoxW(None, f"Could not create the config at:\n{CONFIG}", "agent-monitor", 0x30)
+            sys.exit(1)
     main()
