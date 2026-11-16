@@ -97,6 +97,9 @@ const activeStep = (t) => (t.steps || []).find((s) => s.status === "active");
 const noSteps = (t) => !(t.steps && t.steps.length);
 const waiting = (t) => (t.tags || []).includes("needs you");
 const progText = (t) => (noSteps(t) ? (waiting(t) ? "your turn" : "live") : `${Math.floor(progressOf(t) * 100)}%`);
+/** "3/5" steps done. */
+const stepCount = (t) => (noSteps(t) ? "" : `${t.steps.filter((s) => s.status === "done").length}/${t.steps.length}`);
+const stepsLabel = (t) => (t.stepsFrom === "asks" ? "YOUR REQUESTS" : t.stepsFrom === "phases" ? "PHASES (GUESSED)" : "SUBTASKS");
 const progBar = (t, color, height, radius, segments) => (noSteps(t) ? bar(waiting(t) ? 0 : null, color, St.th.track, height, radius, 0) : bar(progressOf(t), color, St.th.track, height, radius, segments));
 /** Main usage window of an account: "5h" normally, "7d" when the plan only has a weekly limit (some Codex plans). */
 const win = (a) => (a && a.win === "7d" ? "7d" : "5h");
@@ -256,7 +259,7 @@ function taskDetails(t) {
         when(m.rate || m.left, () => `<div style="${F.mono(11.5)};color:${th.faint}">${esc([m.rate, m.left].filter(Boolean).join(" · "))}</div>`)}</div>`;
     })}</div>`;
   }
-  h += `<div class="col g8">${sub("SUBTASKS")}${each(t.steps, (s) => {
+  h += `<div class="col g8">${sub(stepsLabel(t))}${each(t.steps, (s) => {
     const ic = s.status === "done" ? icon("check", 14, th.ok, `--icon-on:${th.layout === "studio" ? th.surface : th.bg}`) : s.status === "active" ? icon("dotted", 14, th.accentText) : icon("circle", 14, th.faint);
     return `<div class="row g8 top">${ic}<div class="grow">${wrap(s.title, F.text(13.5, s.status === "active" ? 600 : 400), s.status === "pending" ? th.faint : th.text)}</div></div>`;
   })}</div>`;
@@ -468,7 +471,7 @@ function studioTask(t) {
     <div class="row g8 top">${`<span style="padding-top:2px">${numTag(t.id)}</span>`}<div class="grow">${wrap(t.title, F.title(16, 700), th.text)}</div>${workerBadge(t.account, t.wid)}</div>
     ${when(t.summary, () => wrap(t.summary, F.text(13.5, 400), th.dim))}
     ${when(t.tags && t.tags.length, () => `<div class="row g6 wrap">${each(t.tags, (g) => pill(g, tagRole(g)))}</div>`)}
-    <div class="row base"><span style="${F.mono(11.5, 800)};${track(1.4)};color:${th.faint}">${noSteps(t) ? (waiting(t) ? "WAITING FOR YOU" : "WORKING") : t.estimated ? "PROGRESS (ESTIMATED)" : "PROGRESS"}</span><span class="grow"></span><span style="${F.mono(14, 800)}">${noSteps(t) ? "" : progText(t)}</span></div>
+    <div class="row base"><span style="${F.mono(11.5, 800)};${track(1.4)};color:${th.faint}">${noSteps(t) ? (waiting(t) ? "WAITING FOR YOU" : "WORKING") : t.estimated ? "PROGRESS (ESTIMATED)" : "PROGRESS"}</span><span class="grow"></span>${when(!noSteps(t), () => `<span style="${F.mono(11.5, 700)};color:${th.faint};margin-right:8px">${stepCount(t)} done</span>`)}<span style="${F.mono(14, 800)}">${noSteps(t) ? "" : progText(t)}</span></div>
     ${progBar(t, th.progress, 8)}
     ${when(!ex && a, () => line1(`● ${a.title}`, F.mono(12.5, 700), th.accentText))}
     ${when(!ex && m, () => line1(m, F.mono(12.5, 700), th.text))}
@@ -586,7 +589,7 @@ function mcTaskRow(t) {
   const edge = wc ? `box-shadow:inset ${ex ? 4 : 3}px 0 0 ${wc.ink}` : ex ? `box-shadow:inset 2px 0 0 ${th.accent}` : "";
   return `<div class="col g8 click" data-act="task" data-key="${attr(t.key)}" style="padding:10px 12px;background:${ex ? th.bg2 : "transparent"};${edge}">
     <div class="row" style="gap:10px">${led(live, 7, th.dark)}<div class="col grow" style="gap:3px;min-width:0"><div class="row base" style="gap:6px;min-width:0"><span style="${F.mono(13, 600)};color:${th.accent}">${esc(t.id)}</span>${line1(t.title, F.title(16, 600), th.text)}</div>${line1(a ? "▸ " + a.title : t.summary || "", F.mono(12), th.dim)}</div>
-      <div class="col nowrap" style="gap:3px;align-items:flex-end"><span style="${F.mono(14, 600)};color:${waiting(t) ? th.warn : th.text}">${progText(t)}</span><span style="${F.mono(11.5)};color:${th.dim}">${dur(t.elapsed)}</span></div></div>
+      <div class="col nowrap" style="gap:3px;align-items:flex-end"><span style="${F.mono(14, 600)};color:${waiting(t) ? th.warn : th.text}">${progText(t)}</span><span style="${F.mono(11.5)};color:${th.dim}">${noSteps(t) ? dur(t.elapsed) : `${stepCount(t)} · ${dur(t.elapsed)}`}</span></div></div>
     <div style="padding-left:17px">${progBar(t, th.progress, 5, 0, 32)}</div>
     <div class="row g6 wrap" style="padding-left:17px">${workerBadge(t.account, t.wid)}${each(t.tags, (g) => pill(g, tagRole(g)))}</div>
     ${when(!ex && m, () => `<div style="padding-left:17px">${line1(m, F.mono(12, 600), th.text, "display:block")}</div>`)}
@@ -696,7 +699,7 @@ function paperTask(t) {
   return paperCard(`<div class="col g6">
     <div class="row g8">${kicker(`In progress · ${t.id}`, th.ok)}<span class="grow"></span><span class="led" style="width:9px;height:9px;background:${live}"></span></div>
     ${wrap(t.title, F.title(18, 600), th.text)}${when(t.summary, () => wrap(t.summary, F.text(14.5), th.faint))}
-    <div class="row g8" style="padding-top:4px"><div class="grow">${progBar(t, th.progress, 6)}</div><span class="nowrap" style="${F.mono(13.5, 600)};color:${waiting(t) ? th.warn : th.text}">${progText(t)}</span></div>
+    <div class="row g8" style="padding-top:4px"><div class="grow">${progBar(t, th.progress, 6)}</div><span class="nowrap" style="${F.mono(13.5, 600)};color:${waiting(t) ? th.warn : th.text}">${noSteps(t) ? progText(t) : `${stepCount(t)} · ${progText(t)}`}</span></div>
     ${when(!ex && a, () => line1(`Now: ${a.title}`, F.text(13.5), th.dim, "display:block"))}
     ${when(!ex && m, () => line1(m, F.text(13.5, 600), th.text, "display:block"))}
     <div class="row g6 wrap" style="padding-top:4px">${workerBadge(t.account, t.wid)}${each(t.tags, (g) => pill(g, tagRole(g)))}</div>

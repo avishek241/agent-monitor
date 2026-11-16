@@ -263,6 +263,14 @@ def session_details(f):
                     except Exception:
                         continue
                     p = j.get("payload", {})
+                    if p.get("name") == "update_plan":  # Codex's own step list: real subtasks with status
+                        try:
+                            plan = json.loads(p.get("arguments") or "{}").get("plan") or []
+                            m = {"completed": "done", "in_progress": "active"}
+                            st["plan"] = [{"title": str(x.get("step", ""))[:70], "status": m.get(x.get("status"), "pending")} for x in plan if isinstance(x, dict)][:10]
+                        except (ValueError, AttributeError):
+                            pass
+                        continue
                     c = clean_cmd(p.get("input") or p.get("arguments") or "")
                     if c is None:
                         continue
@@ -294,7 +302,7 @@ def session_details(f):
     except OSError:
         return d
     d["commands"] = len(calls) + st.get("dropped", 0)
-    d["edits"], d["phase"] = st.get("edits", 0), st.get("phase", 0)
+    d["edits"], d["phase"], d["plan"] = st.get("edits", 0), st.get("phase", 0), st.get("plan", [])
     stamps = [c["t"] for c in calls if c["t"]]
     d["lastActive"] = int(NOW - max(stamps)) if stamps else 0
     for c in calls[-7:][::-1]:
@@ -453,6 +461,8 @@ def running():
         except Exception:
             ph = sd["phase"]
             task["steps"] = [{"title": n, "status": "done" if i < ph else "active" if i == ph else "pending"} for i, n in enumerate(PHASES)]
+            if sd.get("plan"):  # Codex's own plan beats the guessed phases
+                task["steps"], task["estimated"], task["stepsFrom"] = sd["plan"], False, "todos"
         if not task.get("metrics"):
             task["metrics"] = auto_metrics(name)
         if not task["note"]:
@@ -705,6 +715,8 @@ def claude_transcript(path):
                         st["first"] = st["first"] or t
                         st["last_prompt"] = t
                         st["waiting"] = False
+                        st.setdefault("asks", []).append(re.sub(r"\s+", " ", t)[:70])
+                        del st["asks"][:-8]
         elif typ == "assistant":
             msg = d.get("message") or {}
             u = msg.get("usage") or {}
@@ -743,10 +755,35 @@ def claude_transcript(path):
     return st
 
 
-def _steps_of(st):
+def _steps_of(st, waiting=False):
+    """The session's own to-do list (TodoWrite / TaskCreate) as steps; without one, its requests: earlier ones done, the latest in progress."""
     raw = st["todos"] or [t for t in st["tasks"].values() if t["status"] != "deleted"]
     m = {"completed": "done", "done": "done", "in_progress": "active", "active": "active"}
-    return [{"title": t["title"], "status": m.get(t["status"], "pending")} for t in raw][:10]
+    if raw:
+        return [{"title": t["title"], "status": m.get(t["status"], "pending")} for t in raw][:10], "todos"
+    asks = st.get("asks") or []
+    if not asks:
+        return [], ""
+    return [{"title": a, "status": "done" if i < len(asks) - 1 or waiting else "active"} for i, a in enumerate(asks)], "asks"
+
+
+def _live_claude_sessions():
+    """Claude Code's own registry of open sessions (~/.claude/sessions/<pid>.json): session id, folder, busy/idle, start time."""
+    out = []
+    for f in glob.glob(os.path.join(CLAUDE_HOME, "sessions", "*.json")):
+        try:
+            with open(f, encoding="utf-8") as fh:
+                d = json.load(fh)
+            pid = int(d.get("pid") or 0)
+            if not pid or not d.get("sessionId") or (psutil and not psutil.pid_exists(pid)):
+                continue
+            hits = glob.glob(os.path.join(CLAUDE_HOME, "projects", "*", d["sessionId"] + ".jsonl"))
+            if hits:
+                out.append({"file": hits[0], "pid": pid, "cwd": d.get("cwd", ""), "status": d.get("status", ""),
+                            "started": float(d.get("startedAt") or 0) / 1000, "name": d.get("name", "")})
+        except (OSError, ValueError, TypeError):
+            continue
+    return out
 
 
 def _nice_title(st, proj):
@@ -765,9 +802,11 @@ def claude_sessions(already):
     transcript written in the last 5 minutes (Claude desktop app, VS Code, sessions without a visible process)."""
     out, seen = [], set()
     by_dir = {}
+    reg = _live_claude_sessions()  # exact: Claude Code's own list of open sessions
+    reg_pids = {r["pid"] for r in reg}
     if psutil:
         for pr in _proc_table():
-            if not re.match(r"claude(\.exe)?$", pr.get("name", "")) or "--type=" in pr["cmd"]:
+            if not re.match(r"claude(\.exe)?$", pr.get("name", "")) or "--type=" in pr["cmd"] or pr["pid"] in reg_pids:
                 continue  # the Claude desktop app's helper processes are not sessions
             cwd = _cwd(pr)
             d = cwd
@@ -777,7 +816,7 @@ def claude_sessions(already):
                     break
                 up = os.path.dirname(d.rstrip("/\\"))
                 d = "" if up == d.rstrip("/\\") else up
-    cands = []  # (transcript, process or None, cwd)
+    cands = [(r["file"], {"secs": int(NOW - r["started"]) if r["started"] else 0, "status": r["status"]}, r["cwd"]) for r in reg]
     for d, plist in by_dir.items():
         files = sorted(glob.glob(os.path.join(d, "*.jsonl")), key=os.path.getmtime, reverse=True)
         for (pr, cwd), f in zip(sorted(plist, key=lambda x: x[0]["secs"]), files):  # newest process <-> newest transcript
@@ -798,7 +837,9 @@ def claude_sessions(already):
             continue
         cwd = cwd or st["cwd"] or ""
         proj = os.path.basename(cwd.rstrip("/\\")) or os.path.basename(os.path.dirname(f))
-        steps = _steps_of(st)
+        if pr and pr.get("status"):  # registry status is authoritative: busy = working, anything else = your turn
+            st["waiting"] = pr["status"] != "busy"
+        steps, steps_from = _steps_of(st, st["waiting"])
         recent = []
         for c in st["calls"][-7:][::-1]:
             res = st["results"].get(c["id"])
@@ -828,7 +869,7 @@ def claude_sessions(already):
                     "account": "Claude Code", "elapsed": pr["secs"] if pr else int(NOW - (st["t0"] or NOW)),
                     "steps": steps, "note": note[:200], "metrics": [], "tags": tags,
                     "commands": st["n"], "tokens": st["tokens"], "edits": st["edits"], "recent": recent,
-                    "lastActive": idle, "estimated": not steps, "failovers": 0, "_cwd": cwd, "_t": last})
+                    "lastActive": idle, "estimated": steps_from != "todos", "stepsFrom": steps_from, "failovers": 0, "_cwd": cwd, "_t": last})
     return out
 
 
@@ -853,10 +894,11 @@ def codex_live_sessions(already):
             out.append({"key": "codex-" + os.path.basename(f)[-14:-6], "id": "", "title": f"{proj} · Codex session",
                         "summary": f"Codex ({meta.get('source') or meta.get('originator') or 'session'}) in {cwd or proj}"[:160],
                         "account": "Codex", "elapsed": int(NOW - (_iso(meta.get("timestamp")) or os.path.getctime(f))),
-                        "steps": [{"title": n, "status": "done" if i < ph else "active" if i == ph else "pending"} for i, n in enumerate(PHASES)],
+                        "steps": sd.get("plan") or [{"title": n, "status": "done" if i < ph else "active" if i == ph else "pending"} for i, n in enumerate(PHASES)],
+                        "stepsFrom": "todos" if sd.get("plan") else "phases",
                         "note": sd["last"][:200], "metrics": [], "tags": [proj[:20]], "commands": sd["commands"], "tokens": sd["tokens"],
                         "edits": sd["edits"], "recent": sd["recent"], "lastActive": sd["lastActive"] or int(NOW - os.path.getmtime(f)),
-                        "estimated": True, "failovers": 0, "_cwd": cwd, "_t": os.path.getmtime(f)})
+                        "estimated": not sd.get("plan"), "failovers": 0, "_cwd": cwd, "_t": os.path.getmtime(f)})
     return out
 
 
