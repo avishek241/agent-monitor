@@ -35,11 +35,15 @@ The same panel runs on Windows 10/11, in the same three layouts (Studio, Mission
 
 **Run:** double-click **Agent Monitor** on the Desktop, or `windows\start.bat [path\to\config.json]`. The panel opens on the right edge of the screen and stays on top. Close it to stop. Starting it again replaces the running panel. **Ctrl+T** cycles layouts, **Ctrl+Shift+T** flips light/dark, and Auto follows Windows' app light/dark setting. The window's size and position, theme, and Workers drawer are remembered in `%APPDATA%\agent-monitor\`, along with the usage history.
 
+**Start automatically (optional):** the panel doesn't launch by itself. To have it open whenever you log in to Windows, press **Win+R**, type `shell:startup`, and copy the **Agent Monitor** shortcut from your Desktop into that folder. Delete it from there to undo.
+
 **Auto-discovery (on by default on Windows):** with no config at all, the panel shows your real work.
 - **Claude Code sessions** that are running: it finds each `claude` process, matches it to its transcript in `~/.claude/projects`, and shows the title, your last request, the to-do list as steps, recent tool calls, tokens, and "your turn" when Claude is waiting for you. A transcript written in the last 5 minutes without a visible process (desktop app, VS Code) also counts.
 - **`codex exec` jobs:** each is named after its brief or folder and shows the prompt it was given, its commands and results, and Codex's latest message. `--ephemeral` jobs are read from the log their output is redirected to.
 - **Live Codex sessions** in the Codex app or VS Code: any session log written in the last 10 minutes.
 - **Usage:** Codex comes from `~/.codex/sessions`, including plans that only have a weekly window (shown as "7d"). Claude comes from your status line: add the block from `windows/claude-statusline.py`, or call it, so the 5h and 7d numbers appear. Even without it, a "limit reached" is picked up from transcripts.
+- **Steps and % complete:** a session's to-do list (`TodoWrite`/`TaskCreate` in Claude, `update_plan` in Codex) becomes its subtasks with a progress bar. Without one, your requests in that session are shown as steps. Tip: ask the agents to keep a task list (for example in `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`) to get real subtasks.
+- **Only ongoing work:** a task whose steps are all done leaves In progress (set `"hideCompleted": false` to keep it).
 - **Recently finished:** jobs and sessions that stop running move here, with the time they ended.
 - **Repository:** the git repo of the most recently active session.
 
